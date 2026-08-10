@@ -15,6 +15,21 @@ noise or movement.
 | [docs/specs/security.md](docs/specs/security.md) | QR pairing protocol, key derivation, E2E stream encryption, threat model |
 | [docs/TASKS.md](docs/TASKS.md) | Phased task list with milestones |
 
+## Development agents
+
+The repo ships Claude Code agents (`.claude/agents/`) for working on the project:
+
+| Agent | Role |
+|---|---|
+| `ios-architect` | Designs iOS features against the specs (read-only, produces implementation plans) |
+| `ios-engineer` | Implements the Swift/SwiftUI app, streaming engine, detection, and tests |
+| `backend-architect` | Designs backend features, guarding the zero-knowledge invariant (read-only) |
+| `backend-engineer` | Implements the Node/TypeScript API, signaling, TURN/APNs integration, and tests |
+| `security-reviewer` | Reviews security-sensitive changes against `docs/specs/security.md` (read-only) |
+
+Typical flow for a non-trivial feature: architect designs → engineer implements →
+`security-reviewer` checks anything touching pairing, crypto, auth, or signaling.
+
 ## Architecture at a glance
 
 - **iOS app** (Swift/SwiftUI): one codebase, two roles. WebRTC (DTLS-SRTP) for
