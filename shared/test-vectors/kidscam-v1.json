@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "description": "KidsCam v1 cross-implementation test vectors. iOS (CryptoKit) and backend (Node crypto) MUST reproduce these byte-for-byte. Formats are normative and documented in shared/protocol.md.",
+  "hkdf": {
+    "algorithm": "HKDF-SHA256, empty salt, 32-byte output",
+    "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "keys": {
+      "k_auth": {
+        "info": "kidscam/v1/auth",
+        "keyHex": "5d491ecb316194ecd09f3bf8ecb86642b0260f37a8a386906e48e5ba3b3a0462"
+      },
+      "k_sig": {
+        "info": "kidscam/v1/sig",
+        "keyHex": "6055df5ff1bb653e59011ae8114760ee54a3e66ef76277260a0ae70d3c837e09"
+      },
+      "k_evt": {
+        "info": "kidscam/v1/event",
+        "keyHex": "0ef772742e7709cd9c3ea15f2e72ddbde48ab246f9c929fc53d76735acb39c20"
+      },
+      "k_sas": {
+        "info": "kidscam/v1/sas",
+        "keyHex": "168d4ca20af3912d67693ab123262ba6a1786d60a9ca18a5296c6e7e48cf7ae2"
+      }
+    }
+  },
+  "sas": {
+    "rule": "first 4 bytes of K_sas as big-endian uint32, mod 1000000, left-padded with zeros to 6 digits",
+    "code": "358946"
+  },
+  "qrPayload": {
+    "rule": "kidscam://pair?v=1&id=<uuid lowercase>&s=<root secret, base64url no padding>&api=<percent-encoded base URL>",
+    "example": "kidscam://pair?v=1&id=7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70&s=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&api=https%3A%2F%2Fapi.kidscam.example",
+    "sBase64url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "sealedEnvelope": {
+    "rule": "base64( nonce(12) || ChaCha20-Poly1305 ciphertext || tag(16) ); AAD is UTF-8 of the stated string; production nonces are random, fixed here for the vector",
+    "signaling": {
+      "keyHex": "6055df5ff1bb653e59011ae8114760ee54a3e66ef76277260a0ae70d3c837e09",
+      "nonceHex": "000000000000000000000001",
+      "aad": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70|camera",
+      "plaintextUtf8": "{\"t\":\"offer\",\"sdp\":\"v=0 EXAMPLE\",\"fp\":\"SHA-256 AB:CD:EF\"}",
+      "sealedBase64": "AAAAAAAAAAAAAAABtFDpFkZ7+1TVEkg/WcQoXU1SVIhgTRzhhXnyjgwNd2yavfvv0rQjG/5CIl5Hj8OyT4r3qDdrlfObNOjot3RFuPDdXF+FpZ033A=="
+    },
+    "event": {
+      "keyHex": "0ef772742e7709cd9c3ea15f2e72ddbde48ab246f9c929fc53d76735acb39c20",
+      "nonceHex": "000000000000000000000002",
+      "aad": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70|event",
+      "plaintextUtf8": "{\"type\":\"noise\",\"ts\":1754850000}",
+      "sealedBase64": "AAAAAAAAAAAAAAACVH9mwjZu9b7keiPRR2J4p5Bw/zs0tzoC8rTevp42uIotVUboz79jSXslsrlaFCbF"
+    }
+  },
+  "requestAuth": {
+    "rule": "canonical = METHOD\\nPATH\\nTIMESTAMP\\nlowercase-hex(SHA-256(body)); mac = lowercase-hex(HMAC-SHA256(K_auth, canonical)); header = KidsCam-HMAC <pairingId>:<role>:<timestamp>:<mac>; empty body hashes the empty string",
+    "pairingId": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70",
+    "examples": [
+      {
+        "role": "viewer",
+        "method": "POST",
+        "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim",
+        "timestamp": "1754850000",
+        "bodyUtf8": "{\"apnsToken\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"apnsEnvironment\":\"sandbox\"}",
+        "bodySha256Hex": "3c991db49a5659414e7d0f38231b9459c938ea0bdb6b6bf78fa06ca91c2df757",
+        "canonicalString": "POST\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim\n1754850000\n3c991db49a5659414e7d0f38231b9459c938ea0bdb6b6bf78fa06ca91c2df757",
+        "macHex": "3d89917abe463ef245fcf255e841faa30b979a75c95c149270d766d7211645e1",
+        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:viewer:1754850000:3d89917abe463ef245fcf255e841faa30b979a75c95c149270d766d7211645e1"
+      },
+      {
+        "role": "camera",
+        "method": "GET",
+        "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials",
+        "timestamp": "1754850000",
+        "bodyUtf8": "",
+        "bodySha256Hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "canonicalString": "GET\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials\n1754850000\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "macHex": "f7b8bcb231fcd76b988af9a519c2f74444998d9257eca5d3e461b0c40fcaa216",
+        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:camera:1754850000:f7b8bcb231fcd76b988af9a519c2f74444998d9257eca5d3e461b0c40fcaa216"
+      }
+    ]
+  }
+}
