@@ -10,7 +10,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export interface AuthVector {
-  readonly role: 'camera' | 'viewer';
+  /** `bootstrap` or a device UUID (protocol.md 1.1). */
+  readonly principal: string;
   readonly method: string;
   readonly path: string;
   readonly timestamp: string;
@@ -21,8 +22,16 @@ export interface AuthVector {
   readonly authorizationHeader: string;
 }
 
+/** The four examples the vector file pins, by name. */
+export type AuthVectorName =
+  | 'bootstrapCreate'
+  | 'bootstrapClaim'
+  | 'deviceCameraRevoke'
+  | 'deviceViewerTurnCredentials';
+
 export interface TestVectors {
   readonly version: number;
+  readonly revision: string;
   readonly hkdf: {
     readonly rootSecretHex: string;
     readonly keys: Record<
@@ -31,9 +40,15 @@ export interface TestVectors {
     >;
   };
   readonly sas: { readonly code: string };
+  readonly deviceKeys: {
+    readonly cameraDeviceId: string;
+    readonly viewerDeviceId: string;
+    readonly cameraDeviceKeyBase64: string;
+    readonly viewerDeviceKeyBase64: string;
+  };
   readonly requestAuth: {
     readonly pairingId: string;
-    readonly examples: readonly AuthVector[];
+    readonly examples: Readonly<Record<AuthVectorName, AuthVector>>;
   };
 }
 
@@ -52,3 +67,34 @@ export function vectorKAuth(vectors: TestVectors): Buffer {
   if (key === undefined) throw new Error('k_auth missing from test vectors');
   return Buffer.from(key.keyHex, 'hex');
 }
+
+export function vectorCameraDeviceKey(vectors: TestVectors): Buffer {
+  return Buffer.from(vectors.deviceKeys.cameraDeviceKeyBase64, 'base64');
+}
+
+export function vectorViewerDeviceKey(vectors: TestVectors): Buffer {
+  return Buffer.from(vectors.deviceKeys.viewerDeviceKeyBase64, 'base64');
+}
+
+/** The key each pinned example is signed with. */
+export function signingKeyFor(
+  vectors: TestVectors,
+  name: AuthVectorName,
+): Buffer {
+  switch (name) {
+    case 'bootstrapCreate':
+    case 'bootstrapClaim':
+      return vectorKAuth(vectors);
+    case 'deviceCameraRevoke':
+      return vectorCameraDeviceKey(vectors);
+    case 'deviceViewerTurnCredentials':
+      return vectorViewerDeviceKey(vectors);
+  }
+}
+
+export const AUTH_VECTOR_NAMES: readonly AuthVectorName[] = [
+  'bootstrapCreate',
+  'bootstrapClaim',
+  'deviceCameraRevoke',
+  'deviceViewerTurnCredentials',
+];

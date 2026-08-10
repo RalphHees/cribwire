@@ -6,10 +6,6 @@ import CryptoKit
 import Crypto
 #endif
 
-#if canImport(Security)
-import Security
-#endif
-
 /// The 32-byte root secret `S` that the QR code carries (`security.md` §3.1).
 ///
 /// Every key in the system is derived from this value, so it is the single most
@@ -27,23 +23,11 @@ public struct RootSecret: @unchecked Sendable {
 
     // MARK: - Creation
 
-    /// Generates a fresh root secret from the system CSPRNG.
-    ///
-    /// `security.md` §7 mandates `SecRandomCopyBytes` on Apple platforms. On
-    /// non-Darwin platforms (Linux CI running `swift test`) swift-crypto's
-    /// `SymmetricKey(size:)` is used, which draws from the platform CSPRNG.
+    /// Generates a fresh root secret from the system CSPRNG
+    /// (`SecureRandom`, which is `SecRandomCopyBytes` on Apple platforms as
+    /// `security.md` §7 requires).
     public static func generate() throws -> RootSecret {
-        #if canImport(Security)
-        var bytes = [UInt8](repeating: 0, count: byteCount)
-        let status = SecRandomCopyBytes(kSecRandomDefault, byteCount, &bytes)
-        guard status == errSecSuccess else {
-            throw CryptoError.randomGenerationFailed(status: Int32(status))
-        }
-        defer { bytes.resetBytes(in: bytes.startIndex..<bytes.endIndex) }
-        return RootSecret(key: SymmetricKey(data: bytes))
-        #else
-        return RootSecret(key: SymmetricKey(size: .bits256))
-        #endif
+        RootSecret(key: try SecureRandom.symmetricKey(byteCount: byteCount))
     }
 
     /// Rebuilds a root secret from stored/scanned bytes.
@@ -91,10 +75,4 @@ public struct RootSecret: @unchecked Sendable {
 extension RootSecret: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String { "RootSecret(<redacted 32 bytes>)" }
     public var debugDescription: String { description }
-}
-
-private extension Array where Element == UInt8 {
-    mutating func resetBytes(in range: Range<Int>) {
-        for index in range { self[index] = 0 }
-    }
 }

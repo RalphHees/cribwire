@@ -6,33 +6,65 @@ import CryptoKit
 import Crypto
 #endif
 
-/// Builds the `KidsCam-HMAC` Authorization header (`shared/protocol.md`).
+/// Builds the `KidsCam-HMAC` Authorization header (`shared/protocol.md`
+/// revision 1.1).
 ///
 /// ```
-/// canonical = METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + lowercase-hex(SHA-256(body))
-/// mac       = lowercase-hex(HMAC-SHA256(K_auth, canonical))
-/// header    = Authorization: KidsCam-HMAC <pairingId>:<role>:<timestamp>:<mac>
+/// canonical = METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + PRINCIPAL + "\n"
+///           + lowercase-hex(SHA-256(body))
+/// mac       = lowercase-hex(HMAC-SHA256(key, canonical))
+/// header    = Authorization: KidsCam-HMAC <pairingId>:<principal>:<timestamp>:<mac>
 /// ```
 ///
-/// The MAC proves membership of the pairing; it decrypts nothing, which is why
-/// `K_auth` is the only key the backend ever holds.
+/// Two kinds of authenticator exist and they are not interchangeable:
+///
+/// - ``bootstrap(pairingID:authKey:)`` signs with `K_auth` and may only be used
+///   for `POST /v1/pairings` and `POST /v1/pairings/{id}/claim`. `K_auth` proves
+///   pairing membership, nothing more.
+/// - ``device(pairingID:deviceID:deviceKey:)`` signs with the key this device
+///   generated at bootstrap and registered in that body. Everything else — REST
+///   and the WebSocket upgrade — uses it.
+///
+/// Neither key decrypts anything; the backend holds both and still sees only
+/// ciphertext.
 public struct RequestAuthenticator: @unchecked Sendable {
     /// Header field name and scheme token.
     public static let headerField = "Authorization"
     public static let scheme = "KidsCam-HMAC"
 
     public let pairingID: UUID
-    public let role: PairingRole
-    private let authKey: SymmetricKey
+    public let principal: RequestPrincipal
+    private let signingKey: SymmetricKey
 
-    public init(pairingID: UUID, role: PairingRole, authKey: SymmetricKey) {
+    public init(pairingID: UUID, principal: RequestPrincipal, signingKey: SymmetricKey) {
         self.pairingID = pairingID
-        self.role = role
-        self.authKey = authKey
+        self.principal = principal
+        self.signingKey = signingKey
     }
 
-    public init(pairingID: UUID, role: PairingRole, keys: PairingKeys) {
-        self.init(pairingID: pairingID, role: role, authKey: keys.auth)
+    // MARK: - Factories
+
+    /// Signs the two bootstrap calls with `K_auth`.
+    public static func bootstrap(pairingID: UUID, authKey: SymmetricKey) -> RequestAuthenticator {
+        RequestAuthenticator(pairingID: pairingID, principal: .bootstrap, signingKey: authKey)
+    }
+
+    /// Signs the two bootstrap calls with the `K_auth` of a derived key set.
+    public static func bootstrap(pairingID: UUID, keys: PairingKeys) -> RequestAuthenticator {
+        bootstrap(pairingID: pairingID, authKey: keys.auth)
+    }
+
+    /// Signs every post-bootstrap request as this device.
+    public static func device(
+        pairingID: UUID,
+        deviceID: String,
+        deviceKey: DeviceKey
+    ) -> RequestAuthenticator {
+        RequestAuthenticator(
+            pairingID: pairingID,
+            principal: .device(deviceID),
+            signingKey: deviceKey.key
+        )
     }
 
     // MARK: - Canonicalisation
@@ -45,16 +77,18 @@ public struct RequestAuthenticator: @unchecked Sendable {
     ///     not use query strings; a WebSocket upgrade signs the WS path without
     ///     its query.
     ///   - timestamp: Unix seconds as a decimal string.
+    ///   - principal: `bootstrap`, or this device's id.
     ///   - body: request body; an absent or empty body hashes the empty string,
     ///     which `SHA256.hash(data:)` already does.
     public static func canonicalString(
         method: String,
         path: String,
         timestamp: String,
+        principal: RequestPrincipal,
         body: Data
     ) -> String {
         let bodyHash = Data(SHA256.hash(data: body)).kc_hexEncodedString
-        return "\(method.uppercased())\n\(path)\n\(timestamp)\n\(bodyHash)"
+        return "\(method.uppercased())\n\(path)\n\(timestamp)\n\(principal.stringValue)\n\(bodyHash)"
     }
 
     // MARK: - Header
@@ -65,9 +99,10 @@ public struct RequestAuthenticator: @unchecked Sendable {
             method: method,
             path: path,
             timestamp: timestamp,
+            principal: principal,
             body: body
         )
-        let code = HMAC<SHA256>.authenticationCode(for: Data(canonical.utf8), using: authKey)
+        let code = HMAC<SHA256>.authenticationCode(for: Data(canonical.utf8), using: signingKey)
         return Data(code).kc_hexEncodedString
     }
 
@@ -79,7 +114,8 @@ public struct RequestAuthenticator: @unchecked Sendable {
         body: Data
     ) -> String {
         let mac = mac(method: method, path: path, timestamp: timestamp, body: body)
-        return "\(Self.scheme) \(pairingID.kc_lowercasedString):\(role.rawValue):\(timestamp):\(mac)"
+        return "\(Self.scheme) \(pairingID.kc_lowercasedString)"
+            + ":\(principal.stringValue):\(timestamp):\(mac)"
     }
 
     /// Convenience taking a `Date`; the backend rejects anything more than 60 s

@@ -12,6 +12,10 @@ public enum CryptoError: Error, Equatable, Sendable {
     /// A root secret was not exactly `RootSecret.byteCount` bytes long.
     case invalidRootSecretLength(expected: Int, actual: Int)
 
+    /// A per-device authentication key was not exactly `DeviceKey.byteCount`
+    /// bytes long.
+    case invalidDeviceKeyLength(expected: Int, actual: Int)
+
     /// The sealed envelope was not valid base64, or was shorter than
     /// nonce(12) + tag(16).
     case malformedEnvelope
@@ -28,6 +32,8 @@ extension CryptoError: CustomStringConvertible {
             return "CryptoError.randomGenerationFailed(status: \(status))"
         case .invalidRootSecretLength(let expected, let actual):
             return "CryptoError.invalidRootSecretLength(expected: \(expected), actual: \(actual))"
+        case .invalidDeviceKeyLength(let expected, let actual):
+            return "CryptoError.invalidDeviceKeyLength(expected: \(expected), actual: \(actual))"
         case .malformedEnvelope:
             return "CryptoError.malformedEnvelope"
         case .authenticationFailed:

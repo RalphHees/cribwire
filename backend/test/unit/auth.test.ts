@@ -1,8 +1,9 @@
-/** Abuse cases for `KidsCam-HMAC` verification. */
+/** Abuse cases for `KidsCam-HMAC` verification (protocol.md 1.1). */
 
 import { describe, expect, it } from 'vitest';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import {
+  BOOTSTRAP_PRINCIPAL,
   bodySha256Hex,
   buildAuthHeader,
   canonicalString,
@@ -18,6 +19,7 @@ import { loadVectors, vectorKAuth } from '../helpers/vectors.ts';
 const vectors = loadVectors();
 const kAuth = vectorKAuth(vectors);
 const pairingId = vectors.requestAuth.pairingId;
+const deviceId = vectors.deviceKeys.viewerDeviceId;
 const TIMESTAMP = 1_754_850_000;
 
 function signedInput(
@@ -25,7 +27,7 @@ function signedInput(
     method?: string;
     path?: string;
     body?: string;
-    role?: 'camera' | 'viewer';
+    principal?: string;
     timestamp?: number;
     signingKey?: Buffer;
   } = {},
@@ -34,9 +36,10 @@ function signedInput(
   const path = overrides.path ?? `/v1/pairings/${pairingId}/claim`;
   const body = overrides.body ?? '{"apnsToken":"aa"}';
   const timestamp = String(overrides.timestamp ?? TIMESTAMP);
+  const principal = overrides.principal ?? BOOTSTRAP_PRINCIPAL;
   const macHex = computeMac(
     overrides.signingKey ?? kAuth,
-    canonicalString(method, path, timestamp, bodySha256Hex(body)),
+    canonicalString(method, path, timestamp, principal, bodySha256Hex(body)),
   );
 
   return {
@@ -44,7 +47,7 @@ function signedInput(
     path,
     authorization: buildAuthHeader({
       pairingId,
-      role: overrides.role ?? 'viewer',
+      principal,
       timestamp,
       macHex,
     }),
@@ -58,20 +61,33 @@ function signedInput(
 }
 
 describe('parseAuthHeader', () => {
+  it('accepts the bootstrap literal and a device UUID as principals', () => {
+    const mac = 'f'.repeat(64);
+    for (const principal of [BOOTSTRAP_PRINCIPAL, deviceId]) {
+      const header = `KidsCam-HMAC ${pairingId}:${principal}:1754850000:${mac}`;
+      expect(parseAuthHeader(header)?.principal).toBe(principal);
+    }
+  });
+
   it('rejects malformed headers', () => {
     const mac = 'f'.repeat(64);
     const cases = [
       undefined,
       '',
       'Bearer abc',
-      `KidsCam-HMAC ${pairingId}:viewer:1754850000`,
-      `KidsCam-HMAC ${pairingId}:viewer:1754850000:${mac}:extra`,
+      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000`,
+      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000:${mac}:extra`,
+      // A role is not a principal any more: 1.0 headers must not parse.
+      `KidsCam-HMAC ${pairingId}:camera:1754850000:${mac}`,
+      `KidsCam-HMAC ${pairingId}:viewer:1754850000:${mac}`,
       `KidsCam-HMAC ${pairingId}:admin:1754850000:${mac}`,
-      `KidsCam-HMAC not-a-uuid:viewer:1754850000:${mac}`,
-      `KidsCam-HMAC ${pairingId}:viewer:not-a-number:${mac}`,
-      `KidsCam-HMAC ${pairingId}:viewer:1754850000:XYZ`,
-      `KidsCam-HMAC ${pairingId}:viewer:1754850000:${'F'.repeat(64)}`,
-      `kidscam-hmac ${pairingId}:viewer:1754850000:${mac}`,
+      `KidsCam-HMAC ${pairingId}::1754850000:${mac}`,
+      `KidsCam-HMAC ${pairingId}:BOOTSTRAP:1754850000:${mac}`,
+      `KidsCam-HMAC not-a-uuid:${deviceId}:1754850000:${mac}`,
+      `KidsCam-HMAC ${pairingId}:${deviceId}:not-a-number:${mac}`,
+      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000:XYZ`,
+      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000:${'F'.repeat(64)}`,
+      `kidscam-hmac ${pairingId}:${deviceId}:1754850000:${mac}`,
     ];
     for (const header of cases) {
       expect(parseAuthHeader(header), header ?? 'undefined').toBeNull();
@@ -93,6 +109,12 @@ describe('verifyRequest', () => {
   it('accepts a well-formed request', async () => {
     const result = await verifyRequest(signedInput());
     expect(result.ok).toBe(true);
+  });
+
+  it('returns the principal that signed', async () => {
+    const result = await verifyRequest(signedInput({ principal: deviceId }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.auth.principal).toBe(deviceId);
   });
 
   it('rejects a missing Authorization header', async () => {
@@ -123,11 +145,11 @@ describe('verifyRequest', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects an unknown pairing', async () => {
+  it('rejects a principal with no key', async () => {
     const result = await verifyRequest(
       signedInput({ resolveKey: () => Promise.resolve(null) }),
     );
-    expect(result).toEqual({ ok: false, code: 'unknown_pairing' });
+    expect(result).toEqual({ ok: false, code: 'unknown_principal' });
   });
 
   it('rejects a MAC computed with a different key', async () => {
@@ -164,6 +186,23 @@ describe('verifyRequest', () => {
     });
   });
 
+  it('rejects a swapped principal: the MAC covers it', async () => {
+    // The escalation revision 1.1 closes. The MAC was computed over
+    // `bootstrap`; presenting it under a device principal must not verify.
+    const signed = signedInput();
+    const parts = parseAuthHeader(signed.authorization);
+    const forged = buildAuthHeader({
+      pairingId,
+      principal: randomUUID(),
+      timestamp: String(TIMESTAMP),
+      macHex: parts!.macHex,
+    });
+    expect(await verifyRequest({ ...signed, authorization: forged })).toEqual({
+      ok: false,
+      code: 'invalid_signature',
+    });
+  });
+
   it('rejects a replayed request within the window', async () => {
     const nonceStore = new MemoryNonceStore();
     const input = signedInput({ nonceStore });
@@ -189,15 +228,6 @@ describe('verifyRequest', () => {
     await expect(
       nonceStore.checkAndRecord(pairingId, parsed!.macHex, 120),
     ).resolves.toBe(true);
-  });
-
-  it('role is carried by the header, unbound by the MAC (documented limitation)', async () => {
-    // The canonical string pinned in shared/protocol.md does not cover the
-    // role, so any holder of K_auth can present either role. Route-level
-    // authorization must therefore not treat the header role as an identity.
-    const asCamera = await verifyRequest(signedInput({ role: 'camera' }));
-    expect(asCamera.ok).toBe(true);
-    if (asCamera.ok) expect(asCamera.auth.role).toBe('camera');
   });
 });
 

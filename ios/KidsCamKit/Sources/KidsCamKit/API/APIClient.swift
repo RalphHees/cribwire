@@ -6,15 +6,22 @@ import CryptoKit
 import Crypto
 #endif
 
-/// Async client for the Phase 1 REST surface (`docs/specs/backend.md` §3).
+/// Async client for the `/v1` REST surface (`docs/specs/backend.md` §3, bodies
+/// pinned in `shared/protocol.md`).
 ///
 /// Every request is signed with `KidsCam-HMAC` over the *exact* bytes that go on
 /// the wire, so bodies are encoded once and then both hashed and sent. Bodies use
 /// `.sortedKeys` so a request is byte-identical run to run, which makes the
 /// signature reproducible in tests.
 ///
-/// An actor because it owns the per-pairing authenticator and is called from the
-/// pairing view models on the main actor.
+/// A client is built for one set of credentials and refuses to mix them: the
+/// bootstrap client can only create and claim pairings, the device client can do
+/// everything else. That is not a stylistic split — it is the protocol's
+/// escalation fix expressed in the type system (`shared/protocol.md`, "Why
+/// per-device keys").
+///
+/// An actor because it owns the authenticator and is called from view models on
+/// the main actor.
 public actor APIClient {
 
     // MARK: - Configuration
@@ -22,20 +29,26 @@ public actor APIClient {
     public struct Configuration: Sendable {
         public let baseURL: URL
         public let pairingID: UUID
-        public let role: PairingRole
 
-        public init(baseURL: URL, pairingID: UUID, role: PairingRole) {
+        public init(baseURL: URL, pairingID: UUID) {
             self.baseURL = baseURL
             self.pairingID = pairingID
-            self.role = role
         }
     }
 
+    /// Which key signs this client's requests.
+    /// `@unchecked Sendable`: `SymmetricKey`/`DeviceKey` are immutable value
+    /// types not declared `Sendable` in every SDK version we build against.
+    public enum Credentials: @unchecked Sendable {
+        /// `K_auth`. Valid for `POST /v1/pairings` and `.../claim` only.
+        case bootstrap(authKey: SymmetricKey)
+        /// This device's registered key, for everything afterwards.
+        case device(deviceID: String, deviceKey: DeviceKey)
+    }
+
     private let configuration: Configuration
+    private let credentials: Credentials
     private let authenticator: RequestAuthenticator
-    /// `K_auth`. Held so `createPairing` can upload it; it is the only key the
-    /// backend is ever allowed to see.
-    private let authKey: SymmetricKey
     private let transport: any HTTPTransport
     /// Injectable so tests can pin the timestamp that goes into the MAC.
     private let now: @Sendable () -> Date
@@ -50,21 +63,27 @@ public actor APIClient {
 
     public init(
         configuration: Configuration,
-        authKey: SymmetricKey,
+        credentials: Credentials,
         transport: any HTTPTransport,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.configuration = configuration
-        self.authKey = authKey
-        self.authenticator = RequestAuthenticator(
-            pairingID: configuration.pairingID,
-            role: configuration.role,
-            authKey: authKey
-        )
+        self.credentials = credentials
+        switch credentials {
+        case .bootstrap(let authKey):
+            self.authenticator = .bootstrap(pairingID: configuration.pairingID, authKey: authKey)
+        case .device(let deviceID, let deviceKey):
+            self.authenticator = .device(
+                pairingID: configuration.pairingID,
+                deviceID: deviceID,
+                deviceKey: deviceKey
+            )
+        }
         self.transport = transport
         self.now = now
     }
 
+    /// Bootstrap client for a pairing whose keys have just been derived.
     public init(
         configuration: Configuration,
         keys: PairingKeys,
@@ -73,27 +92,33 @@ public actor APIClient {
     ) {
         self.init(
             configuration: configuration,
-            authKey: keys.auth,
+            credentials: .bootstrap(authKey: keys.auth),
             transport: transport,
             now: now
         )
     }
 
-    // MARK: - Endpoints
+    // MARK: - Bootstrap endpoints
 
     /// `POST /v1/pairings` — camera registers a pairing before rendering the QR.
     ///
     /// The request is signed with the very key it registers: the backend learns
-    /// `K_auth` from the body and can verify the signature against it, which
-    /// proves the caller actually holds the key it claims.
-    @discardableResult
+    /// `K_auth` from the body and verifies the signature against it, which proves
+    /// the caller holds the key it claims. `deviceKey` is this camera's own,
+    /// freshly generated key — the caller must persist it together with the
+    /// returned `deviceId`, because every later request is signed with it.
     public func createPairing(
+        deviceKey: DeviceKey,
         apnsToken: String,
         apnsEnvironment: API.APNSEnvironment
     ) async throws -> API.CreatePairingResponse {
+        guard case .bootstrap(let authKey) = credentials else {
+            throw APIError.wrongCredentials
+        }
         let body = API.CreatePairingRequest(
             pairingId: configuration.pairingID.kc_lowercasedString,
             kAuth: authKey.kc_dataRepresentation.base64EncodedString(),
+            deviceKey: deviceKey.base64EncodedForUpload,
             apnsToken: apnsToken,
             apnsEnvironment: apnsEnvironment
         )
@@ -105,13 +130,18 @@ public actor APIClient {
         )
     }
 
-    /// `POST /v1/pairings/{id}/claim` — viewer proves possession of `K_auth` and
-    /// registers for pushes.
+    /// `POST /v1/pairings/{id}/claim` — viewer proves possession of `K_auth`,
+    /// registers its own key and its APNs token.
     public func claimPairing(
+        deviceKey: DeviceKey,
         apnsToken: String,
         apnsEnvironment: API.APNSEnvironment
     ) async throws -> API.ClaimPairingResponse {
+        guard case .bootstrap = credentials else {
+            throw APIError.wrongCredentials
+        }
         let body = API.ClaimPairingRequest(
+            deviceKey: deviceKey.base64EncodedForUpload,
             apnsToken: apnsToken,
             apnsEnvironment: apnsEnvironment
         )
@@ -123,12 +153,15 @@ public actor APIClient {
         )
     }
 
+    // MARK: - Device endpoints
+
     /// `DELETE /v1/pairings/{id}` — revoke the whole pairing.
     ///
     /// Server-side revocation is only half of it: the caller must also wipe the
     /// local Keychain items (`security.md` §6), because the peer still holds its
     /// copy of the keys.
     public func revokePairing() async throws {
+        try requireDeviceCredentials()
         try await sendIgnoringBody(
             method: .delete,
             path: "/v1/pairings/\(configuration.pairingID.kc_lowercasedString)",
@@ -136,8 +169,10 @@ public actor APIClient {
         )
     }
 
-    /// `DELETE /v1/pairings/{id}/viewers/{deviceId}` — revoke one viewer.
+    /// `DELETE /v1/pairings/{id}/viewers/{deviceId}` — evict one viewer.
+    /// The server allows this only if the *calling* device's row says `camera`.
     public func revokeViewer(deviceID: String) async throws {
+        try requireDeviceCredentials()
         let escapedDeviceID = QRPayload.percentEncoded(deviceID)
         try await sendIgnoringBody(
             method: .delete,
@@ -146,15 +181,14 @@ public actor APIClient {
         )
     }
 
-    /// `PUT /v1/devices/token` — rotate this device's APNs token.
+    /// `PUT /v1/devices/token` — rotate this device's APNs token. Which device
+    /// is identified by the signature, so the body names no one.
     public func rotateDeviceToken(
-        deviceID: String,
         apnsToken: String,
         apnsEnvironment: API.APNSEnvironment
     ) async throws {
+        try requireDeviceCredentials()
         let body = API.RotateDeviceTokenRequest(
-            pairingId: configuration.pairingID.kc_lowercasedString,
-            deviceId: deviceID,
             apnsToken: apnsToken,
             apnsEnvironment: apnsEnvironment
         )
@@ -165,7 +199,54 @@ public actor APIClient {
         )
     }
 
+    /// `POST /v1/pairings/{id}/turn-credentials` — ephemeral relay credentials.
+    /// Empty request body; either role may ask.
+    public func turnCredentials() async throws -> API.TurnCredentialsResponse {
+        try requireDeviceCredentials()
+        return try await send(
+            method: .post,
+            path: "/v1/pairings/\(configuration.pairingID.kc_lowercasedString)/turn-credentials",
+            body: Data(),
+            decoding: API.TurnCredentialsResponse.self
+        )
+    }
+
+    /// `POST /v1/events` — camera posts a sealed detection event.
+    ///
+    /// The argument is already a `SealedEnvelope` under `K_evt`; this client
+    /// never sees the plaintext type or timestamp, and neither does the server.
+    public func postEvent(ciphertext: String) async throws {
+        try requireDeviceCredentials()
+        let body = API.PostEventRequest(ciphertext: ciphertext)
+        try await sendIgnoringBody(
+            method: .post,
+            path: "/v1/events",
+            body: try encoder.encode(body)
+        )
+    }
+
+    // MARK: - Signaling
+
+    /// The `Authorization` header for the WebSocket upgrade
+    /// (`GET /v1/signal`). The path is signed without its query string, exactly
+    /// like a REST path.
+    public func signalingUpgradeHeader(path: String) throws -> String {
+        try requireDeviceCredentials()
+        return authenticator.authorizationHeaderValue(
+            method: HTTPRequest.Method.get.rawValue,
+            path: path,
+            body: Data(),
+            date: now()
+        )
+    }
+
     // MARK: - Plumbing
+
+    private func requireDeviceCredentials() throws {
+        guard case .device = credentials else {
+            throw APIError.wrongCredentials
+        }
+    }
 
     func buildRequest(
         method: HTTPRequest.Method,
@@ -233,16 +314,25 @@ public actor APIClient {
     }
 
     private func mapFailure(_ response: HTTPResponse) -> APIError {
-        let decodedMessage = (try? decoder.decode(API.ErrorResponse.self, from: response.body))
-            .flatMap { $0.message ?? $0.error }
+        let decoded = try? decoder.decode(API.ErrorResponse.self, from: response.body)
 
         switch response.statusCode {
         case 404, 410:
             return .pairingNotFound
         case 409:
+            // `shared/protocol.md` gives 409 three meanings — viewer limit,
+            // duplicate pairing id, revoked — but does not pin the `error`
+            // strings that tell them apart, so this cannot branch on the code
+            // without inventing one. The viewer limit is the only 409 a user can
+            // do anything about and the only one reachable in practice (a
+            // duplicate UUIDv4 is not a real scenario), so it stays the mapping.
             return .viewerLimitReached
         default:
-            return .http(statusCode: response.statusCode, message: decodedMessage)
+            return .http(
+                statusCode: response.statusCode,
+                code: decoded?.error,
+                message: decoded?.message
+            )
         }
     }
 }

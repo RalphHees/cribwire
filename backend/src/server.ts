@@ -11,11 +11,14 @@ import type { FastifyInstance } from 'fastify';
 import type { AppContext } from './http/context.ts';
 import { sendError } from './http/errors.ts';
 import { registerDeviceRoutes } from './routes/devices.ts';
+import { registerEventRoutes } from './routes/events.ts';
 import { registerHealthRoutes } from './routes/health.ts';
+import { registerMetricsRoute } from './routes/metrics.ts';
 import { registerPairingRoutes } from './routes/pairings.ts';
+import { registerTurnRoutes } from './routes/turn.ts';
 
-export function buildServer(ctx: AppContext): FastifyInstance {
-  const app = Fastify({
+function baseServer(ctx: AppContext): FastifyInstance {
+  return Fastify({
     // No Fastify request logging: it would record URLs and headers.
     logger: false,
     bodyLimit: ctx.config.maxBodyBytes,
@@ -27,6 +30,10 @@ export function buildServer(ctx: AppContext): FastifyInstance {
       caseSensitive: true,
     },
   });
+}
+
+export function buildServer(ctx: AppContext): FastifyInstance {
+  const app = baseServer(ctx);
 
   app.decorateRequest('rawBody', null);
   app.decorateRequest('auth', null);
@@ -94,6 +101,24 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   registerHealthRoutes(app);
   registerPairingRoutes(app, ctx);
   registerDeviceRoutes(app, ctx);
+  registerTurnRoutes(app, ctx);
+  registerEventRoutes(app, ctx);
 
+  // A dedicated metrics port keeps the scrape endpoint off the public
+  // listener; when they are the same port it is served here.
+  if (ctx.config.metricsPort === ctx.config.port) {
+    registerMetricsRoute(app, ctx);
+  }
+
+  return app;
+}
+
+/** Standalone `/metrics` listener, used when `METRICS_PORT` differs. */
+export function buildMetricsServer(ctx: AppContext): FastifyInstance {
+  const app = baseServer(ctx);
+  app.setNotFoundHandler((_request, reply) =>
+    sendError(reply, 404, 'not_found', 'Unknown endpoint'),
+  );
+  registerMetricsRoute(app, ctx);
   return app;
 }
