@@ -96,12 +96,43 @@ export function decodeBusMessage(raw: string): BusMessage | null {
 }
 
 /**
- * Single-process bus: correct for tests and for a one-instance deployment,
- * useless across instances. `app.ts` refuses to use it in production.
+ * Delivery fabric for `MemoryMessageBus`. One broker stands in for the Redis
+ * server: every bus client registered with it, including the publisher, sees
+ * what any of them publishes, exactly as pub/sub does.
+ */
+export class MemoryBusBroker {
+  readonly #clients = new Set<MemoryMessageBus>();
+
+  register(client: MemoryMessageBus): void {
+    this.#clients.add(client);
+  }
+
+  unregister(client: MemoryMessageBus): void {
+    this.#clients.delete(client);
+  }
+
+  deliver(pairingId: string, message: BusMessage): void {
+    for (const client of [...this.#clients]) {
+      client.receive(pairingId, message);
+    }
+  }
+}
+
+/**
+ * Single-process bus: correct for a one-instance deployment and for tests,
+ * useless across processes. `app.ts` refuses to use it in production. Give
+ * several instances the same `MemoryBusBroker` to model a multi-instance
+ * deployment without Redis.
  */
 export class MemoryMessageBus implements MessageBus {
   readonly #subscribed = new Set<string>();
+  readonly #broker: MemoryBusBroker;
   #handler: BusHandler | null = null;
+
+  constructor(broker: MemoryBusBroker = new MemoryBusBroker()) {
+    this.#broker = broker;
+    this.#broker.register(this);
+  }
 
   setHandler(handler: BusHandler): void {
     this.#handler = handler;
@@ -118,13 +149,18 @@ export class MemoryMessageBus implements MessageBus {
   }
 
   publish(pairingId: string, message: BusMessage): Promise<void> {
-    if (this.#subscribed.has(pairingId) && this.#handler !== null) {
-      this.#handler(pairingId, message);
-    }
+    this.#broker.deliver(pairingId, message);
     return Promise.resolve();
   }
 
+  /** Called by the broker; delivers only what this client subscribed to. */
+  receive(pairingId: string, message: BusMessage): void {
+    if (!this.#subscribed.has(pairingId) || this.#handler === null) return;
+    this.#handler(pairingId, message);
+  }
+
   close(): Promise<void> {
+    this.#broker.unregister(this);
     this.#subscribed.clear();
     this.#handler = null;
     return Promise.resolve();

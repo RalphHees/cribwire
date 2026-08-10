@@ -79,7 +79,7 @@ public struct DTLSFingerprint: Equatable, Sendable {
     public static func fingerprints(inSDP sdp: String) -> [DTLSFingerprint] {
         var found: [DTLSFingerprint] = []
         for rawLine in sdp.split(whereSeparator: { $0 == "\r\n" || $0 == "\n" || $0 == "\r" }) {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
             let prefix = "a=fingerprint:"
             guard line.hasPrefix(prefix) else { continue }
             if let fingerprint = DTLSFingerprint(sdpValue: String(line.dropFirst(prefix.count))) {

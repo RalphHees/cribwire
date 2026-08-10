@@ -30,17 +30,36 @@ services:
       timeout: 3s
       retries: 20
 
+  # TURN/STUN relay. `use-auth-secret` means coturn holds no user table: it
+  # recomputes the credential the API issued from the shared secret below.
+  # Host networking is what coturn needs to hand out usable relay candidates;
+  # on Docker Desktop (where host networking is limited) run coturn natively.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    profiles: ['turn']
+    network_mode: host
+    volumes:
+      - ./docker/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ['-c', '/etc/coturn/turnserver.conf']
+
   api:
     build: .
     profiles: ['api']
     environment:
       NODE_ENV: production
       PORT: '8080'
+      METRICS_PORT: '9090'
       DATABASE_URL: postgres://kidscam:kidscam@postgres:5432/kidscam
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: info
+      # Must match docker/coturn/turnserver.conf; a development value only.
+      TURN_SHARED_SECRET: dev-turn-secret
+      TURN_URIS: 'turn:host.docker.internal:3478?transport=udp,turns:host.docker.internal:5349?transport=tcp'
+      # APNs is left unconfigured locally: events are accepted and counted as
+      # undeliverable rather than pushed.
     ports:
       - '8080:8080'
+      - '9090:9090'
     depends_on:
       postgres:
         condition: service_healthy

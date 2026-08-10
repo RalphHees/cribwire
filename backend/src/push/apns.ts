@@ -62,7 +62,7 @@ export function buildApnsPayload(
  * than silently succeeding, so a misconfigured deployment shows up in metrics.
  */
 export class DisabledApnsSender implements ApnsSender {
-  send(): Promise<ApnsResult> {
+  send(_notification: ApnsNotification): Promise<ApnsResult> {
     return Promise.resolve({ status: 'failed', reason: 'apns_not_configured' });
   }
 

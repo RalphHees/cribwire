@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-/// Typed view of `shared/test-vectors/kidscam-v1.json`.
+/// Typed view of `shared/test-vectors/kidscam-v1.json` (revision 1.1).
 ///
 /// The file is *not* copied into this target — `Resources/kidscam-v1.json` is a
 /// symlink to the one normative copy in `shared/`, so the iOS and backend suites
@@ -40,8 +40,17 @@ struct TestVectors: Decodable {
         let event: Envelope
     }
 
+    /// Revision 1.1: the per-device keys that sign everything after bootstrap.
+    struct DeviceKeys: Decodable {
+        let cameraDeviceId: String
+        let viewerDeviceId: String
+        let cameraDeviceKeyBase64: String
+        let viewerDeviceKeyBase64: String
+    }
+
     struct AuthExample: Decodable {
-        let role: String
+        /// `bootstrap`, or a device UUID. Revision 1.1 replaced the role here.
+        let principal: String
         let method: String
         let path: String
         let timestamp: String
@@ -54,13 +63,17 @@ struct TestVectors: Decodable {
 
     struct RequestAuth: Decodable {
         let pairingId: String
-        let examples: [AuthExample]
+        /// Keyed by example name: `bootstrapCreate`, `bootstrapClaim`,
+        /// `deviceCameraRevoke`, `deviceViewerTurnCredentials`.
+        let examples: [String: AuthExample]
     }
 
     let version: Int
+    let revision: String?
     let hkdf: HKDF
     let sas: SAS
     let qrPayload: QR
+    let deviceKeys: DeviceKeys
     let sealedEnvelope: SealedEnvelopes
     let requestAuth: RequestAuth
 
@@ -125,5 +138,12 @@ extension TestVectors {
             fatalError("Test vector file is missing hkdf.keys.\(name)")
         }
         return key
+    }
+
+    func authExample(_ name: String) -> AuthExample {
+        guard let example = requestAuth.examples[name] else {
+            fatalError("Test vector file is missing requestAuth.examples.\(name)")
+        }
+        return example
     }
 }

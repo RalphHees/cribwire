@@ -61,6 +61,8 @@ export interface Config {
     readonly signalUpgradePerIp: RateLimitRule;
     /** Detection events: 1 per 30 s per pairing (backend.md §3). */
     readonly eventsPerPairing: RateLimitRule;
+    /** Coarse per-IP budget so malformed posts cannot be free either. */
+    readonly eventsPerIp: RateLimitRule;
   };
 }
 
@@ -161,6 +163,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         capacity: 1,
         refillPerSecond: 1 / eventIntervalSeconds,
       },
+      eventsPerIp: hourlyRule(intFromEnv(env, 'RATE_LIMIT_EVENTS_PER_HOUR', 240)),
     },
   };
 }

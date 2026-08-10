@@ -41,6 +41,13 @@ export interface Connection {
   readonly cameraDeviceId: string | null;
   /** Highest `seq` accepted from this connection; regressions are rejected. */
   lastSeq: number | null;
+  /**
+   * Serialises this connection's frames. Handling a frame involves a database
+   * lookup, and without a queue two frames would interleave across that await:
+   * they could be published out of order, and a `seq` regression could slip
+   * past a check that had not yet recorded its predecessor.
+   */
+  pending: Promise<void>;
   lastActivityMs: number;
   awaitingPong: boolean;
   closed: boolean;
@@ -115,6 +122,7 @@ export class SignalingHub implements SignalingControl {
       address,
       cameraDeviceId: camera?.id ?? null,
       lastSeq: null,
+      pending: Promise.resolve(),
       lastActivityMs: this.#deps.now().getTime(),
       awaitingPong: false,
       closed: false,
@@ -161,8 +169,19 @@ export class SignalingHub implements SignalingControl {
     return connection;
   }
 
-  /** Handles one client frame. `raw` is never logged and never decoded. */
-  async handleMessage(connection: Connection, raw: string): Promise<void> {
+  /**
+   * Handles one client frame, after any frame already in flight on the same
+   * connection. `raw` is never logged and never decoded.
+   */
+  handleMessage(connection: Connection, raw: string): Promise<void> {
+    const done = connection.pending.then(() => this.#process(connection, raw));
+    // The queue must survive a failed frame, or one error would wedge the
+    // connection for good.
+    connection.pending = done.catch(() => undefined);
+    return done;
+  }
+
+  async #process(connection: Connection, raw: string): Promise<void> {
     if (connection.closed) return;
     connection.lastActivityMs = this.#deps.now().getTime();
 
