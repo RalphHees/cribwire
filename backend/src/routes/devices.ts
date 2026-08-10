@@ -1,13 +1,14 @@
 /**
  * `PUT /v1/devices/token` — APNs token rotation (backend.md §3).
  *
- * The pairing comes from the authenticated header, never from the body, so a
- * device can only rotate a token inside its own pairing.
+ * Both the pairing and the device come from the authenticated principal, never
+ * from the body (protocol.md 1.1), so a device can only ever rotate its own
+ * token.
  */
 
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from '../http/context.ts';
-import { authenticate, repositoryKeyResolver } from '../http/authenticate.ts';
+import { authenticateDevice } from '../http/authenticate.ts';
 import { sendError } from '../http/errors.ts';
 import { enforcePerPairingLimit } from '../http/rate-limit.ts';
 import { parseUpdateTokenBody } from '../http/validation.ts';
@@ -17,14 +18,10 @@ export function registerDeviceRoutes(
   ctx: AppContext,
 ): void {
   app.put('/v1/devices/token', async (request, reply) => {
-    const auth = await authenticate(
-      ctx,
-      request,
-      reply,
-      repositoryKeyResolver(ctx),
-    );
-    if (auth === null) return reply;
+    const authenticated = await authenticateDevice(ctx, request, reply);
+    if (authenticated === null) return reply;
 
+    const { auth, device } = authenticated;
     if (!(await enforcePerPairingLimit(ctx, reply, auth.pairingId))) {
       return reply;
     }
@@ -35,32 +32,24 @@ export function registerDeviceRoutes(
     }
 
     const updated = await ctx.repository.updateDeviceToken({
-      pairingId: auth.pairingId,
-      deviceId: parsed.value.deviceId,
-      role: auth.role,
+      pairingId: device.pairingId,
+      deviceId: device.id,
       apnsToken: parsed.value.apnsToken,
       apnsEnvironment: parsed.value.apnsEnvironment,
       now: ctx.now(),
     });
 
     if (updated === null) {
-      return sendError(
-        reply,
-        404,
-        'device_not_found',
-        'No such device in this pairing for the authenticated role',
-      );
+      // The device authenticated a moment ago, so this only happens if it was
+      // revoked concurrently.
+      return sendError(reply, 404, 'device_not_found', 'Unknown device');
     }
 
     ctx.logger.info('device token rotated', {
       pairingId: auth.pairingId,
-      role: auth.role,
+      role: updated.role,
     });
 
-    return reply.status(200).send({
-      deviceId: updated.id,
-      role: updated.role,
-      apnsEnvironment: updated.apnsEnvironment,
-    });
+    return reply.status(204).send();
   });
 }
