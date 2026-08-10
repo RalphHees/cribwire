@@ -26,6 +26,7 @@ The repo ships Claude Code agents (`.claude/agents/`) for working on the project
 | `backend-architect` | Designs backend features, guarding the zero-knowledge invariant (read-only) |
 | `backend-engineer` | Implements the Node/TypeScript API, signaling, TURN/APNs integration, and tests |
 | `security-reviewer` | Reviews security-sensitive changes against `docs/specs/security.md` (read-only) |
+| `cicd-engineer` | Designs and implements GitHub Actions pipelines, signing, TestFlight and deploy automation |
 
 Typical flow for a non-trivial feature: architect designs → engineer implements →
 `security-reviewer` checks anything touching pairing, crypto, auth, or signaling.
