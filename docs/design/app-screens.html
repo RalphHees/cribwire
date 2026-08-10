@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KidsCam — iOS App Design Mockups</title>
+<style>
+  :root{
+    --bg:#0f1220; --surface:#1a1f33; --surface2:#232945; --line:#2e3554;
+    --text:#f2f3f8; --muted:#9aa1b8; --faint:#6b7290;
+    --accent:#ff9e80; --accent2:#8e9bff; --live:#5ad7a0; --warn:#ffd166;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    background:#07080f; color:var(--text);
+    font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    padding:60px; display:flex; flex-wrap:wrap; gap:60px; align-items:flex-start;
+  }
+  .board{display:flex;flex-direction:column;gap:14px}
+  .board h2{font-size:15px;font-weight:600;color:#8b93ad;letter-spacing:.06em;text-transform:uppercase}
+
+  /* ---------- phone frame ---------- */
+  .phone{
+    width:390px;height:844px;border-radius:55px;position:relative;overflow:hidden;
+    background:var(--bg);
+    box-shadow:0 0 0 12px #16181f, 0 0 0 14px #2a2d38, 0 40px 80px rgba(0,0,0,.6);
+  }
+  .island{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    width:122px;height:36px;border-radius:20px;background:#000;z-index:50}
+  .statusbar{position:absolute;top:0;left:0;right:0;height:58px;z-index:40;
+    display:flex;justify-content:space-between;align-items:center;padding:14px 34px 0}
+  .statusbar .time{font-size:16px;font-weight:600}
+  .sicons{display:flex;gap:7px;align-items:center}
+  .cell{display:flex;gap:2px;align-items:flex-end}
+  .cell i{display:block;width:3.5px;background:currentColor;border-radius:1px}
+  .wifi svg{display:block}
+  .batt{width:26px;height:13px;border:1.5px solid currentColor;border-radius:4px;position:relative;opacity:.95}
+  .batt::after{content:"";position:absolute;right:-4px;top:3.5px;width:2px;height:5px;background:currentColor;border-radius:1px}
+  .batt i{position:absolute;left:1.5px;top:1.5px;bottom:1.5px;width:70%;background:currentColor;border-radius:2px}
+  .screen{position:absolute;inset:0;padding:74px 26px 30px;display:flex;flex-direction:column}
+  .homebar{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);
+    width:140px;height:5px;border-radius:3px;background:#fff;opacity:.35;z-index:50}
+
+  /* ---------- shared ---------- */
+  .apptitle{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:26px}
+  .logo{width:46px;height:46px;border-radius:14px;flex:none;
+    background:linear-gradient(135deg,#ff9e80,#e0639a);display:grid;place-items:center}
+  .h1{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:15px;text-align:center;line-height:1.5}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px}
+  .btn{border-radius:16px;padding:16px;text-align:center;font-size:17px;font-weight:600}
+  .btn.primary{background:var(--accent);color:#3a1408}
+  .btn.ghost{background:var(--surface2);color:var(--text)}
+  .navhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .navhead .title{font-size:22px;font-weight:700}
+  .back{color:var(--accent2);font-size:16px;display:flex;align-items:center;gap:2px}
+  .pill{font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px}
+  .row{display:flex;align-items:center;justify-content:space-between}
+  .toggle{width:51px;height:31px;border-radius:16px;background:#3a4060;position:relative;flex:none}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;
+    background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.4)}
+  .toggle.on{background:var(--live)}
+  .toggle.on::after{left:auto;right:2px}
+  .divider{height:1px;background:var(--line);margin:14px 0}
+  .icon{width:22px;height:22px;flex:none}
+
+  /* ---------- 1. role selection ---------- */
+  .rolecard{background:var(--surface);border:1px solid var(--line);border-radius:26px;
+    padding:26px 22px;display:flex;flex-direction:column;gap:8px;position:relative}
+  .rolecard .glyph{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;margin-bottom:6px}
+  .rolecard h3{font-size:21px;font-weight:700}
+  .rolecard p{color:var(--muted);font-size:14.5px;line-height:1.45}
+  .rolecard .chev{position:absolute;right:20px;top:32px;color:var(--faint)}
+
+  /* ---------- 2. QR pairing ---------- */
+  .qrwrap{background:#fff;border-radius:26px;padding:22px;display:grid;place-items:center;margin:6px auto}
+  .steps{display:flex;gap:6px;justify-content:center;margin-bottom:16px}
+  .steps i{width:26px;height:4px;border-radius:2px;background:var(--surface2)}
+  .steps i.on{background:var(--accent)}
+
+  /* ---------- 3. SAS ---------- */
+  .sas{display:flex;gap:10px;justify-content:center;margin:20px 0 8px}
+  .sas b{width:46px;height:60px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);
+    display:grid;place-items:center;font-size:30px;font-weight:800;color:var(--accent2)}
+  .sas .gap{width:12px}
+
+  /* ---------- 4. camera active ---------- */
+  .pulse{width:190px;height:190px;margin:26px auto 10px;border-radius:50%;position:relative;
+    display:grid;place-items:center;
+    background:radial-gradient(closest-side,rgba(90,215,160,.16),transparent)}
+  .pulse::before,.pulse::after{content:"";position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(90,215,160,.35)}
+  .pulse::after{inset:26px;border-color:rgba(90,215,160,.55)}
+  .pulse .core{width:96px;height:96px;border-radius:50%;background:var(--surface);border:1px solid var(--line);
+    display:grid;place-items:center}
+  .statrow{display:flex;gap:10px}
+  .stat{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 14px}
+  .stat .k{font-size:12px;color:var(--muted);margin-bottom:4px}
+  .stat .v{font-size:17px;font-weight:700}
+
+  /* ---------- 5. viewer live ---------- */
+  .live-screen{padding:0!important}
+  .video{position:absolute;inset:0;
+    background:
+      radial-gradient(120% 90% at 50% 108%, rgba(122,143,120,.55), transparent 60%),
+      radial-gradient(90% 60% at 78% 30%, rgba(96,116,138,.30), transparent 70%),
+      linear-gradient(180deg,#11151c 0%, #151c22 45%, #1a231f 100%)}
+  .video::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(140% 110% at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%)}
+  .grain{position:absolute;inset:0;opacity:.5;
+    background-image:radial-gradient(rgba(255,255,255,.045) .6px, transparent .7px);
+    background-size:5px 5px}
+  .liveover{position:absolute;left:0;right:0;top:0;z-index:10;padding:70px 22px 26px;
+    background:linear-gradient(180deg,rgba(7,9,14,.8),transparent)}
+  .livebot{position:absolute;left:0;right:0;bottom:0;z-index:10;padding:26px 22px 44px;
+    background:linear-gradient(0deg,rgba(7,9,14,.85),transparent)}
+  .livebadge{background:rgba(224,68,68,.9);color:#fff}
+  .qbars{display:flex;gap:2.5px;align-items:flex-end}
+  .qbars i{width:4px;background:var(--live);border-radius:1px;display:block}
+  .qbars i.dim{background:#4a536e}
+  .ctrls{display:flex;justify-content:space-between;margin-top:18px}
+  .ctl{display:flex;flex-direction:column;align-items:center;gap:8px;color:#dfe3ef;font-size:12px}
+  .ctl .b{width:58px;height:58px;border-radius:50%;background:rgba(35,41,69,.82);
+    border:1px solid rgba(255,255,255,.12);display:grid;place-items:center}
+  .ctl.act .b{background:var(--accent);border-color:var(--accent)}
+  .ctl.act .b svg{color:#3a1408}
+  .meter{display:flex;gap:3px;align-items:center;height:16px}
+  .meter i{width:3px;border-radius:1.5px;background:var(--live);display:block;opacity:.9}
+
+  /* ---------- 6. detection settings ---------- */
+  .slider{position:relative;height:4px;border-radius:2px;background:#3a4060;margin:18px 4px 6px}
+  .slider .fill{position:absolute;left:0;top:0;bottom:0;width:55%;border-radius:2px;background:var(--accent)}
+  .slider .knob{position:absolute;left:55%;top:50%;transform:translate(-50%,-50%);
+    width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+  .ticks{display:flex;justify-content:space-between;color:var(--faint);font-size:12px;padding:0 2px}
+  .roi{width:100%;height:120px;border-radius:14px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#141a21,#1a231f)}
+  .roi .rect{position:absolute;left:12%;top:14%;width:56%;height:64%;
+    border:2px dashed var(--accent2);border-radius:8px;background:rgba(142,155,255,.08)}
+  .roi .rect::after{content:"Watch area";position:absolute;left:8px;top:6px;font-size:11px;color:var(--accent2)}
+  .seg{display:flex;background:var(--surface2);border-radius:12px;padding:3px}
+  .seg b{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--muted);padding:8px 0;border-radius:10px}
+  .seg b.on{background:#3f4870;color:#fff}
+
+  /* ---------- 7. lock screen ---------- */
+  .lock{background:
+    radial-gradient(100% 70% at 80% 0%, rgba(142,155,255,.18), transparent 60%),
+    radial-gradient(90% 60% at 15% 100%, rgba(255,158,128,.12), transparent 60%),
+    linear-gradient(180deg,#0a0d1c,#10142a)}
+  .locktime{text-align:center;margin-top:70px}
+  .locktime .d{font-size:17px;font-weight:600;color:#c9cee2}
+  .locktime .t{font-size:82px;font-weight:700;letter-spacing:-.01em;color:#eef0fa;line-height:1.05}
+  .notif{background:rgba(38,44,72,.75);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);
+    border-radius:24px;padding:16px;display:flex;gap:12px;align-items:flex-start}
+  .notif .ic{width:38px;height:38px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,#ff9e80,#e0639a);display:grid;place-items:center}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. ROLE SELECTION ============ -->
+<div class="board">
+<h2>1 · Role selection (first launch)</h2>
+<div class="phone shot" id="s1">
+  <div class="island"></div>
+  <div class="statusbar"><span class="time">21:47</span>
+    <span class="sicons">
+      <span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z" opacity=".95"/></svg></span>
+      <span class="batt"><i></i></span>
+    </span>
+  </div>
+  <div class="screen">
+    <div class="apptitle">
+      <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="3"/></svg></div>
+      <div class="h1">KidsCam</div>
+    </div>
+    <p class="sub" style="margin-top:10px">A private baby monitor from two iPhones.<br>End-to-end encrypted, no account needed.</p>
+    <div style="flex:1"></div>
+    <p style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:14px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Use this device as</p>
+    <div class="rolecard" style="margin-bottom:16px">
+      <div class="glyph" style="background:rgba(255,158,128,.15)">
+        <svg class="icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ff9e80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="3"/></svg>
+      </div>
+      <h3>Camera</h3>
+      <p>Place in the child's room. Streams video &amp; audio and detects noise or movement.</p>
+      <span class="chev">&#8250;</span>
+    </div>
+    <div class="rolecard">
+      <div class="glyph" style="background:rgba(142,155,255,.15)">
+        <svg class="icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#8e9bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <h3>Viewer</h3>
+      <p>Keep with you. Watch the live stream and receive alerts on your lock screen.</p>
+      <span class="chev">&#8250;</span>
+    </div>
+    <div style="flex:1"></div>
+    <p class="sub" style="font-size:13px;color:var(--faint)">You can switch roles later in Settings.</p>
+  </div>
+  <div class="homebar"></div>
+</div>
+</div>
+
+<!-- ============ 2. QR PAIRING (CAMERA) ============ -->
+<div class="board">
+<h2>2 · Pairing — Camera shows QR</h2>
+<div class="phone shot" id="s2">
+  <div class="island"></div>
+  <div class="statusbar"><span class="time">21:48</span>
+    <span class="sicons"><span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
+      <span class="batt"><i></i></span></span>
+  </div>
+  <div class="screen">
+    <div class="navhead"><span class="back">&#8249; Back</span><span class="title">Pair a Viewer</span><span style="width:44px"></span></div>
+    <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+    <p class="sub">Open KidsCam on the other iPhone,<br>choose <b style="color:var(--text)">Viewer</b>, and scan this code.</p>
+    <div class="qrwrap"><svg id="qr" width="238" height="238"></svg></div>
+    <p style="text-align:center;color:var(--muted);font-size:14px">New code in <b style="color:var(--text);font-variant-numeric:tabular-nums">1:24</b></p>
+    <div style="flex:1"></div>
+    <div class="card" style="display:flex;gap:12px;align-items:flex-start">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#5ad7a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <p style="font-size:13.5px;color:var(--muted);line-height:1.5">This code contains your encryption key. Anyone who scans it can watch the stream — only show it to people in the room with you.</p>
+    </div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</div>
+
+<!-- ============ 3. SAS CONFIRM (VIEWER) ============ -->
+<div class="board">
+<h2>3 · Pairing — Viewer confirms code</h2>
+<div class="phone shot" id="s3">
+  <div class="island"></div>
+  <div class="statusbar"><span class="time">21:48</span>
+    <span class="sicons"><span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
+      <span class="batt"><i></i></span></span>
+  </div>
+  <div class="screen">
+    <div class="navhead"><span class="back">&#8249; Back</span><span class="title">Confirm pairing</span><span style="width:44px"></span></div>
+    <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+    <div style="flex:.6"></div>
+    <div style="text-align:center">
+      <div style="width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:rgba(90,215,160,.14);display:grid;place-items:center">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#5ad7a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      </div>
+      <p class="sub">Both devices should show<br>the same code:</p>
+    </div>
+    <div class="sas"><b>4</b><b>8</b><b>2</b><span class="gap"></span><b>9</b><b>1</b><b>3</b></div>
+    <p class="sub" style="font-size:13.5px;color:var(--faint)">If the codes differ, someone may be<br>interfering — cancel and rescan.</p>
+    <div style="flex:1"></div>
+    <div class="btn primary" style="margin-bottom:12px">Codes match — Pair</div>
+    <div class="btn ghost">Cancel</div>
+  </div>
+  <div class="homebar"></div>
+</div>
+</div>
+
+<!-- ============ 4. CAMERA ACTIVE ============ -->
+<div class="board">
+<h2>4 · Camera — monitoring</h2>
+<div class="phone shot" id="s4">
+  <div class="island"></div>
+  <div class="statusbar"><span class="time">22:03</span>
+    <span class="sicons"><span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
+      <span class="batt" style="color:#5ad7a0"><i style="width:80%"></i></span></span>
+  </div>
+  <div class="screen">
+    <div class="navhead">
+      <span class="title" style="font-size:24px">Nursery</span>
+      <span class="pill" style="background:rgba(90,215,160,.15);color:var(--live)">● Streaming</span>
+    </div>
+    <div class="pulse"><div class="core">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#5ad7a0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="3"/></svg>
+    </div></div>
+    <p style="text-align:center;font-size:17px;font-weight:600">Monitoring &amp; streaming</p>
+    <p class="sub" style="font-size:14px;margin-top:4px">1 viewer connected · encrypted end-to-end</p>
+    <div style="height:22px"></div>
+    <div class="statrow" style="margin-bottom:10px">
+      <div class="stat"><div class="k">Noise detection</div><div class="v" style="color:var(--live)">On · Medium</div></div>
+      <div class="stat"><div class="k">Movement</div><div class="v" style="color:var(--faint)">Off</div></div>
+    </div>
+    <div class="statrow">
+      <div class="stat"><div class="k">Battery</div><div class="v">84% ⚡︎ Charging</div></div>
+      <div class="stat"><div class="k">Uptime</div><div class="v">2 h 41 m</div></div>
+    </div>
+    <div style="flex:1"></div>
+    <p class="sub" style="font-size:13px;color:var(--faint)">Screen dims in 12 s — tap to keep it on.</p>
+  </div>
+  <div class="homebar"></div>
+</div>
+</div>
+
+<!-- ============ 5. VIEWER LIVE ============ -->
+<div class="board">
+<h2>5 · Viewer — live stream</h2>
+<div class="phone shot" id="s5">
+  <div class="island"></div>
+  <div class="video"></div><div class="grain"></div>
+  <svg style="position:absolute;left:50%;bottom:210px;transform:translateX(-50%);opacity:.5" width="240" height="150" viewBox="0 0 240 150" fill="none">
+    <rect x="30" y="55" width="180" height="70" rx="10" stroke="#7d8b83" stroke-width="3"/>
+    <path d="M40 55v70M60 55v70M80 55v70M100 55v70M120 55v70M140 55v70M160 55v70M180 55v70M200 55v70" stroke="#7d8b83" stroke-width="2.5"/>
+    <path d="M30 125l-8 20M210 125l8 20" stroke="#7d8b83" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="120" cy="100" rx="55" ry="18" fill="#8a978f" opacity=".55"/>
+    <circle cx="88" cy="93" r="12" fill="#93a098" opacity=".8"/>
+  </svg>
+  <div class="statusbar" style="z-index:20"><span class="time">22:03</span>
+    <span class="sicons"><span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
+      <span class="batt"><i></i></span></span>
+  </div>
+  <div class="liveover">
+    <div class="row">
+      <div>
+        <div style="font-size:20px;font-weight:700">Nursery</div>
+        <div style="font-size:13px;color:#c3c9db;margin-top:2px">00:12:36 · latency 0.4 s</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="qbars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:12px"></i><i class="dim" style="height:15px"></i></span>
+        <span class="pill livebadge">LIVE</span>
+      </div>
+    </div>
+  </div>
+  <div class="livebot">
+    <div class="row" style="justify-content:center;gap:8px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5ad7a0" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+      <span class="meter"><i style="height:4px"></i><i style="height:7px"></i><i style="height:12px"></i><i style="height:8px"></i><i style="height:14px"></i><i style="height:6px"></i><i style="height:10px"></i><i style="height:5px"></i><i style="height:8px"></i><i style="height:4px"></i></span>
+      <span style="font-size:12px;color:#aeb5ca">quiet</span>
+    </div>
+    <div class="ctrls">
+      <div class="ctl"><span class="b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a9 9 0 010 14"/></svg></span>Sound on</div>
+      <div class="ctl"><span class="b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="4"/></svg></span>Snapshot</div>
+      <div class="ctl act"><span class="b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><path d="M12 19v4"/></svg></span>Audio only</div>
+      <div class="ctl"><span class="b"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M16 21h3a2 2 0 002-2v-3M8 21H5a2 2 0 01-2-2v-3"/></svg></span>Fill</div>
+    </div>
+  </div>
+  <div class="homebar" style="z-index:20"></div>
+</div>
+</div>
+
+<!-- ============ 6. DETECTION SETTINGS ============ -->
+<div class="board">
+<h2>6 · Camera — detection settings</h2>
+<div class="phone shot" id="s6">
+  <div class="island"></div>
+  <div class="statusbar"><span class="time">21:52</span>
+    <span class="sicons"><span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
+      <span class="batt"><i></i></span></span>
+  </div>
+  <div class="screen">
+    <div class="navhead"><span class="back">&#8249; Nursery</span><span class="title">Alerts</span><span style="width:60px"></span></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="row">
+        <div style="display:flex;gap:12px;align-items:center">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#ff9e80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7M19 5a9 9 0 010 14"/></svg>
+          <div><div style="font-size:17px;font-weight:600">Noise</div><div style="font-size:13px;color:var(--muted)">Alert when the room gets loud</div></div>
+        </div>
+        <span class="toggle on"></span>
+      </div>
+      <div class="slider"><span class="fill"></span><span class="knob"></span></div>
+      <div class="ticks"><span>Low</span><span>Medium</span><span>High</span></div>
+      <div class="divider"></div>
+      <div class="row" style="gap:10px">
+        <span style="font-size:13px;color:var(--muted)">Room now</span>
+        <span class="meter" style="flex:1;justify-content:flex-start"><i style="height:4px"></i><i style="height:6px"></i><i style="height:5px"></i><i style="height:8px"></i><i style="height:5px"></i><i style="height:4px"></i><i style="height:6px"></i><i style="height:4px"></i><i style="height:3px"></i><i style="height:5px"></i><i style="height:4px;opacity:.3"></i><i style="height:6px;opacity:.3"></i></span>
+        <span style="font-size:13px;color:var(--live);font-weight:600">below threshold</span>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="row" style="margin-bottom:14px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#8e9bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <div><div style="font-size:17px;font-weight:600">Movement</div><div style="font-size:13px;color:var(--muted)">Watch a part of the picture</div></div>
+        </div>
+        <span class="toggle on"></span>
+      </div>
+      <div class="roi"><div class="rect"></div></div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <div style="font-size:16px;font-weight:600">Quiet period after an alert</div>
+      </div>
+      <div class="seg"><b>1 min</b><b class="on">3 min</b><b>5 min</b><b>10 min</b></div>
+    </div>
+    <div style="flex:1"></div>
+    <p class="sub" style="font-size:13px;color:var(--faint)">Alerts are end-to-end encrypted — the server<br>can't see what was detected, or when.</p>
+  </div>
+  <div class="homebar"></div>
+</div>
+</div>
+
+<!-- ============ 7. LOCK SCREEN PUSH ============ -->
+<div class="board">
+<h2>7 · Viewer — lock-screen alert</h2>
+<div class="phone shot" id="s7">
+  <div class="island"></div>
+  <div class="statusbar"><span class="time" style="opacity:0">·</span>
+    <span class="sicons"><span class="cell"><i style="height:5px"></i><i style="height:8px"></i><i style="height:11px"></i><i style="height:14px"></i></span>
+      <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
+      <span class="batt"><i style="width:45%"></i></span></span>
+  </div>
+  <div class="screen lock" style="padding:74px 18px 30px">
+    <svg style="margin:0 auto" width="22" height="30" viewBox="0 0 24 24" fill="none" stroke="#c9cee2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    <div class="locktime">
+      <div class="d">Tuesday, 11 August</div>
+      <div class="t">03:12</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="notif" style="margin-bottom:10px">
+      <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="3"/></svg></div>
+      <div style="flex:1">
+        <div class="row"><b style="font-size:15px">KidsCam</b><span style="font-size:12px;color:#aeb5ca">now</span></div>
+        <div style="font-size:15px;font-weight:600;margin-top:2px">Noise detected in Nursery</div>
+        <div style="font-size:13.5px;color:#c3c9db;margin-top:1px">Tap to open the live view</div>
+      </div>
+    </div>
+    <div style="height:120px"></div>
+    <div class="row" style="padding:0 28px">
+      <span style="width:50px;height:50px;border-radius:50%;background:rgba(38,44,72,.75);display:grid;place-items:center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      </span>
+      <span style="width:50px;height:50px;border-radius:50%;background:rgba(38,44,72,.75);display:grid;place-items:center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="3"/></svg>
+      </span>
+    </div>
+  </div>
+  <div class="homebar" style="background:#fff;opacity:.5"></div>
+</div>
+</div>
+
+<script>
+/* deterministic decorative QR (finder patterns + pseudo-random modules) */
+(function(){
+  const n=29, cell=238/n, svg=document.getElementById('qr');
+  let seed=1234567;
+  const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff};
+  const inFinder=(x,y)=>(x<9&&y<9)||(x>=n-9&&y<9)||(x<9&&y>=n-9);
+  let out='';
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    if(inFinder(x,y))continue;
+    if(rnd()<0.47) out+=`<rect x="${x*cell}" y="${y*cell}" width="${cell*0.92}" height="${cell*0.92}" rx="1" fill="#101223"/>`;
+  }
+  const finder=(fx,fy)=>{
+    const s=cell;
+    return `<rect x="${fx*s}" y="${fy*s}" width="${7*s}" height="${7*s}" rx="4" fill="none" stroke="#101223" stroke-width="${s}"/>`+
+           `<rect x="${(fx+2)*s}" y="${(fy+2)*s}" width="${3*s}" height="${3*s}" rx="2" fill="#101223"/>`;
+  };
+  out+=finder(0.5,0.5)+finder(n-7.5,0.5)+finder(0.5,n-7.5);
+  svg.innerHTML=out;
+})();
+</script>
+</body>
+</html>

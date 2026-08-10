@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KidsCam — Backend Architecture</title>
+<style>
+  :root{
+    --bg:#0f1220; --surface:#1a1f33; --line:#2e3554; --text:#f2f3f8; --muted:#9aa1b8;
+    --accent:#ff9e80; --accent2:#8e9bff; --live:#5ad7a0; --warn:#ffd166; --red:#ff7b7b;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#07080f;color:var(--text);
+    font-family:-apple-system,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:50px}
+  .board{width:1500px;background:var(--bg);border:1px solid var(--line);border-radius:28px;padding:44px 48px}
+  .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.01em}
+  .head .tag{color:var(--muted);font-size:14px}
+  .lede{color:var(--muted);font-size:15px;max-width:900px;line-height:1.5;margin-bottom:30px}
+  .lede b{color:var(--accent)}
+  svg text{font-family:inherit}
+</style>
+</head>
+<body>
+<div class="board shot" id="arch">
+  <div class="head"><h1>KidsCam backend — zero-knowledge streaming architecture</h1><span class="tag">docs/specs/backend.md · security.md</span></div>
+  <p class="lede">Every key is derived from the secret in the <b>QR code</b> scanned between the two phones. The backend authenticates devices and routes traffic, but everything it touches is ciphertext — it can drop packets, never read them.</p>
+
+  <svg width="1404" height="700" viewBox="0 0 1404 700">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0L10 5L0 10z" fill="#8b93ad"/></marker>
+      <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0L10 5L0 10z" fill="#5ad7a0"/></marker>
+      <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0L10 5L0 10z" fill="#ff9e80"/></marker>
+    </defs>
+
+    <!-- zero-knowledge zone -->
+    <rect x="470" y="20" width="560" height="584" rx="22" fill="rgba(142,155,255,.05)" stroke="#3c4468" stroke-dasharray="7 6" stroke-width="1.5"/>
+    <text x="750" y="52" text-anchor="middle" fill="#8e9bff" font-size="15" font-weight="700">SERVER SIDE — sees ciphertext only</text>
+    <text x="750" y="72" text-anchor="middle" fill="#6b7290" font-size="12.5">holds K_auth + push tokens · zero decryption keys · zero media storage</text>
+
+    <!-- Camera device -->
+    <g>
+      <rect x="40" y="180" width="300" height="230" rx="20" fill="#1a1f33" stroke="#2e3554" stroke-width="1.5"/>
+      <rect x="40" y="180" width="300" height="54" rx="20" fill="rgba(255,158,128,.10)"/>
+      <text x="66" y="213" fill="#ff9e80" font-size="17" font-weight="700">📹  Camera iPhone</text>
+      <text x="66" y="262" fill="#f2f3f8" font-size="13.5">AVFoundation capture · H.264 / Opus</text>
+      <text x="66" y="288" fill="#f2f3f8" font-size="13.5">Noise + movement detection (on-device)</text>
+      <text x="66" y="314" fill="#f2f3f8" font-size="13.5">WebRTC peer (DTLS-SRTP, offerer)</text>
+      <text x="66" y="340" fill="#f2f3f8" font-size="13.5">Seals signaling + events (ChaCha20-Poly1305)</text>
+      <text x="66" y="372" fill="#5ad7a0" font-size="12.5" font-weight="600">🔑 holds S → K_sig · K_evt · K_auth (Keychain)</text>
+    </g>
+
+    <!-- Viewer device -->
+    <g>
+      <rect x="1064" y="180" width="300" height="230" rx="20" fill="#1a1f33" stroke="#2e3554" stroke-width="1.5"/>
+      <rect x="1064" y="180" width="300" height="54" rx="20" fill="rgba(142,155,255,.10)"/>
+      <text x="1090" y="213" fill="#8e9bff" font-size="17" font-weight="700">👀  Viewer iPhone</text>
+      <text x="1090" y="262" fill="#f2f3f8" font-size="13.5">WebRTC peer · live video/audio render</text>
+      <text x="1090" y="288" fill="#f2f3f8" font-size="13.5">Verifies DTLS fingerprint from sealed blob</text>
+      <text x="1090" y="314" fill="#f2f3f8" font-size="13.5">Notification Service Ext. decrypts pushes</text>
+      <text x="1090" y="340" fill="#f2f3f8" font-size="13.5">Up to 5 viewers per camera</text>
+      <text x="1090" y="372" fill="#5ad7a0" font-size="12.5" font-weight="600">🔑 same keys, from scanning the QR</text>
+    </g>
+
+    <!-- QR pairing arc (outside the server zone — device to device) -->
+    <path d="M 190 420 C 190 660, 1214 660, 1214 420" fill="none" stroke="#5ad7a0" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round" marker-end="url(#ag)" marker-start="url(#ag)"/>
+    <rect x="512" y="618" width="380" height="46" rx="12" fill="#0f1220" stroke="rgba(90,215,160,.4)"/>
+    <text x="702" y="638" text-anchor="middle" fill="#5ad7a0" font-size="13.5" font-weight="700">QR scan — physical channel, server never sees it</text>
+    <text x="702" y="656" text-anchor="middle" fill="#7fc9a8" font-size="12">root secret S → HKDF → all keys · confirmed with 6-digit code</text>
+
+    <!-- Signaling API -->
+    <g>
+      <rect x="510" y="100" width="480" height="130" rx="18" fill="#1a1f33" stroke="#2e3554" stroke-width="1.5"/>
+      <text x="536" y="134" fill="#f2f3f8" font-size="16" font-weight="700">Signaling &amp; API — Node 22 / TypeScript</text>
+      <text x="536" y="160" fill="#9aa1b8" font-size="13">Fastify REST + WebSocket · HMAC(K_auth) per pairing · rate limits</text>
+      <text x="536" y="182" fill="#9aa1b8" font-size="13">routes sealed blobs by envelope only · presence · 16 KiB cap</text>
+      <text x="536" y="210" fill="#ffd166" font-size="12.5" font-weight="600">cannot open blobs — no K_sig / K_evt ever server-side</text>
+    </g>
+
+    <!-- TURN -->
+    <g>
+      <rect x="510" y="330" width="220" height="110" rx="18" fill="#1a1f33" stroke="#2e3554" stroke-width="1.5"/>
+      <text x="536" y="364" fill="#f2f3f8" font-size="15.5" font-weight="700">coturn (TURN/STUN)</text>
+      <text x="536" y="388" fill="#9aa1b8" font-size="12.5">ephemeral HMAC credentials</text>
+      <text x="536" y="408" fill="#9aa1b8" font-size="12.5">relays SRTP ciphertext only</text>
+      <text x="536" y="428" fill="#9aa1b8" font-size="12.5">2 Mbps cap / allocation</text>
+    </g>
+
+    <!-- APNs path -->
+    <g>
+      <rect x="770" y="330" width="220" height="110" rx="18" fill="#1a1f33" stroke="#2e3554" stroke-width="1.5"/>
+      <text x="796" y="364" fill="#f2f3f8" font-size="15.5" font-weight="700">Push fan-out → APNs</text>
+      <text x="796" y="388" fill="#9aa1b8" font-size="12.5">HTTP/2, token auth (.p8)</text>
+      <text x="796" y="408" fill="#9aa1b8" font-size="12.5">payload = sealed event blob</text>
+      <text x="796" y="428" fill="#9aa1b8" font-size="12.5">mutable-content, generic alert</text>
+    </g>
+
+    <!-- data stores -->
+    <g>
+      <rect x="510" y="500" width="220" height="84" rx="18" fill="#151a2c" stroke="#2e3554" stroke-width="1.5"/>
+      <text x="536" y="530" fill="#f2f3f8" font-size="14.5" font-weight="700">Postgres</text>
+      <text x="536" y="552" fill="#9aa1b8" font-size="12.5">pairings (id, K_auth, status)</text>
+      <text x="536" y="570" fill="#9aa1b8" font-size="12.5">devices (role, APNs token)</text>
+    </g>
+    <g>
+      <rect x="770" y="500" width="220" height="84" rx="18" fill="#151a2c" stroke="#2e3554" stroke-width="1.5"/>
+      <text x="796" y="530" fill="#f2f3f8" font-size="14.5" font-weight="700">Redis</text>
+      <text x="796" y="552" fill="#9aa1b8" font-size="12.5">WS routing (pub/sub)</text>
+      <text x="796" y="570" fill="#9aa1b8" font-size="12.5">nonce cache · rate limits</text>
+    </g>
+
+    <!-- arrows: signaling -->
+    <path d="M 340 250 C 420 250, 430 165, 508 165" fill="none" stroke="#8b93ad" stroke-width="2" marker-end="url(#a)"/>
+    <text x="392" y="196" fill="#aeb5ca" font-size="12.5" font-weight="600">WSS · sealed SDP/ICE</text>
+    <path d="M 992 165 C 1000 165, 1010 250, 1062 250" fill="none" stroke="#8b93ad" stroke-width="2" marker-end="url(#a)"/>
+    <text x="1006" y="196" fill="#aeb5ca" font-size="12.5" font-weight="600">WSS · sealed blobs</text>
+
+    <!-- P2P direct -->
+    <path d="M 340 300 L 1062 300" fill="none" stroke="#5ad7a0" stroke-width="3" marker-end="url(#ag)"/>
+    <rect x="450" y="277" width="270" height="30" rx="9" fill="#0f1220" stroke="rgba(90,215,160,.5)"/>
+    <text x="585" y="297" text-anchor="middle" fill="#5ad7a0" font-size="13" font-weight="700">SRTP media · P2P direct (E2E)</text>
+
+    <!-- relay fallback -->
+    <path d="M 340 385 L 508 385" fill="none" stroke="#8b93ad" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+    <path d="M 730 425 C 880 462, 990 435, 1060 402" fill="none" stroke="#8b93ad" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+    <text x="392" y="373" fill="#8b93ad" font-size="12" font-weight="600">relay fallback</text>
+
+    <!-- events / push -->
+    <path d="M 300 410 C 380 462, 620 472, 768 420" fill="none" stroke="#ff9e80" stroke-width="2" marker-end="url(#ao)"/>
+    <text x="330" y="488" fill="#ff9e80" font-size="12.5" font-weight="600">POST /v1/events · sealed(K_evt)</text>
+    <path d="M 990 380 C 1030 380, 1030 395, 1062 395" fill="none" stroke="#ff9e80" stroke-width="2" marker-end="url(#ao)"/>
+    <text x="1070" y="430" fill="#ff9e80" font-size="12.5" font-weight="600">🔔 encrypted push</text>
+
+    <!-- api to stores (trunk through the coturn/APNs gap) -->
+    <path d="M 748 232 L 748 460 C 748 482, 660 484, 646 498" fill="none" stroke="#4a5170" stroke-width="1.5" marker-end="url(#a)"/>
+    <path d="M 752 232 L 752 460 C 752 482, 850 484, 864 498" fill="none" stroke="#4a5170" stroke-width="1.5" marker-end="url(#a)"/>
+  </svg>
+</div>
+</body>
+</html>
