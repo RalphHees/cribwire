@@ -53,6 +53,7 @@ export class MemoryRepository implements Repository {
       id: input.cameraDeviceId,
       pairingId: input.pairingId,
       role: 'camera',
+      deviceKey: Buffer.from(input.cameraDeviceKey),
       apnsToken: input.apnsToken,
       apnsEnvironment: input.apnsEnvironment,
       createdAt: input.now,
@@ -89,6 +90,7 @@ export class MemoryRepository implements Repository {
       id: input.viewerDeviceId,
       pairingId: input.pairingId,
       role: 'viewer',
+      deviceKey: Buffer.from(input.viewerDeviceKey),
       apnsToken: input.apnsToken,
       apnsEnvironment: input.apnsEnvironment,
       createdAt: input.now,
@@ -135,11 +137,7 @@ export class MemoryRepository implements Repository {
 
   updateDeviceToken(input: UpdateDeviceTokenInput): Promise<Device | null> {
     const device = this.#devices.get(input.deviceId);
-    if (
-      device === undefined ||
-      device.pairingId !== input.pairingId ||
-      device.role !== input.role
-    ) {
+    if (device === undefined || device.pairingId !== input.pairingId) {
       return Promise.resolve(null);
     }
     const updated: Device = {

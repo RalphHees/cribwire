@@ -4,17 +4,14 @@
  * them in a transaction and the in-memory implementation can mirror them.
  */
 
-import type {
-  ApnsEnvironment,
-  Device,
-  Pairing,
-  Role,
-} from '../domain/types.ts';
+import type { ApnsEnvironment, Device, Pairing } from '../domain/types.ts';
 
 export interface CreatePairingInput {
   readonly pairingId: string;
   readonly kAuth: Buffer;
   readonly cameraDeviceId: string;
+  /** The camera's own HMAC key, uploaded in the bootstrap body. */
+  readonly cameraDeviceKey: Buffer;
   readonly apnsToken: string;
   readonly apnsEnvironment: ApnsEnvironment;
   readonly now: Date;
@@ -27,6 +24,8 @@ export type CreatePairingResult =
 export interface ClaimPairingInput {
   readonly pairingId: string;
   readonly viewerDeviceId: string;
+  /** The viewer's own HMAC key, uploaded in the bootstrap body. */
+  readonly viewerDeviceKey: Buffer;
   readonly apnsToken: string;
   readonly apnsEnvironment: ApnsEnvironment;
   readonly maxViewers: number;
@@ -44,8 +43,8 @@ export type ClaimPairingResult =
 
 export interface UpdateDeviceTokenInput {
   readonly pairingId: string;
+  /** The authenticated device itself; never taken from a request body. */
   readonly deviceId: string;
-  readonly role: Role;
   readonly apnsToken: string;
   readonly apnsEnvironment: ApnsEnvironment;
   readonly now: Date;

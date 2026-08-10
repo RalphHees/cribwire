@@ -28,6 +28,7 @@ interface DeviceRow {
   id: string;
   pairing_id: string;
   role: string;
+  device_key: Buffer;
   apns_token: string;
   apns_environment: string;
   created_at: Date;
@@ -51,6 +52,7 @@ function toDevice(row: DeviceRow): Device {
     id: row.id,
     pairingId: row.pairing_id,
     role: row.role as Device['role'],
+    deviceKey: row.device_key,
     apnsToken: row.apns_token,
     apnsEnvironment: row.apns_environment as Device['apnsEnvironment'],
     createdAt: row.created_at,
@@ -68,7 +70,8 @@ function isUniqueViolation(error: unknown): boolean {
 
 const PAIRING_COLUMNS = 'id, k_auth, status, created_at, claimed_at';
 const DEVICE_COLUMNS =
-  'id, pairing_id, role, apns_token, apns_environment, created_at, last_seen_at';
+  'id, pairing_id, role, device_key, apns_token, apns_environment, ' +
+  'created_at, last_seen_at';
 
 export class PostgresRepository implements Repository {
   readonly #pool: PgPool;
@@ -124,13 +127,14 @@ export class PostgresRepository implements Repository {
 
       const device = await client.query<DeviceRow>(
         `insert into devices
-           (id, pairing_id, role, apns_token, apns_environment,
+           (id, pairing_id, role, device_key, apns_token, apns_environment,
             created_at, last_seen_at)
-         values ($1, $2, 'camera', $3, $4, $5, $5)
+         values ($1, $2, 'camera', $3, $4, $5, $6, $6)
          returning ${DEVICE_COLUMNS}`,
         [
           input.cameraDeviceId,
           input.pairingId,
+          input.cameraDeviceKey,
           input.apnsToken,
           input.apnsEnvironment,
           input.now,
@@ -178,13 +182,14 @@ export class PostgresRepository implements Repository {
 
       const device = await client.query<DeviceRow>(
         `insert into devices
-           (id, pairing_id, role, apns_token, apns_environment,
+           (id, pairing_id, role, device_key, apns_token, apns_environment,
             created_at, last_seen_at)
-         values ($1, $2, 'viewer', $3, $4, $5, $5)
+         values ($1, $2, 'viewer', $3, $4, $5, $6, $6)
          returning ${DEVICE_COLUMNS}`,
         [
           input.viewerDeviceId,
           input.pairingId,
+          input.viewerDeviceKey,
           input.apnsToken,
           input.apnsEnvironment,
           input.now,
@@ -244,13 +249,12 @@ export class PostgresRepository implements Repository {
   ): Promise<Device | null> {
     const result = await this.#pool.query<DeviceRow>(
       `update devices
-       set apns_token = $4, apns_environment = $5, last_seen_at = $6
-       where pairing_id = $1 and id = $2 and role = $3
+       set apns_token = $3, apns_environment = $4, last_seen_at = $5
+       where pairing_id = $1 and id = $2
        returning ${DEVICE_COLUMNS}`,
       [
         input.pairingId,
         input.deviceId,
-        input.role,
         input.apnsToken,
         input.apnsEnvironment,
         input.now,
