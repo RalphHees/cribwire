@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "description": "KidsCam v1 cross-implementation test vectors. iOS (CryptoKit) and backend (Node crypto) MUST reproduce these byte-for-byte. Formats are normative and documented in shared/protocol.md.",
+  "revision": "1.1",
+  "description": "KidsCam v1 cross-implementation test vectors. iOS (CryptoKit) and backend (Node crypto) MUST reproduce these byte-for-byte. Formats are normative and documented in shared/protocol.md. Revision 1.1 adds per-device authentication keys: the pairing-wide K_auth authenticates ONLY pairing creation and claim; every later request is signed with the calling device's own key and the server derives the role from the stored device record.",
   "hkdf": {
     "algorithm": "HKDF-SHA256, empty salt, 32-byte output",
     "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
@@ -32,6 +33,13 @@
     "example": "kidscam://pair?v=1&id=7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70&s=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&api=https%3A%2F%2Fapi.kidscam.example",
     "sBase64url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
   },
+  "deviceKeys": {
+    "rule": "32 random bytes generated on-device at pairing-create (camera) or claim (viewer), stored in the Keychain, uploaded once in the bootstrap-authenticated request body as base64. The server stores it against the device row and thereafter authenticates that device by it. Device keys decrypt nothing.",
+    "cameraDeviceId": "1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7",
+    "viewerDeviceId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "cameraDeviceKeyBase64": "oaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaE=",
+    "viewerDeviceKeyBase64": "srKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrI="
+  },
   "sealedEnvelope": {
     "rule": "base64( nonce(12) || ChaCha20-Poly1305 ciphertext || tag(16) ); AAD is UTF-8 of the stated string; production nonces are random, fixed here for the vector",
     "signaling": {
@@ -50,31 +58,53 @@
     }
   },
   "requestAuth": {
-    "rule": "canonical = METHOD\\nPATH\\nTIMESTAMP\\nlowercase-hex(SHA-256(body)); mac = lowercase-hex(HMAC-SHA256(K_auth, canonical)); header = KidsCam-HMAC <pairingId>:<role>:<timestamp>:<mac>; empty body hashes the empty string",
+    "rule": "canonical = METHOD\\nPATH\\nTIMESTAMP\\nPRINCIPAL\\nlowercase-hex(SHA-256(body)); mac = lowercase-hex(HMAC-SHA256(key, canonical)); header = KidsCam-HMAC <pairingId>:<principal>:<timestamp>:<mac>. PRINCIPAL is the literal string \"bootstrap\" for POST /v1/pairings and POST /v1/pairings/:id/claim (signed with K_auth), and the calling device's UUID for every other authenticated request (signed with that device's key). The client never asserts a role; the server reads it from the device row.",
     "pairingId": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70",
-    "examples": [
-      {
-        "role": "viewer",
+    "examples": {
+      "bootstrapCreate": {
+        "principal": "bootstrap",
+        "method": "POST",
+        "path": "/v1/pairings",
+        "timestamp": "1754850000",
+        "bodyUtf8": "{\"kAuth\":\"XUkeyzFhlOzQnzv47LhmQrAmDzeoo4aQbkjlujs6BGI=\",\"deviceKey\":\"oaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaE=\",\"apnsToken\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"apnsEnvironment\":\"sandbox\"}",
+        "bodySha256Hex": "073a4e3c8ab6534ff2c732895a891c8f589ef691e2b50342852d129e937141f2",
+        "canonicalString": "POST\n/v1/pairings\n1754850000\nbootstrap\n073a4e3c8ab6534ff2c732895a891c8f589ef691e2b50342852d129e937141f2",
+        "macHex": "fe8801cfd2c358e9d7324dd331f40340569d4c2f02899496ba64723421f9f2ce",
+        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:bootstrap:1754850000:fe8801cfd2c358e9d7324dd331f40340569d4c2f02899496ba64723421f9f2ce"
+      },
+      "bootstrapClaim": {
+        "principal": "bootstrap",
         "method": "POST",
         "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim",
         "timestamp": "1754850000",
-        "bodyUtf8": "{\"apnsToken\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"apnsEnvironment\":\"sandbox\"}",
-        "bodySha256Hex": "3c991db49a5659414e7d0f38231b9459c938ea0bdb6b6bf78fa06ca91c2df757",
-        "canonicalString": "POST\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim\n1754850000\n3c991db49a5659414e7d0f38231b9459c938ea0bdb6b6bf78fa06ca91c2df757",
-        "macHex": "3d89917abe463ef245fcf255e841faa30b979a75c95c149270d766d7211645e1",
-        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:viewer:1754850000:3d89917abe463ef245fcf255e841faa30b979a75c95c149270d766d7211645e1"
+        "bodyUtf8": "{\"deviceKey\":\"srKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrI=\",\"apnsToken\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"apnsEnvironment\":\"sandbox\"}",
+        "bodySha256Hex": "0e08115d564f1ec3a6a970699c531d65a8864b3913007f93940a4b8938939c5f",
+        "canonicalString": "POST\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim\n1754850000\nbootstrap\n0e08115d564f1ec3a6a970699c531d65a8864b3913007f93940a4b8938939c5f",
+        "macHex": "ec0934874ffa192def495c63ea5537510de4124afffba8507fa603defcf0ffac",
+        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:bootstrap:1754850000:ec0934874ffa192def495c63ea5537510de4124afffba8507fa603defcf0ffac"
       },
-      {
-        "role": "camera",
-        "method": "GET",
+      "deviceCameraRevoke": {
+        "principal": "1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7",
+        "method": "DELETE",
+        "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70",
+        "timestamp": "1754850000",
+        "bodyUtf8": "",
+        "bodySha256Hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "canonicalString": "DELETE\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70\n1754850000\n1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "macHex": "82c474876e17e7139ba779e4a577b624f0f58a0251ebe79acd3bea8aeef2bab2",
+        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7:1754850000:82c474876e17e7139ba779e4a577b624f0f58a0251ebe79acd3bea8aeef2bab2"
+      },
+      "deviceViewerTurnCredentials": {
+        "principal": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+        "method": "POST",
         "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials",
         "timestamp": "1754850000",
         "bodyUtf8": "",
         "bodySha256Hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "canonicalString": "GET\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials\n1754850000\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        "macHex": "f7b8bcb231fcd76b988af9a519c2f74444998d9257eca5d3e461b0c40fcaa216",
-        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:camera:1754850000:f7b8bcb231fcd76b988af9a519c2f74444998d9257eca5d3e461b0c40fcaa216"
+        "canonicalString": "POST\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials\n1754850000\n9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "macHex": "61cabc488f10268195c19245519b0ce45fca4fd89b622a74e3f1fd0c7d912be1",
+        "authorizationHeader": "KidsCam-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d:1754850000:61cabc488f10268195c19245519b0ce45fca4fd89b622a74e3f1fd0c7d912be1"
       }
-    ]
+    }
   }
 }
