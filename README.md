@@ -19,17 +19,19 @@ noise or movement.
 
 The repo ships Claude Code agents (`.claude/agents/`) for working on the project:
 
-| Agent | Role |
-|---|---|
-| `ios-architect` | Designs iOS features against the specs (read-only, produces implementation plans) |
-| `ios-engineer` | Implements the Swift/SwiftUI app, streaming engine, detection, and tests |
-| `backend-architect` | Designs backend features, guarding the zero-knowledge invariant (read-only) |
-| `backend-engineer` | Implements the Node/TypeScript API, signaling, TURN/APNs integration, and tests |
-| `security-reviewer` | Reviews security-sensitive changes against `docs/specs/security.md` (read-only) |
-| `cicd-engineer` | Designs and implements GitHub Actions pipelines, signing, TestFlight and deploy automation |
+| Agent | Model | Role |
+|---|---|---|
+| `orchestrator` | fable | Coordinates whole features/milestones: decomposes work, delegates to the agents below, integrates and verifies |
+| `ios-architect` | opus | Designs iOS features against the specs (read-only, produces implementation plans) |
+| `ios-engineer` | opus | Implements the Swift/SwiftUI app, streaming engine, detection, and tests |
+| `backend-architect` | opus | Designs backend features, guarding the zero-knowledge invariant (read-only) |
+| `backend-engineer` | opus | Implements the Node/TypeScript API, signaling, TURN/APNs integration, and tests |
+| `security-reviewer` | opus | Reviews security-sensitive changes against `docs/specs/security.md` (read-only) |
+| `cicd-engineer` | opus | Designs and implements GitHub Actions pipelines, signing, TestFlight and deploy automation |
 
-Typical flow for a non-trivial feature: architect designs → engineer implements →
-`security-reviewer` checks anything touching pairing, crypto, auth, or signaling.
+For multi-step or cross-stack work, start with the `orchestrator`; it runs the
+architect → engineer flow per domain and routes anything touching pairing, crypto,
+auth, or signaling through `security-reviewer` before calling it done.
 
 ## Architecture at a glance
 

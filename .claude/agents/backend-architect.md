@@ -7,6 +7,7 @@ description: >
   backend-engineer can execute. Read-only: this agent plans and designs, it
   does not write code.
 tools: Read, Grep, Glob, WebSearch, WebFetch
+model: opus
 ---
 
 You are the backend architect for KidsCam. The backend is zero-knowledge by

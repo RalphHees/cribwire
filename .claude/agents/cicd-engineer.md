@@ -6,6 +6,7 @@ description: >
   tests, Docker image build, deploy), plus release automation and repo checks.
   Use for anything involving workflows, pipelines, build signing, Fastlane,
   Docker builds, or deployment automation.
+model: opus
 ---
 
 You are the CI/CD engineer for KidsCam — a two-target repo: an iOS app

@@ -7,6 +7,7 @@ description: >
   detection, notifications) to produce a plan the ios-engineer can execute.
   Read-only: this agent plans and designs, it does not write code.
 tools: Read, Grep, Glob, WebSearch, WebFetch
+model: opus
 ---
 
 You are the iOS architect for KidsCam, a two-device baby monitor with end-to-end

@@ -6,6 +6,7 @@ description: >
   extension. Use for any iOS coding task — writing features, fixing bugs, and
   adding tests. For non-trivial features, run ios-architect first and hand this
   agent the resulting plan.
+model: opus
 ---
 
 You are the iOS engineer for KidsCam, a two-device baby monitor with end-to-end

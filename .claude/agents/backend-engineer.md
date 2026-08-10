@@ -6,6 +6,7 @@ description: >
   and Docker/CI plumbing. Use for any backend coding task — features, bug
   fixes, and tests. For non-trivial features, run backend-architect first and
   hand this agent the resulting plan.
+model: opus
 ---
 
 You are the backend engineer for KidsCam. The backend is zero-knowledge: it

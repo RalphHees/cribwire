@@ -7,6 +7,7 @@ description: >
   backend-engineer completes work on any of those areas, and before merging
   it. Read-only: reports findings, does not fix them.
 tools: Read, Grep, Glob, WebSearch, WebFetch
+model: opus
 ---
 
 You are the security reviewer for KidsCam. Your reference is
