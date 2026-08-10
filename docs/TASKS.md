@@ -6,43 +6,56 @@ milestone.
 
 ## Phase 0 — Project foundations
 
-- [ ] Create Xcode project (SwiftUI, iOS 16 min) with app target + Notification
+- [x] Create Xcode project (SwiftUI, iOS 16 min) with app target + Notification
       Service Extension target; shared app group + Keychain access group
+      — via `ios/project.yml` (XcodeGen); groups are build-setting placeholders
 - [ ] Add WebRTC dependency (binary SPM package) and verify a trivial peer connection
-      compiles on device
+      compiles on device — dependency declared; first real use lands in Phase 2
 - [ ] Repo hygiene: SwiftLint/SwiftFormat, backend ESLint/Prettier, PR template
-- [ ] CI: GitHub Actions — iOS build + unit tests (macOS runner), backend lint +
+      — backend lint/format and PR template done; SwiftLint/SwiftFormat still missing
+- [x] CI: GitHub Actions — iOS build + unit tests (macOS runner), backend lint +
       tests, Docker image build
-- [ ] Backend scaffold: Node 22/TypeScript, Fastify + `ws`, Postgres + Redis via
+- [x] Backend scaffold: Node 22/TypeScript, Fastify + `ws`, Postgres + Redis via
       docker-compose, migrations tooling, `/v1/health` + `/v1/version`
 - [ ] Provisioning: Apple Developer setup, APNs `.p8` key, sandbox push working
-      against a hello-world payload
+      against a hello-world payload — **blocked: needs a human with an Apple
+      Developer account** (see `.github/workflows/release-testflight.yml` preflight)
 
 ## Phase 1 — Pairing & security core
 
 **Backend**
-- [ ] Postgres schema (`pairings`, `devices`) + daily hard-delete job for
+- [x] Postgres schema (`pairings`, `devices`) + daily hard-delete job for
       revoked/expired rows
-- [ ] `POST /v1/pairings` (create, 10-min TTL), `POST /v1/pairings/{id}/claim`
+- [x] `POST /v1/pairings` (create, 10-min TTL), `POST /v1/pairings/{id}/claim`
       (max 5 viewers), `DELETE` pairing / viewer
-- [ ] HMAC request authentication middleware (`K_auth`, 60 s timestamp window,
+- [x] HMAC request authentication middleware (60 s timestamp window,
       Redis nonce cache) + rate limiting (per-IP and per-pairing)
-- [ ] `PUT /v1/devices/token` (APNs token rotation, 410-cleanup handler)
+- [x] `PUT /v1/devices/token` (APNs token rotation, 410-cleanup handler)
 
 **iOS**
-- [ ] `CryptoCore` module: CSPRNG secret generation, HKDF key derivation
+- [x] `CryptoCore` module: CSPRNG secret generation, HKDF key derivation
       (`K_auth/K_sig/K_evt/K_sas`), ChaCha20-Poly1305 seal/open with AAD —
       with unit tests and test vectors shared with the backend repo
-- [ ] Keychain storage (ThisDeviceOnly, non-sync) + app-group access for the
+- [x] Keychain storage (ThisDeviceOnly, non-sync) + app-group access for the
       notification extension; wipe-on-unpair and first-launch cleanup
-- [ ] Role selection UI (Camera / Viewer) + pairing state machine
-- [ ] Camera: QR generation (2-min regeneration, screen-capture protection) +
+- [x] Role selection UI (Camera / Viewer) + pairing state machine
+- [x] Camera: QR generation (2-min regeneration, screen-capture protection) +
       pairing registration call
-- [ ] Viewer: QR scanning (VisionKit), key derivation, claim call
-- [ ] SAS confirmation screen on both devices; pairing list UI with revoke
+- [x] Viewer: QR scanning (VisionKit), key derivation, claim call
+- [x] SAS confirmation screen on both devices; pairing list UI with revoke
+
+**Protocol revision 1.1** (arose during Phase 1, see `shared/protocol.md`)
+- [x] Per-device authentication keys — `K_auth` is pairing-wide, so it could prove
+      pairing membership but not device identity, letting any viewer claim
+      `role=camera` and revoke the pairing. Roles now come from the server-side
+      device record; the principal is signed.
+- [x] Pin every REST request/response body (1.0 left them to prose and the two
+      implementations diverged: `ttlSeconds` vs `expiresInSeconds`)
 
 **Milestone M1**: two physical devices pair via QR, show matching SAS codes, and the
 pairing survives app restarts; revocation works. Crypto unit tests green on CI.
+→ *Code complete; CI green pending the 1.1 migration. The two-device parts are
+inherently device-only and remain unverified.*
 
 ## Phase 2 — Live streaming
 
