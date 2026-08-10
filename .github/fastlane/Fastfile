@@ -1,0 +1,117 @@
+# fastlane configuration for KidsCam.
+#
+# Location: `.github/fastlane/` rather than the repo root, so the Ruby tooling
+# lives next to the workflow that is its only caller. Run it with `.github` as
+# the working directory:
+#
+#     cd .github && bundle exec fastlane ios beta
+#
+# Everything credential-shaped is read from the environment, which in CI is
+# populated exclusively from GitHub Actions secrets attached to the protected
+# `testflight` environment. Nothing is read from disk, nothing is written back
+# to the repo, and no value is ever printed.
+#
+# Prerequisites that only a human with Apple Developer access can create:
+#   * an App Store Connect API key (Users and Access > Integrations) with the
+#     "App Manager" role — its key id, issuer id and .p8 contents become the
+#     APP_STORE_CONNECT_* secrets;
+#   * a private git repo initialised with `fastlane match init` + `fastlane
+#     match appstore`, holding the distribution certificate and the App Store
+#     provisioning profiles for BOTH bundle ids (app and NotificationService);
+#   * the real bundle id prefix and DEVELOPMENT_TEAM written into
+#     ios/project.yml, replacing the `example.kidscam` placeholders.
+
+require 'shellwords'
+
+default_platform(:ios)
+
+# .github/fastlane/Fastfile -> repo root
+REPO_ROOT = File.expand_path('../..', __dir__)
+XCODEPROJ = File.join(REPO_ROOT, 'ios', 'KidsCam.xcodeproj')
+SCHEME = 'KidsCam'
+
+def required_env(name)
+  value = ENV[name].to_s
+  UI.user_error!("#{name} is not set — see .github/workflows/release-testflight.yml") if value.empty?
+  value
+end
+
+platform :ios do
+  before_all do
+    # Creates a temporary keychain for the imported signing identity and
+    # deletes it when the job ends, so nothing persists on the runner.
+    setup_ci if ENV['CI']
+  end
+
+  desc 'Build a signed App Store build and upload it to TestFlight'
+  lane :beta do
+    unless File.directory?(XCODEPROJ)
+      UI.user_error!("#{XCODEPROJ} not found — run `xcodegen generate` in ios/ first")
+    end
+
+    team_id = required_env('KIDSCAM_APPLE_TEAM_ID')
+    app_identifier = required_env('KIDSCAM_APP_IDENTIFIER')
+    extension_identifier = "#{app_identifier}.NotificationService"
+    build_number = required_env('KIDSCAM_BUILD_NUMBER')
+    marketing_version = ENV['KIDSCAM_MARKETING_VERSION'].to_s
+    # A tag push supplies no changelog input, so the env var arrives empty
+    # rather than absent — ENV.fetch's default would not apply.
+    changelog = ENV['KIDSCAM_CHANGELOG'].to_s
+    changelog = 'Internal build from CI.' if changelog.strip.empty?
+
+    api_key = app_store_connect_api_key(
+      key_id: required_env('APP_STORE_CONNECT_KEY_ID'),
+      issuer_id: required_env('APP_STORE_CONNECT_ISSUER_ID'),
+      key_content: required_env('APP_STORE_CONNECT_KEY_P8'),
+      is_key_content_base64: false,
+      in_house: false
+    )
+
+    # Read-only: CI consumes certificates, it never mints or renews them. A
+    # missing profile is a human's job to create with `fastlane match appstore`
+    # from a machine that is allowed to touch the Apple Developer portal.
+    match(
+      type: 'appstore',
+      app_identifier: [app_identifier, extension_identifier],
+      git_url: required_env('MATCH_GIT_URL'),
+      storage_mode: 'git',
+      team_id: team_id,
+      api_key: api_key,
+      readonly: true
+    )
+
+    xcargs = [
+      "DEVELOPMENT_TEAM=#{team_id.shellescape}",
+      "CURRENT_PROJECT_VERSION=#{build_number.shellescape}",
+      '-skipPackagePluginValidation',
+      '-skipMacroValidation'
+    ]
+    xcargs << "MARKETING_VERSION=#{marketing_version.shellescape}" unless marketing_version.empty?
+
+    build_app(
+      project: XCODEPROJ,
+      scheme: SCHEME,
+      configuration: 'Release',
+      export_method: 'app-store',
+      clean: true,
+      include_symbols: true,
+      xcargs: xcargs.join(' '),
+      export_options: {
+        provisioningProfiles: {
+          app_identifier => ENV["sigh_#{app_identifier}_appstore_profile-name"],
+          extension_identifier => ENV["sigh_#{extension_identifier}_appstore_profile-name"]
+        }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: app_identifier,
+      distribute_external: false,
+      changelog: changelog,
+      # Waiting for Apple's processing would burn macOS minutes doing nothing;
+      # the build shows up in TestFlight on its own.
+      skip_waiting_for_build_processing: true
+    )
+  end
+end

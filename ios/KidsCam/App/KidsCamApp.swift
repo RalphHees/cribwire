@@ -21,13 +21,13 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            switch services.role {
-            case .none:
+            if let role = services.role {
+                switch role {
+                case .camera: CameraHomeView()
+                case .viewer: ViewerHomeView()
+                }
+            } else {
                 RoleSelectionView()
-            case .camera:
-                CameraHomeView()
-            case .viewer:
-                ViewerHomeView()
             }
         }
         .tint(Theme.Palette.coral)

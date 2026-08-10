@@ -70,37 +70,45 @@ struct TestVectors: Decodable {
     static let resourceExtension = "json"
 
     static func load(file: StaticString = #filePath, line: UInt = #line) throws -> TestVectors {
-        let url = try locate(file: file, line: line)
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(TestVectors.self, from: data)
-    }
-
-    private static func locate(file: StaticString, line: UInt) throws -> URL {
-        if let bundled = Bundle.module.url(
-            forResource: resourceName,
-            withExtension: resourceExtension
-        ) {
-            return bundled
-        }
-
-        // Fallback: climb from this source file to the repo root.
-        var directory = URL(fileURLWithPath: "\(file)").deletingLastPathComponent()
-        for _ in 0..<10 {
-            let candidate = directory
-                .appendingPathComponent("shared/test-vectors")
-                .appendingPathComponent("\(resourceName).\(resourceExtension)")
-            if FileManager.default.fileExists(atPath: candidate.path) {
-                return candidate
-            }
-            directory = directory.deletingLastPathComponent()
+        // Try each candidate location and take the first that actually reads:
+        // a build system that copies the symlink rather than its target leaves a
+        // resource URL that exists but cannot be opened.
+        for url in candidateURLs(file: file) {
+            guard let data = try? Data(contentsOf: url) else { continue }
+            return try JSONDecoder().decode(TestVectors.self, from: data)
         }
 
         XCTFail(
-            "Could not locate shared/test-vectors/kidscam-v1.json",
+            "Could not read shared/test-vectors/kidscam-v1.json from the test bundle "
+                + "or the source tree",
             file: file,
             line: line
         )
         throw CocoaError(.fileNoSuchFile)
+    }
+
+    private static func candidateURLs(file: StaticString) -> [URL] {
+        var urls: [URL] = []
+
+        if let bundled = Bundle.module.url(
+            forResource: resourceName,
+            withExtension: resourceExtension
+        ) {
+            urls.append(bundled)
+        }
+
+        // Climb from this source file towards the repository root.
+        var directory = URL(fileURLWithPath: "\(file)").deletingLastPathComponent()
+        for _ in 0..<10 {
+            urls.append(
+                directory
+                    .appendingPathComponent("shared/test-vectors")
+                    .appendingPathComponent("\(resourceName).\(resourceExtension)")
+            )
+            directory = directory.deletingLastPathComponent()
+        }
+
+        return urls
     }
 }
 

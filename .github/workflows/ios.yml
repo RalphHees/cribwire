@@ -1,0 +1,203 @@
+# iOS CI — docs/TASKS.md Phase 0: "iOS build + unit tests (macOS runner)".
+#
+# macOS minutes bill at 10x Linux, so the pipeline is deliberately shaped to
+# spend as few of them as possible:
+#   * two jobs, the cheap one first — `kit-tests` runs the pure-logic package
+#     (crypto, protocol, pairing state machine) in a couple of minutes with no
+#     simulator, and gates the expensive Xcode job. A broken crypto change
+#     therefore never pays for a full app build.
+#   * no matrix: one Xcode, one simulator, one configuration.
+#   * the resolved SPM checkouts (libwebrtc is a large binary xcframework) are
+#     cached between runs.
+#
+# Nothing here needs a secret: CI builds are unsigned (CODE_SIGNING_ALLOWED=NO),
+# which is why this workflow is safe to run on pull requests from forks. Signed
+# builds live in release-testflight.yml behind a protected environment.
+name: ios
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'shared/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'shared/**'
+      - '.github/workflows/ios.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned deliberately: an implicit "whatever Xcode the image defaults to"
+  # turns a runner-image rollout into a mystery build failure. When GitHub
+  # retires this version from the macos-15 image, setup-xcode fails with the
+  # list of installed versions — bump this line then.
+  XCODE_VERSION: '16.4'
+
+jobs:
+  kit-tests:
+    name: KidsCamKit (swift test)
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Toolchain versions
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+
+      # Only the package *checkouts* are cached, not .build: a stale module
+      # cache costs more debugging time than the rebuild it saves.
+      - name: Cache SwiftPM checkouts
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-kit-${{ runner.os }}-${{ hashFiles('ios/KidsCamKit/Package.swift', 'ios/KidsCamKit/Package.resolved') }}
+          restore-keys: |
+            spm-kit-${{ runner.os }}-
+
+      - name: Verify shared test vectors are present
+        run: |
+          set -euo pipefail
+          # The package test resource is a symlink into shared/test-vectors; a
+          # broken link would otherwise surface as a confusing decode failure.
+          test -f shared/test-vectors/kidscam-v1.json
+          test -f ios/KidsCamKit/Tests/KidsCamKitTests/Resources/kidscam-v1.json
+
+      - name: swift test
+        run: swift test --package-path ios/KidsCamKit
+
+  app-build:
+    name: KidsCam app (build + unit tests)
+    # Gated on the fast job so a failing unit test does not buy a full
+    # simulator build. Costs ~2 min of latency, saves ~15 macOS minutes per
+    # failing run.
+    needs: kit-tests
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      # xcodebuild resolves SPM dependencies (incl. the WebRTC binary target)
+      # into this directory instead of DerivedData, so it can be cached.
+      SPM_CLONE_DIR: ${{ github.workspace }}/.spm-clone
+      DERIVED_DATA: ${{ github.workspace }}/.derived-data
+      NSUnbufferedIO: 'YES'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          # The .xcodeproj is generated from ios/project.yml and never committed.
+          brew install --quiet xcodegen
+          xcodegen --version
+
+      - name: Generate KidsCam.xcodeproj
+        working-directory: ios
+        run: xcodegen generate --spec project.yml
+
+      - name: Cache resolved Swift packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SPM_CLONE_DIR }}
+          key: spm-app-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('ios/project.yml', 'ios/KidsCamKit/Package.swift') }}
+          restore-keys: |
+            spm-app-${{ runner.os }}-${{ env.XCODE_VERSION }}-
+
+      - name: Resolve package dependencies
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project KidsCam.xcodeproj \
+            -scheme KidsCam \
+            -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}"
+
+      - name: Pick an iOS simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          devices=$(xcrun simctl list devices available --json)
+          udid=$(echo "${devices}" | jq -r '
+            [ .devices
+              | to_entries[]
+              | select(.key | contains("SimRuntime.iOS-"))
+              | .value[]
+              | select(.isAvailable)
+              | select(.name | startswith("iPhone"))
+              | .udid ] | last // empty')
+          if [ -z "${udid}" ]; then
+            echo "::error::No available iPhone simulator on this runner image."
+            xcrun simctl list runtimes
+            exit 1
+          fi
+          name=$(echo "${devices}" | jq -r --arg u "${udid}" '
+            [ .devices | to_entries[] | .value[] | select(.udid == $u) | .name ] | first')
+          echo "Using simulator: ${name} (${udid})"
+          echo "udid=${udid}" >> "$GITHUB_OUTPUT"
+
+      # Build and test are split so the check that fails names the phase, and
+      # so the test phase never silently recompiles.
+      - name: Build for testing
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing \
+            -project KidsCam.xcodeproj \
+            -scheme KidsCam \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}" \
+            -derivedDataPath "${DERIVED_DATA}" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS=""
+
+      - name: Run unit tests
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild test-without-building \
+            -project KidsCam.xcodeproj \
+            -scheme KidsCam \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}" \
+            -derivedDataPath "${DERIVED_DATA}" \
+            -resultBundlePath "${RUNNER_TEMP}/KidsCam.xcresult"
+
+      # UI smoke tests (docs/TASKS.md Phase 4 / ios-app.md §4 "XCUITest smoke
+      # flow") plug in here once a UI test target exists in ios/project.yml:
+      # add it to the KidsCam scheme's testTargets and it runs with the step
+      # above, no workflow change needed.
+
+      - name: Upload xcresult bundle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kidscam-xcresult
+          path: ${{ runner.temp }}/KidsCam.xcresult
+          retention-days: 7
+          if-no-files-found: ignore

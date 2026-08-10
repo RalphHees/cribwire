@@ -18,14 +18,18 @@ options:
   developmentLanguage: en
   groupSortPosition: top
   minimumXcodeGenVersion: "2.38.0"
-  xcodeVersion: "15.0"
+  xcodeVersion: "16.0"
 
 # ---------------------------------------------------------------------------
 # Shared build settings
 # ---------------------------------------------------------------------------
 settings:
   base:
-    SWIFT_VERSION: "5.10"
+    # Language mode, not toolchain version: SWIFT_VERSION only accepts 4.0/4.2/
+    # 5.0/6.0. The project targets the Swift 5 language mode built with a
+    # 5.10-or-newer toolchain (CI pins Xcode 16.4); `KidsCamKit/Package.swift`
+    # declares swift-tools-version 5.10 separately.
+    SWIFT_VERSION: "5.0"
     IPHONEOS_DEPLOYMENT_TARGET: "16.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
@@ -37,7 +41,6 @@ settings:
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
     CLANG_ENABLE_MODULES: YES
-    ENABLE_BITCODE: NO
 
     # --- Placeholders shared by the app and the notification extension ------
     # The app group doubles as the Keychain access group: `kSecAttrAccessGroup`

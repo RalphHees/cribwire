@@ -66,7 +66,9 @@ public protocol HTTPTransport: Sendable {
 /// Certificate pinning (SPKI, `security.md` §7) is a Phase 4 task and will be
 /// added here as a `URLSessionDelegate`; the transport boundary exists so that
 /// change touches nothing else.
-public struct URLSessionTransport: HTTPTransport {
+/// `@unchecked Sendable`: `URLSession` is thread-safe by contract but is not
+/// declared `Sendable` in every SDK version we build against.
+public struct URLSessionTransport: @unchecked Sendable, HTTPTransport {
     private let session: URLSession
 
     public init(session: URLSession = .shared) {

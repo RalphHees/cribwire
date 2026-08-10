@@ -1,0 +1,47 @@
+# Repo-wide ignores. Per-area rules live in backend/.gitignore.
+
+# --- macOS ------------------------------------------------------------------
+.DS_Store
+._*
+
+# --- Xcode / Swift ----------------------------------------------------------
+# The .xcodeproj is generated from ios/project.yml by XcodeGen and is never
+# committed (see ios/project.yml).
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.derived-data/
+.spm-clone/
+.build/
+.swiftpm/
+*.xcresult/
+*.ipa
+*.dSYM.zip
+
+# --- Signing material: must never be committed (docs/specs/security.md) -----
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.cer
+*.certSigningRequest
+*.p8
+
+# --- fastlane ---------------------------------------------------------------
+.github/fastlane/report.xml
+.github/fastlane/Preview.html
+.github/fastlane/screenshots/
+.github/fastlane/test_output/
+.github/fastlane/README.md
+
+# --- Node -------------------------------------------------------------------
+node_modules/
+dist/
+coverage/
+*.log
+
+# --- Local configuration ----------------------------------------------------
+.env
+.env.*
+!.env.example

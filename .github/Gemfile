@@ -1,0 +1,11 @@
+# Toolchain for .github/fastlane. Kept under .github/ so the repo root stays
+# free of Ruby scaffolding — the TestFlight workflow runs bundler and fastlane
+# with `.github` as the working directory.
+#
+# No Gemfile.lock is committed yet: it has to be generated on a machine that can
+# resolve gems. `ruby/setup-ruby` locks on the fly, so CI works without one, but
+# committing the lockfile produced by the first successful run (`bundle lock`)
+# makes releases byte-for-byte reproducible.
+source 'https://rubygems.org'
+
+gem 'fastlane', '~> 2.228'

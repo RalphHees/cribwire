@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import KidsCamKit
 import SwiftUI
@@ -52,10 +53,6 @@ final class CameraPairingViewModel: ObservableObject {
         self.apiBaseURL = services.configuration.defaultAPIBaseURL
         self.apnsToken = apnsToken
         self.apnsEnvironment = apnsEnvironment
-    }
-
-    deinit {
-        tickTask?.cancel()
     }
 
     // MARK: - Lifecycle
