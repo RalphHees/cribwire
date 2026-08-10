@@ -19,10 +19,8 @@ export async function enforceRateLimit(
     .header('retry-after', String(result.retryAfterSeconds))
     .status(429)
     .send({
-      error: {
-        code: 'rate_limited',
-        message: 'Too many requests; retry later',
-      },
+      error: 'rate_limited',
+      message: 'Too many requests; retry later',
     });
   return false;
 }

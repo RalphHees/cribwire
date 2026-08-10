@@ -17,6 +17,13 @@ export interface Device {
   readonly id: string;
   readonly pairingId: string;
   readonly role: Role;
+  /**
+   * The device's own 32-byte HMAC key (protocol.md 1.1). Generated on-device,
+   * uploaded once in the bootstrap-authenticated body, and used to
+   * authenticate every later request from this device. Decrypts nothing;
+   * never logged, never returned.
+   */
+  readonly deviceKey: Buffer;
   readonly apnsToken: string;
   readonly apnsEnvironment: ApnsEnvironment;
   readonly createdAt: Date;

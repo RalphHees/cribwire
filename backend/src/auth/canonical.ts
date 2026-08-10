@@ -1,19 +1,26 @@
 /**
- * `KidsCam-HMAC` wire format — normative definition in `shared/protocol.md`,
- * fixtures in `shared/test-vectors/kidscam-v1.json`. This module is
- * cross-implemented by the iOS app; any change here needs regenerated vectors
- * and a matching change on the iOS side.
+ * `KidsCam-HMAC` wire format — normative definition in `shared/protocol.md`
+ * (revision 1.1), fixtures in `shared/test-vectors/kidscam-v1.json`. This
+ * module is cross-implemented by the iOS app; any change here needs
+ * regenerated vectors and a matching change on the iOS side.
  *
- *   canonical = METHOD \n PATH \n TIMESTAMP \n lowercase-hex(SHA-256(body))
- *   mac       = lowercase-hex(HMAC-SHA256(K_auth, canonical))
- *   header    = Authorization: KidsCam-HMAC <pairingId>:<role>:<timestamp>:<mac>
+ *   canonical = METHOD \n PATH \n TIMESTAMP \n PRINCIPAL \n hex(SHA-256(body))
+ *   mac       = lowercase-hex(HMAC-SHA256(key, canonical))
+ *   header    = Authorization: KidsCam-HMAC <pairingId>:<principal>:<ts>:<mac>
+ *
+ * `PRINCIPAL` is the literal `bootstrap` for the two calls that establish a
+ * device (signed with `K_auth`), and the calling device's UUID for every other
+ * request (signed with that device's own key). The role is *not* on the wire:
+ * the server reads it from the authenticated device row.
  */
 
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import type { Role } from '../domain/types.ts';
-import { isRole, isUuid } from '../domain/types.ts';
+import { isUuid } from '../domain/types.ts';
 
 export const AUTH_SCHEME = 'KidsCam-HMAC';
+
+/** The principal of the two `K_auth`-authenticated bootstrap calls. */
+export const BOOTSTRAP_PRINCIPAL = 'bootstrap';
 
 /** Lowercase hex SHA-256 of the raw body; an absent body hashes as empty. */
 export function bodySha256Hex(body: Buffer | string | undefined): string {
@@ -26,13 +33,14 @@ export function canonicalString(
   method: string,
   path: string,
   timestamp: string,
+  principal: string,
   bodyHashHex: string,
 ): string {
-  return `${method.toUpperCase()}\n${path}\n${timestamp}\n${bodyHashHex}`;
+  return `${method.toUpperCase()}\n${path}\n${timestamp}\n${principal}\n${bodyHashHex}`;
 }
 
-export function computeMac(kAuth: Buffer, canonical: string): string {
-  return createHmac('sha256', kAuth).update(canonical, 'utf8').digest('hex');
+export function computeMac(key: Buffer, canonical: string): string {
+  return createHmac('sha256', key).update(canonical, 'utf8').digest('hex');
 }
 
 /**
@@ -48,7 +56,8 @@ export function macsEqual(expectedHex: string, providedHex: string): boolean {
 
 export interface AuthHeaderParts {
   readonly pairingId: string;
-  readonly role: Role;
+  /** `bootstrap`, or the calling device's UUID. */
+  readonly principal: string;
   readonly timestamp: string;
   readonly macHex: string;
 }
@@ -56,8 +65,17 @@ export interface AuthHeaderParts {
 const MAC_RE = /^[0-9a-f]{64}$/;
 const TIMESTAMP_RE = /^[0-9]{1,15}$/;
 
+export function isBootstrapPrincipal(principal: string): boolean {
+  return principal === BOOTSTRAP_PRINCIPAL;
+}
+
+/** The device id a principal names, or `null` for the bootstrap principal. */
+export function devicePrincipalId(principal: string): string | null {
+  return isUuid(principal) ? principal : null;
+}
+
 /**
- * Parses `KidsCam-HMAC <pairingId>:<role>:<timestamp>:<mac>`.
+ * Parses `KidsCam-HMAC <pairingId>:<principal>:<timestamp>:<mac>`.
  * Returns `null` for anything that does not match the pinned shape.
  */
 export function parseAuthHeader(
@@ -70,17 +88,20 @@ export function parseAuthHeader(
 
   const parts = header.slice(separator + 1).split(':');
   if (parts.length !== 4) return null;
-  const [pairingId, role, timestamp, macHex] = parts;
+  const [pairingId, principal, timestamp, macHex] = parts;
 
   if (!isUuid(pairingId)) return null;
-  if (!isRole(role)) return null;
+  if (principal === undefined) return null;
+  // A principal is either the bootstrap literal or a device UUID; nothing else
+  // (in particular, no role name) is accepted.
+  if (!isBootstrapPrincipal(principal) && !isUuid(principal)) return null;
   if (timestamp === undefined || !TIMESTAMP_RE.test(timestamp)) return null;
   if (macHex === undefined || !MAC_RE.test(macHex)) return null;
 
-  return { pairingId, role, timestamp, macHex };
+  return { pairingId, principal, timestamp, macHex };
 }
 
 /** Builds the header value. Used by tests and by the iOS-facing docs. */
 export function buildAuthHeader(parts: AuthHeaderParts): string {
-  return `${AUTH_SCHEME} ${parts.pairingId}:${parts.role}:${parts.timestamp}:${parts.macHex}`;
+  return `${AUTH_SCHEME} ${parts.pairingId}:${parts.principal}:${parts.timestamp}:${parts.macHex}`;
 }

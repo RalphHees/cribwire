@@ -1,6 +1,10 @@
 /**
  * Transport-independent verification of a `KidsCam-HMAC` request, so the same
- * code path can serve REST today and the Phase 2 WebSocket upgrade later.
+ * code path serves REST and the WebSocket upgrade.
+ *
+ * Verification answers one question only: *which principal signed this?* The
+ * caller's authority (camera or viewer) is never taken from the wire — routes
+ * read the role from the device row the principal resolves to.
  */
 
 import type { NonceStore } from './nonce-store.ts';
@@ -12,19 +16,19 @@ import {
   macsEqual,
   parseAuthHeader,
 } from './canonical.ts';
-import type { Role } from '../domain/types.ts';
 
 export type AuthFailureCode =
   | 'missing_authorization'
   | 'malformed_authorization'
   | 'timestamp_out_of_window'
-  | 'unknown_pairing'
+  | 'unknown_principal'
   | 'invalid_signature'
   | 'replayed_request';
 
 export interface AuthContext {
   readonly pairingId: string;
-  readonly role: Role;
+  /** `bootstrap`, or the authenticated device's UUID. */
+  readonly principal: string;
   readonly timestamp: number;
   readonly macHex: string;
 }
@@ -34,9 +38,12 @@ export type VerifyResult =
   | { readonly ok: false; readonly code: AuthFailureCode };
 
 /**
- * Resolves the `K_auth` for a pairing. Returns `null` when the pairing is
- * unknown. `POST /v1/pairings` passes a resolver that returns the key carried
- * in the request body (see `routes/pairings.ts`).
+ * Resolves the signing key for a (pairing, principal) pair, or `null` when no
+ * such credential exists — an unknown pairing, an unknown device, and a
+ * revoked pairing are deliberately indistinguishable to the caller.
+ *
+ * `POST /v1/pairings` passes a resolver that returns the key carried in the
+ * request body (see `routes/pairings.ts`).
  */
 export type KeyResolver = (parts: AuthHeaderParts) => Promise<Buffer | null>;
 
@@ -74,18 +81,19 @@ export async function verifyRequest(
     return { ok: false, code: 'timestamp_out_of_window' };
   }
 
-  const kAuth = await input.resolveKey(parts);
-  if (kAuth === null) {
-    return { ok: false, code: 'unknown_pairing' };
+  const key = await input.resolveKey(parts);
+  if (key === null) {
+    return { ok: false, code: 'unknown_principal' };
   }
 
   const canonical = canonicalString(
     input.method,
     input.path,
     parts.timestamp,
+    parts.principal,
     bodySha256Hex(input.rawBody),
   );
-  if (!macsEqual(computeMac(kAuth, canonical), parts.macHex)) {
+  if (!macsEqual(computeMac(key, canonical), parts.macHex)) {
     return { ok: false, code: 'invalid_signature' };
   }
 
@@ -104,7 +112,7 @@ export async function verifyRequest(
     ok: true,
     auth: {
       pairingId: parts.pairingId,
-      role: parts.role,
+      principal: parts.principal,
       timestamp,
       macHex: parts.macHex,
     },

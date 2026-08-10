@@ -1,10 +1,11 @@
 import type { FastifyReply } from 'fastify';
 
+/** Error body pinned by shared/protocol.md §Errors: `{error, message}`. */
 export interface ErrorBody {
-  readonly error: {
-    readonly code: string;
-    readonly message: string;
-  };
+  /** Stable machine-readable code. */
+  readonly error: string;
+  /** Human-readable text that is safe to show a user. */
+  readonly message: string;
 }
 
 /**
@@ -17,6 +18,6 @@ export function sendError(
   code: string,
   message: string,
 ): FastifyReply {
-  const body: ErrorBody = { error: { code, message } };
+  const body: ErrorBody = { error: code, message };
   return reply.status(status).send(body);
 }
