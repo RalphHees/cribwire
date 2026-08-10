@@ -1,0 +1,51 @@
+# Development stack only — no production credentials, no persistence beyond a
+# local volume. Production runs the same image with secrets from a manager.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kidscam
+      POSTGRES_PASSWORD: kidscam
+      POSTGRES_DB: kidscam
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kidscam -d kidscam']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    profiles: ['api']
+    environment:
+      NODE_ENV: production
+      PORT: '8080'
+      DATABASE_URL: postgres://kidscam:kidscam@postgres:5432/kidscam
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: info
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
