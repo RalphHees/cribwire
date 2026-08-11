@@ -1,0 +1,36 @@
+{{- /*
+`helm test <release>` — proves the Service actually routes to a live process,
+which the install itself does not (a Deployment can be Available while the
+Service selector is wrong).
+*/ -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "cribwire-backend.fullname" . }}-test-health
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: health
+      image: curlimages/curl:8.11.1
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      command: ['sh', '-c']
+      args:
+        - |
+          set -eu
+          base="http://{{ include "cribwire-backend.fullname" . }}:{{ .Values.service.port }}"
+          curl -fsS "$base/v1/health" | grep -q '"status":"ok"'
+          curl -fsS "$base/v1/version" | grep -q '"api":"v1"'
+          # An unknown path must be the API's JSON 404, not an ingress default
+          # backend page — that is what proves the Service reaches the app.
+          curl -sS -o /dev/null -w '%{http_code}' "$base/v1/nope" | grep -q '^404$'
+          echo "ok"

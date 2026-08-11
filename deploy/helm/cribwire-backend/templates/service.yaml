@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cribwire-backend.fullname" . }}
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+    {{- if ne (int .Values.service.metricsPort) (int .Values.service.port) }}
+    # Reachable in-cluster for Prometheus only; the Ingress routes `http`.
+    - name: metrics
+      port: {{ .Values.service.metricsPort }}
+      targetPort: metrics
+      protocol: TCP
+    {{- end }}
+  selector:
+    {{- include "cribwire-backend.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api

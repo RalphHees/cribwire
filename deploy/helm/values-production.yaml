@@ -1,0 +1,74 @@
+# Production overlay for https://apicribwire.ralphhees.nl
+#
+#   helm upgrade --install cribwire-backend deploy/helm/cribwire-backend \
+#     --namespace cribwire --create-namespace \
+#     -f deploy/helm/values-production.yaml \
+#     --set image.digest=sha256:… \
+#     --set revision=<git sha> \
+#     --wait --timeout 10m
+#
+# No secret appears in this file. The Secret named below is created out of band
+# (External Secrets / Sealed Secrets / `kubectl create secret`) and must carry:
+#
+#   DATABASE_URL  TURN_SHARED_SECRET  APNS_KEY_P8  APNS_KEY_ID  APNS_TEAM_ID
+
+replicaCount: 3
+
+image:
+  repository: harbor.aviodata.net/ralphhees/cribwire
+  pullPolicy: IfNotPresent
+  # Always set image.digest on the command line; never pin production to a tag.
+
+imagePullSecrets:
+  existing:
+    - harbor-cribwire
+
+secret:
+  existingSecret: cribwire-backend
+
+ingress:
+  enabled: true
+  className: nginx
+  host: apicribwire.ralphhees.nl
+  tls:
+    enabled: true
+    secretName: cribwire-backend-tls
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-body-size: 64k
+    # HSTS with a two-year max-age. Only safe because the host serves nothing
+    # but this API — no plain-HTTP subdomain depends on it.
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=63072000; includeSubDomains";
+
+config:
+  logLevel: info
+  apns:
+    # Must match the shipping bundle id.
+    topic: nl.ralphhees.cribwire
+  turn:
+    uris: 'turn:turn.ralphhees.nl:3478?transport=udp,turns:turn.ralphhees.nl:5349?transport=tcp'
+
+valkey:
+  enabled: true
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+serviceMonitor:
+  enabled: true
+
+# Turn on once the cluster CNI enforces policies and the database CIDR is known.
+networkPolicy:
+  enabled: false
+  postgresCidr: 0.0.0.0/0

@@ -1,0 +1,42 @@
+{{- $c := .Values.config -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cribwire-backend.configMapName" . }}
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+data:
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: {{ .Values.service.port | quote }}
+  # A metrics port different from PORT starts a second listener, keeping
+  # /metrics off the listener the Ingress routes to.
+  METRICS_PORT: {{ .Values.service.metricsPort | quote }}
+  LOG_LEVEL: {{ $c.logLevel | quote }}
+
+  PAIRING_TTL_SECONDS: {{ $c.pairingTtlSeconds | quote }}
+  AUTH_WINDOW_SECONDS: {{ $c.authWindowSeconds | quote }}
+  MAX_VIEWERS_PER_PAIRING: {{ $c.maxViewersPerPairing | quote }}
+  MAX_BODY_BYTES: {{ $c.maxBodyBytes | quote }}
+  MAX_WS_MESSAGE_BYTES: {{ $c.maxWsMessageBytes | quote }}
+  WS_HEARTBEAT_SECONDS: {{ $c.wsHeartbeatSeconds | quote }}
+  WS_IDLE_TIMEOUT_SECONDS: {{ $c.wsIdleTimeoutSeconds | quote }}
+  EVENT_MIN_INTERVAL_SECONDS: {{ $c.eventMinIntervalSeconds | quote }}
+
+  TURN_TTL_SECONDS: {{ $c.turn.ttlSeconds | quote }}
+  TURN_URIS: {{ $c.turn.uris | quote }}
+
+  APNS_TOPIC: {{ $c.apns.topic | quote }}
+  APNS_TIMEOUT_MS: {{ $c.apns.timeoutMs | quote }}
+
+  RATE_LIMIT_PAIRING_CREATE_PER_HOUR: {{ $c.rateLimits.pairingCreatePerHour | quote }}
+  RATE_LIMIT_CLAIM_PER_HOUR: {{ $c.rateLimits.claimPerHour | quote }}
+  RATE_LIMIT_PER_PAIRING_PER_HOUR: {{ $c.rateLimits.perPairingPerHour | quote }}
+  RATE_LIMIT_SIGNAL_UPGRADE_PER_HOUR: {{ $c.rateLimits.signalUpgradePerHour | quote }}
+  RATE_LIMIT_EVENTS_PER_HOUR: {{ $c.rateLimits.eventsPerHour | quote }}
+{{- $redisUrl := include "cribwire-backend.redisUrl" . }}
+{{- if $redisUrl }}
+  # Password-free in-cluster Valkey. An external Redis with credentials must
+  # supply REDIS_URL through the Secret instead.
+  REDIS_URL: {{ $redisUrl | quote }}
+{{- end }}

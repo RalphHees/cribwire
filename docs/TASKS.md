@@ -131,6 +131,12 @@ decrypted "Noise detected" push within 5 s; payload verified opaque in APNs traf
       external pen test; fix findings
 - [ ] Backend production deploy: EU region, TLS/HSTS, Prometheus + alerting,
       secrets manager, Terraform, load test (10 k WS / 1 k TURN targets)
+      - [x] Helm chart (`deploy/helm/cribwire-backend`): API + Valkey +
+            migration hook, nginx/cert-manager Ingress for
+            `apicribwire.ralphhees.nl`, ServiceMonitor, NetworkPolicy
+      - [x] Image + chart publish to Harbor (`deploy-backend.yml`)
+      - [ ] Cluster provisioning (Terraform), secrets manager wiring,
+            alerting rules, load test
 - [ ] Ops runbook + on-call alerts (APNs failures, TURN bandwidth, error rates)
 - [ ] App Store: privacy labels, screenshots, review notes (two-device testing
       instructions), TestFlight beta with ≥ 10 external testers

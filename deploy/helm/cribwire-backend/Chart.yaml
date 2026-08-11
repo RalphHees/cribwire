@@ -1,0 +1,33 @@
+apiVersion: v2
+name: cribwire-backend
+description: |
+  CribWire zero-knowledge signaling and pairing API — the stateless Fastify
+  service behind https://apicribwire.ralphhees.nl, plus the Valkey instance it
+  uses for the nonce cache, rate-limit buckets and signaling bus.
+type: application
+
+# Chart version — bumped when the templates change.
+version: 0.1.0
+
+# Default application version. The deploy pins an immutable image instead:
+# `--set image.digest=sha256:…` (see values.yaml).
+appVersion: '0.1.0'
+
+home: https://github.com/RalphHees/cribwire
+sources:
+  - https://github.com/RalphHees/cribwire
+
+keywords:
+  - cribwire
+  - webrtc
+  - signaling
+
+maintainers:
+  - name: Ralph Hees
+    url: https://github.com/RalphHees
+
+annotations:
+  # Postgres is deliberately not a dependency: the database holds pairing and
+  # device rows that must outlive any `helm uninstall`, so it is external and
+  # managed separately (docs/specs/backend.md §6).
+  cribwire.io/external-dependencies: 'postgres'

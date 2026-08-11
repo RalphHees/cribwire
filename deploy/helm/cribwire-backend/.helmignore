@@ -1,0 +1,13 @@
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.project
+.idea/
+.vscode/
+# Environment overlays are passed with `-f`, never packaged into the chart.
+values-*.yaml
