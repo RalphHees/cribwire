@@ -31,6 +31,8 @@ final class ViewerPairingViewModel: ObservableObject {
     private var pendingSecret: RootSecret?
     private var pendingPayload: QRPayload?
     private var claimedDeviceID: String?
+    /// This device's own auth key, held until the user confirms the SAS.
+    private var claimedDeviceKey: DeviceKey?
 
     private let services: AppServices
     private let apnsToken: String
@@ -115,17 +117,23 @@ final class ViewerPairingViewModel: ObservableObject {
 
         let keys = secret.deriveKeys()
         let client = APIClient(
-            configuration: .init(baseURL: apiBaseURL, pairingID: pairingID, role: .viewer),
+            configuration: .init(baseURL: apiBaseURL, pairingID: pairingID),
             keys: keys,
             transport: services.makeTransport()
         )
 
         do {
+            // Protocol 1.1: this viewer mints its own key and registers it during
+            // the bootstrap claim. Everything afterwards is signed with it, so the
+            // server can tell devices apart rather than trusting a claimed role.
+            let deviceKey = try DeviceKey.generate()
             let response = try await client.claimPairing(
+                deviceKey: deviceKey,
                 apnsToken: apnsToken,
                 apnsEnvironment: apnsEnvironment
             )
             claimedDeviceID = response.deviceId
+            claimedDeviceKey = deviceKey
             // The SAS is derived here, on this device, from the scanned secret —
             // it is never received from the network.
             dispatch(machine.apply(.claimSucceeded(sasCode: keys.sasCode)))
@@ -144,6 +152,14 @@ final class ViewerPairingViewModel: ObservableObject {
             displayName: "Camera"
         )
         try? await services.savePairing(record, rootSecret: secret)
+        // Only now, after the user confirmed both screens show the same digits,
+        // does this device's identity reach the Keychain.
+        if let deviceID = claimedDeviceID, let deviceKey = claimedDeviceKey {
+            try? await services.secrets.storeDeviceIdentity(
+                .init(deviceID: deviceID, deviceKey: deviceKey),
+                for: pairingID
+            )
+        }
         discardSecret()
     }
 
@@ -151,6 +167,7 @@ final class ViewerPairingViewModel: ObservableObject {
         pendingSecret = nil
         pendingPayload = nil
         claimedDeviceID = nil
+        claimedDeviceKey = nil
     }
 
     // MARK: - Messages

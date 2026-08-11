@@ -6,6 +6,9 @@ import SwiftUI
 /// (`docs/TASKS.md` → "Camera status screen").
 struct CameraHomeView: View {
     @EnvironmentObject private var services: AppServices
+    /// Owned here so the detectors' settings survive navigation in and out of
+    /// the alerts screen.
+    @StateObject private var detectionSettings = DetectionSettingsViewModel()
 
     var body: some View {
         NavigationStack {
@@ -24,6 +27,13 @@ struct CameraHomeView: View {
                         PairedDevicesView()
                     } label: {
                         Text(pairedDevicesTitle)
+                    }
+                    .buttonStyle(KCGhostButtonStyle())
+
+                    NavigationLink {
+                        DetectionSettingsView(model: detectionSettings)
+                    } label: {
+                        Text("Alerts")
                     }
                     .buttonStyle(KCGhostButtonStyle())
 

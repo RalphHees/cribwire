@@ -102,15 +102,20 @@ final class AppServices: ObservableObject {
     // MARK: - API access
 
     /// Builds a client for a stored pairing, loading `K_auth` from the Keychain.
+    /// Client for an established pairing.
+    ///
+    /// Authenticates as **this device** (protocol 1.1), not with the pairing-wide
+    /// `K_auth`: the bootstrap key only ever signs pairing-create and claim, and
+    /// the server derives the role from the device row it authenticated. Returns
+    /// `nil` if this device has no stored identity — that means pairing never
+    /// completed, and there is nothing it is entitled to call.
     func makeAPIClient(for record: PairingRecord) async throws -> APIClient? {
-        guard let keys = try await secrets.loadKeys(for: record.id) else { return nil }
+        guard let identity = try await secrets.loadDeviceIdentity(for: record.id) else {
+            return nil
+        }
         return APIClient(
-            configuration: .init(
-                baseURL: record.apiBaseURL,
-                pairingID: record.id,
-                role: record.localRole
-            ),
-            keys: keys,
+            configuration: .init(baseURL: record.apiBaseURL, pairingID: record.id),
+            credentials: .device(deviceID: identity.deviceID, deviceKey: identity.deviceKey),
             transport: makeTransport()
         )
     }

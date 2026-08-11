@@ -156,13 +156,22 @@ final class CameraPairingViewModel: ObservableObject {
             let keys = rootSecret.deriveKeys()
 
             let client = APIClient(
-                configuration: .init(baseURL: apiBaseURL, pairingID: pairingID, role: .camera),
+                configuration: .init(baseURL: apiBaseURL, pairingID: pairingID),
                 keys: keys,
                 transport: services.makeTransport()
             )
-            _ = try await client.createPairing(
+            // Protocol 1.1: the camera mints its own key and registers it in the
+            // bootstrap create call, then signs later requests with it — so a
+            // viewer holding the pairing-wide K_auth cannot act as this camera.
+            let deviceKey = try DeviceKey.generate()
+            let response = try await client.createPairing(
+                deviceKey: deviceKey,
                 apnsToken: apnsToken,
                 apnsEnvironment: apnsEnvironment
+            )
+            try? await services.secrets.storeDeviceIdentity(
+                .init(deviceID: response.deviceId, deviceKey: deviceKey),
+                for: pairingID
             )
 
             let payload = QRPayload(
