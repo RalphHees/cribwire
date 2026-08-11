@@ -178,7 +178,7 @@ final class ViewerPairingViewModel: ObservableObject {
             return .viewerLimitReached
         case .pairingNotFound:
             return .expired
-        case .http(_, let message):
+        case .http(_, _, let message):
             return .backend(message: message ?? "The server refused the pairing.")
         default:
             return .backend(message: "Could not reach the KidsCam server.")
