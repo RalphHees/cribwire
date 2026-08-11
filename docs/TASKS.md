@@ -54,32 +54,37 @@ milestone.
 
 **Milestone M1**: two physical devices pair via QR, show matching SAS codes, and the
 pairing survives app restarts; revocation works. Crypto unit tests green on CI.
-→ *Code complete; CI green pending the 1.1 migration. The two-device parts are
-inherently device-only and remain unverified.*
+→ *Code complete and CI green. The two-device parts (matching SAS on two phones,
+Keychain survival across reboot) are inherently device-only and remain unverified.*
 
 ## Phase 2 — Live streaming
 
-**Backend**
-- [ ] WebSocket signaling endpoint: HMAC-authenticated upgrade, opaque-blob routing
+**Backend** — complete
+- [x] WebSocket signaling endpoint: HMAC-authenticated upgrade, opaque-blob routing
       envelope (16 KiB cap), presence events, heartbeat/idle handling
-- [ ] Redis pub/sub bridge for cross-instance message routing
-- [ ] coturn deployment (ephemeral `use-auth-secret` credentials) +
+- [x] Redis pub/sub bridge for cross-instance message routing
+- [x] coturn deployment (ephemeral `use-auth-secret` credentials) +
       `POST /v1/pairings/{id}/turn-credentials`
 
 **iOS**
-- [ ] Sealed signaling layer: ChaCha20-Poly1305 blobs under `K_sig`, seq/replay
+- [x] Sealed signaling layer: ChaCha20-Poly1305 blobs under `K_sig`, seq/replay
       protection, role AAD binding (unit-tested against fixture transcripts)
-- [ ] `StreamingEngine`: peer connection setup, Camera-as-offerer flow, ICE with
-      STUN + TURN fallback
-- [ ] DTLS fingerprint binding: carry `a=fingerprint` in sealed blobs, verify peer
+- [x] `StreamingEngine`: peer connection setup, Camera-as-offerer flow, ICE with
+      STUN + TURN fallback — `PeerSession` + TURN fetch
+- [x] DTLS fingerprint binding: carry `a=fingerprint` in sealed blobs, verify peer
       cert post-handshake, hard-fail on mismatch (tested with a tampering fake server)
 - [ ] Camera capture pipeline: AVCaptureSession + audio, H.264/Opus config,
       adaptive resolution, low-light boost, capture-only mode when no viewer
 - [ ] Viewer live view: video rendering, mute, snapshot, connection-quality
       indicator; audio-only mode
-- [ ] Reconnect logic: `NWPathMonitor`, ICE restart, exponential backoff
+- [x] Reconnect logic: backoff/ICE-restart policy in `KidsCamKit` (`ReconnectPolicy`);
+      `NWPathMonitor` wiring still to do
 - [ ] Camera status screen: dimming, idle-timer disable, battery warnings,
       Guided Access setup instructions
+
+> **Remaining for Phase 2** is app-layer AVFoundation and UI only — the capture
+> pipeline, the viewer live view and the camera status screen. The protocol,
+> signaling, fingerprint-binding and quality/reconnect logic are done and tested.
 
 **Milestone M2**: live video+audio Camera→Viewer on LAN and across networks (TURN),
 < 1.5 s latency, surviving a Wi-Fi→cellular switch. Verified MITM resistance test:
@@ -87,17 +92,18 @@ a modified signaling server cannot complete a handshake.
 
 ## Phase 3 — Detection & push notifications
 
-**Backend**
-- [ ] `POST /v1/events`: ciphertext passthrough, per-pairing rate limit,
+**Backend** — complete
+- [x] `POST /v1/events`: ciphertext passthrough, per-pairing rate limit,
       APNs HTTP/2 fan-out to all viewers, `mutable-content` payload format
-- [ ] APNs error handling (token cleanup on 410), delivery metrics
+- [x] APNs error handling (token cleanup on 410), delivery metrics
 
 **iOS (Camera)**
-- [ ] Noise detector: AVAudioEngine tap, A-weighted RMS, threshold presets +
-      custom slider with live level meter, ≥ 1 s trigger window
-- [ ] Movement detector: 160×120 luma diff @ 2 fps, consecutive-frame trigger,
-      region-of-interest editor
-- [ ] Detection settings: independent enable toggles (default off), sensitivity,
+- [x] Noise detector: A-weighted RMS, threshold presets + custom slider with live
+      level meter, ≥ 1 s trigger window — decision logic done and unit-tested;
+      the AVAudioEngine tap that feeds it is not wired yet
+- [x] Movement detector: 160×120 luma diff, consecutive-frame trigger,
+      region-of-interest editor — same split: logic + editor done, capture feed not
+- [x] Detection settings: independent enable toggles (default off), sensitivity,
       cooldown (1–10 min); background-audio mode keeps noise detection alive
 - [ ] Event pipeline: seal with `K_evt` → `POST /v1/events`; low-battery event
 - [ ] Detector tuning against recorded fixture clips (crying, silence, pets,
@@ -105,7 +111,7 @@ a modified signaling server cannot complete a handshake.
 
 **iOS (Viewer)**
 - [ ] Notification permission flow + settings deep-link when denied
-- [ ] Notification Service Extension: decrypt with `K_evt` from app-group Keychain,
+- [x] Notification Service Extension: decrypt with `K_evt` from app-group Keychain,
       localized alert text, generic fallback on decrypt failure
 - [ ] Notification tap → deep-link into that Camera's live view
 
@@ -114,6 +120,8 @@ decrypted "Noise detected" push within 5 s; payload verified opaque in APNs traf
 
 ## Phase 4 — Hardening, polish, release
 
+- [x] CI surfaces Swift compile diagnostics instead of burying them in the
+      xcodebuild transcript
 - [ ] Certificate pinning (SPKI + backup pin) for API/WSS
 - [ ] Battery profiling of Camera mode (< 20 %/h target) + capture teardown checks
 - [ ] Interruption recovery: calls, Siri, route changes, backgrounding matrix
