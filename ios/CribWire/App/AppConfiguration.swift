@@ -5,8 +5,6 @@ import Foundation
 ///
 /// Nothing secret lives here — only identifiers and the default backend URL.
 struct AppConfiguration {
-    let appGroupIdentifier: String?
-    let keychainAccessGroup: String?
     /// Backend the Camera registers new pairings with. The Viewer ignores this
     /// and uses the URL carried in the scanned QR code.
     let defaultAPIBaseURL: URL?
@@ -24,18 +22,10 @@ struct AppConfiguration {
             return value
         }
 
-        self.appGroupIdentifier = string("CribWireAppGroupIdentifier")
-        self.keychainAccessGroup = string("CribWireKeychainAccessGroup")
         self.defaultAPIBaseURL = string("CribWireAPIBaseURL").flatMap(URL.init(string:))
     }
 
-    init(
-        appGroupIdentifier: String?,
-        keychainAccessGroup: String?,
-        defaultAPIBaseURL: URL?
-    ) {
-        self.appGroupIdentifier = appGroupIdentifier
-        self.keychainAccessGroup = keychainAccessGroup
+    init(defaultAPIBaseURL: URL?) {
         self.defaultAPIBaseURL = defaultAPIBaseURL
     }
 }

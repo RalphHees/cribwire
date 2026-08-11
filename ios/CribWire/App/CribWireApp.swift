@@ -2,14 +2,33 @@ import SwiftUI
 
 @main
 struct CribWireApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var services = AppServices()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(services)
+                .environmentObject(services.notifications)
                 .preferredColorScheme(.dark)
-                .task { await services.performLaunchTasks() }
+                .task {
+                    // Set before anything can register for remote
+                    // notifications, so the token callback has somewhere to go.
+                    AppDelegate.notifications = services.notifications
+                    await services.performLaunchTasks()
+                    await services.notifications.prepare()
+                    // Cold launch: whatever was delivered while the app was not
+                    // running still says "Activity detected".
+                    await services.notifications.upgradeDeliveredNotifications()
+                }
+                // Same again on every return to the foreground — `onChange` does
+                // not fire for the launch transition (see
+                // `PushNotificationCoordinator`).
+                .onChange(of: scenePhase) { phase in
+                    guard phase == .active else { return }
+                    Task { await services.notifications.upgradeDeliveredNotifications() }
+                }
         }
     }
 }

@@ -74,12 +74,14 @@ cache in Redis).
 
 ### Push notifications
 
-- APNs token-based auth (`.p8` key), `apns-push-type: alert`, `mutable-content: 1`
-  so the Viewer's Notification Service Extension can decrypt the payload.
-- Payload: `{"aps": {"alert": {"loc-key": "EVENT_GENERIC"}, "mutable-content": 1},
-  "pairingId": "…", "ciphertext": "…"}` — the visible text before decryption is a
-  generic "Activity detected"; the extension replaces it with the decrypted
-  noise/movement detail. If decryption fails the generic text is shown.
+- APNs token-based auth (`.p8` key), `apns-push-type: alert`. No `mutable-content`:
+  the iOS app has no Notification Service Extension to hand the push to, so the flag
+  would be inert.
+- Payload: `{"aps": {"alert": {"loc-key": "EVENT_GENERIC"}}, "pairingId": "…",
+  "ciphertext": "…"}` — the visible text is a generic "Activity detected", which is
+  all the server can say about an event it cannot read. The Viewer app opens the
+  ciphertext and shows the noise/movement detail itself; if decryption fails the
+  generic text stands.
 - Feedback handling: `410 Unregistered` responses delete the stored token.
 
 ## 4. TURN/STUN

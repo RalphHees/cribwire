@@ -30,24 +30,33 @@ export interface ApnsSender {
   close(): Promise<void>;
 }
 
-/** Localizable alert key shown before the extension decrypts the payload. */
+/**
+ * Localizable alert key. This is the only text APNs and the lock screen ever
+ * see: the app opens the ciphertext and replaces it with the specific sentence
+ * once it is running.
+ */
 export const EVENT_ALERT_LOC_KEY = 'EVENT_GENERIC';
 
 export interface ApnsPayload {
   readonly aps: {
     readonly alert: { readonly 'loc-key': string };
-    readonly 'mutable-content': 1;
   };
   readonly pairingId: string;
   readonly ciphertext: string;
 }
 
-/** The exact payload pinned in backend.md §3. */
+/**
+ * The exact payload pinned in backend.md §3.
+ *
+ * No `mutable-content`: that flag exists to hand a push to a Notification
+ * Service Extension before display, and the iOS app has no extension — it
+ * decrypts the payload in-process. Sending the flag anyway would be inert, and
+ * would suggest a delivery-time rewrite that does not happen.
+ */
 export function buildApnsPayload(notification: ApnsNotification): ApnsPayload {
   return {
     aps: {
       alert: { 'loc-key': EVENT_ALERT_LOC_KEY },
-      'mutable-content': 1,
     },
     pairingId: notification.pairingId,
     ciphertext: notification.ciphertext,

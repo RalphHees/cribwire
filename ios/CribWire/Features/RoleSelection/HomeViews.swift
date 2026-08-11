@@ -93,12 +93,17 @@ struct CameraHomeView: View {
 /// Viewer home. The live view, audio-only mode and PiP are Phase 2.
 struct ViewerHomeView: View {
     @EnvironmentObject private var services: AppServices
+    @EnvironmentObject private var notifications: PushNotificationCoordinator
 
     var body: some View {
         NavigationStack {
             KCScreen {
                 VStack(spacing: Theme.Metrics.stackSpacing) {
                     header
+
+                    if let latest = notifications.latestEvent {
+                        latestAlert(latest)
+                    }
 
                     NavigationLink {
                         ViewerScanView(services: services)
@@ -157,6 +162,29 @@ struct ViewerHomeView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.bottom, 8)
+    }
+
+    /// The last alert this device was able to open.
+    ///
+    /// A push that arrives while the app is closed is displayed by iOS with the
+    /// server's generic text, because the server cannot read the event either.
+    /// This row is the decrypted version, available from the moment the app is
+    /// open (`PushNotificationCoordinator`).
+    private func latestAlert(_ decoded: DecodedEvent) -> some View {
+        KCCard {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.Palette.periwinkle)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(EventAlert.body(for: decoded.event))
+                        .font(Theme.Typography.body)
+                    Text(decoded.event.date.formatted(date: .omitted, time: .shortened))
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textMuted)
+                }
+            }
+        }
     }
 
     private var pairedCamerasTitle: String {

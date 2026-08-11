@@ -17,7 +17,8 @@
 #     APP_STORE_CONNECT_* secrets;
 #   * a private git repo initialised with `fastlane match init` + `fastlane
 #     match appstore`, holding the distribution certificate and the App Store
-#     provisioning profiles for BOTH bundle ids (app and NotificationService);
+#     provisioning profile for the app — one bundle id, since notification
+#     decryption lives in the app rather than in an extension;
 #   * the real bundle id prefix and DEVELOPMENT_TEAM written into
 #     ios/project.yml, replacing the `example.cribwire` placeholders.
 
@@ -51,7 +52,6 @@ platform :ios do
 
     team_id = required_env('CRIBWIRE_APPLE_TEAM_ID')
     app_identifier = required_env('CRIBWIRE_APP_IDENTIFIER')
-    extension_identifier = "#{app_identifier}.NotificationService"
     build_number = required_env('CRIBWIRE_BUILD_NUMBER')
     marketing_version = ENV['CRIBWIRE_MARKETING_VERSION'].to_s
     # A tag push supplies no changelog input, so the env var arrives empty
@@ -72,7 +72,7 @@ platform :ios do
     # from a machine that is allowed to touch the Apple Developer portal.
     match(
       type: 'appstore',
-      app_identifier: [app_identifier, extension_identifier],
+      app_identifier: [app_identifier],
       git_url: required_env('MATCH_GIT_URL'),
       storage_mode: 'git',
       team_id: team_id,
@@ -98,8 +98,7 @@ platform :ios do
       xcargs: xcargs.join(' '),
       export_options: {
         provisioningProfiles: {
-          app_identifier => ENV["sigh_#{app_identifier}_appstore_profile-name"],
-          extension_identifier => ENV["sigh_#{extension_identifier}_appstore_profile-name"]
+          app_identifier => ENV["sigh_#{app_identifier}_appstore_profile-name"]
         }
       }
     )

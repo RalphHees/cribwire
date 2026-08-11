@@ -167,8 +167,10 @@ maxMessageBytes}` on connect,
 
 `POST /v1/events` takes `{ciphertext}` from the camera and fans it out to every
 viewer of the pairing over APNs HTTP/2 with token (`.p8`) auth:
-`apns-push-type: alert`, `mutable-content: 1`, and the payload from
-`backend.md` §3 with the ciphertext copied verbatim. A `410 Unregistered`
+`apns-push-type: alert` and the payload from `backend.md` §3 with the ciphertext
+copied verbatim. The visible text is the fixed `EVENT_GENERIC` key — the server
+cannot say more, since it cannot read the event; the iOS app opens the
+ciphertext itself and shows the detail. A `410 Unregistered`
 answer deletes every device row holding that token. The sender is a port
 (`src/push/apns.ts`); tests run against a fake and never touch Apple.
 

@@ -6,9 +6,10 @@ milestone.
 
 ## Phase 0 — Project foundations
 
-- [x] Create Xcode project (SwiftUI, iOS 16 min) with app target + Notification
-      Service Extension target; shared app group + Keychain access group
-      — via `ios/project.yml` (XcodeGen); groups are build-setting placeholders
+- [x] Create Xcode project (SwiftUI, iOS 16 min) — via `ios/project.yml`
+      (XcodeGen). One app target: the Notification Service Extension was merged
+      into the app, which also removed the shared app group and Keychain access
+      group it existed for
 - [ ] Add WebRTC dependency (binary SPM package) and verify a trivial peer connection
       compiles on device — dependency declared; first real use lands in Phase 2
 - [ ] Repo hygiene: SwiftLint/SwiftFormat, backend ESLint/Prettier, PR template
@@ -36,8 +37,9 @@ milestone.
 - [x] `CryptoCore` module: CSPRNG secret generation, HKDF key derivation
       (`K_auth/K_sig/K_evt/K_sas`), ChaCha20-Poly1305 seal/open with AAD —
       with unit tests and test vectors shared with the backend repo
-- [x] Keychain storage (ThisDeviceOnly, non-sync) + app-group access for the
-      notification extension; wipe-on-unpair and first-launch cleanup
+- [x] Keychain storage (ThisDeviceOnly, non-sync) in the app's own access group —
+      no app group, since nothing outside the app reads a key; wipe-on-unpair and
+      first-launch cleanup
 - [x] Role selection UI (Camera / Viewer) + pairing state machine
 - [x] Camera: QR generation (2-min regeneration, screen-capture protection) +
       pairing registration call
@@ -94,7 +96,7 @@ a modified signaling server cannot complete a handshake.
 
 **Backend** — complete
 - [x] `POST /v1/events`: ciphertext passthrough, per-pairing rate limit,
-      APNs HTTP/2 fan-out to all viewers, `mutable-content` payload format
+      APNs HTTP/2 fan-out to all viewers, generic-alert payload format
 - [x] APNs error handling (token cleanup on 410), delivery metrics
 
 **iOS (Camera)**
@@ -110,13 +112,20 @@ a modified signaling server cannot complete a handshake.
       curtain movement) with target false-positive/negative rates
 
 **iOS (Viewer)**
-- [ ] Notification permission flow + settings deep-link when denied
-- [x] Notification Service Extension: decrypt with `K_evt` from app-group Keychain,
-      localized alert text, generic fallback on decrypt failure
-- [ ] Notification tap → deep-link into that Camera's live view
+- [ ] Notification permission flow + settings deep-link when denied — permission is
+      requested from the pairing screens; the denied-state UI is still missing
+- [x] In-app payload decryption (`PushNotificationCoordinator`): decrypt with
+      `K_evt` from the Keychain, specific alert text, generic fallback on any
+      decrypt failure. Replaces the Notification Service Extension
+- [ ] Notification tap → deep-link into that Camera's live view — the tap already
+      resolves to a pairing (`pendingPairingID`); the live view it should open is
+      Phase 2
 
-**Milestone M3**: with the Viewer app closed, clapping near the Camera produces a
-decrypted "Noise detected" push within 5 s; payload verified opaque in APNs traffic.
+**Milestone M3**: clapping near the Camera produces a push on the Viewer within 5 s;
+payload verified opaque in APNs traffic. With the Viewer app closed the alert reads
+"Activity detected" and resolves to "Noise detected" once the app is opened — with
+no Notification Service Extension nothing may rewrite a push before iOS displays it,
+and the server cannot read the event to describe it itself.
 
 ## Phase 4 — Hardening, polish, release
 

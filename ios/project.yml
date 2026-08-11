@@ -5,8 +5,12 @@
 # and makes the build settings reviewable as text.
 #
 # Placeholders to replace before signing a real build:
-#   DEVELOPMENT_TEAM, PRODUCT_BUNDLE_IDENTIFIER prefix, CRIBWIRE_APP_GROUP,
-#   CRIBWIRE_KEYCHAIN_ACCESS_GROUP, CRIBWIRE_API_BASE_URL.
+#   DEVELOPMENT_TEAM, PRODUCT_BUNDLE_IDENTIFIER prefix, CRIBWIRE_API_BASE_URL.
+#
+# One app target, one bundle id: notification payload decryption lives in the
+# app (CribWire/Features/Notifications), not in a Notification Service
+# Extension. That removes the second bundle id, its provisioning profile and the
+# app group the two binaries used to share.
 
 name: CribWire
 
@@ -42,13 +46,6 @@ settings:
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
     CLANG_ENABLE_MODULES: YES
 
-    # --- Placeholders shared by the app and the notification extension ------
-    # The app group doubles as the Keychain access group: `kSecAttrAccessGroup`
-    # accepts an app-group identifier, which is how the Notification Service
-    # Extension reads `K_evt` (security.md §5) without a separate
-    # keychain-access-groups entitlement.
-    CRIBWIRE_APP_GROUP: group.com.ralphhees.cribwire.shared
-    CRIBWIRE_KEYCHAIN_ACCESS_GROUP: group.com.ralphhees.cribwire.shared
     # Default backend used by the Camera when it creates a pairing. The Viewer
     # always uses the URL carried in the scanned QR code, never this one.
     CRIBWIRE_API_BASE_URL: https://apicribwire.ralphhees.nl
@@ -56,9 +53,14 @@ settings:
     debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
       SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+      # Must match what `PushNotificationCoordinator` registers with the backend
+      # (`API.APNSEnvironment`): a token minted in one environment is rejected by
+      # the other, and the backend picks the APNs host from what we send.
+      CRIBWIRE_APS_ENVIRONMENT: development
     release:
       SWIFT_OPTIMIZATION_LEVEL: "-O"
       SWIFT_COMPILATION_MODE: wholemodule
+      CRIBWIRE_APS_ENVIRONMENT: production
 
 # ---------------------------------------------------------------------------
 # Packages
@@ -90,12 +92,8 @@ targets:
     dependencies:
       - package: CribWireKit
         product: CribWireKit
-      # App target only — the extension must stay tiny and must not link
-      # libwebrtc.
       - package: WebRTC
         product: WebRTC
-      - target: NotificationService
-        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWire
@@ -107,9 +105,9 @@ targets:
     entitlements:
       path: CribWire/CribWire.entitlements
       properties:
-        com.apple.security.application-groups:
-          - $(CRIBWIRE_APP_GROUP)
-        aps-environment: development
+        # Keys live in the app's own Keychain access group, so no app group and
+        # no keychain-access-groups entitlement is needed.
+        aps-environment: $(CRIBWIRE_APS_ENVIRONMENT)
     info:
       path: CribWire/Info.plist
       properties:
@@ -144,8 +142,6 @@ targets:
           - audio
 
         # --- Runtime configuration ---------------------------------------
-        CribWireAppGroupIdentifier: $(CRIBWIRE_APP_GROUP)
-        CribWireKeychainAccessGroup: $(CRIBWIRE_KEYCHAIN_ACCESS_GROUP)
         CribWireAPIBaseURL: $(CRIBWIRE_API_BASE_URL)
     scheme:
       testTargets:
@@ -153,32 +149,6 @@ targets:
       gatherCoverageData: true
       coverageTargets:
         - CribWire
-
-  NotificationService:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: NotificationService
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.NotificationService
-        PRODUCT_NAME: NotificationService
-    entitlements:
-      path: NotificationService/NotificationService.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - $(CRIBWIRE_APP_GROUP)
-    info:
-      path: NotificationService/Info.plist
-      properties:
-        CFBundleDisplayName: CribWire
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CribWireAppGroupIdentifier: $(CRIBWIRE_APP_GROUP)
-        CribWireKeychainAccessGroup: $(CRIBWIRE_KEYCHAIN_ACCESS_GROUP)
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.usernotifications.service
-          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
 
   CribWireTests:
     type: bundle.unit-test

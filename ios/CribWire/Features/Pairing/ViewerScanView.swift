@@ -12,7 +12,10 @@ struct ViewerScanView: View {
 
     @State private var cameraAuthorization = AVCaptureDevice.authorizationStatus(for: .video)
 
+    private let services: AppServices
+
     init(services: AppServices) {
+        self.services = services
         _model = StateObject(wrappedValue: ViewerPairingViewModel(services: services))
     }
 
@@ -48,7 +51,13 @@ struct ViewerScanView: View {
         }
         .navigationTitle("Scan the Camera")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await requestCameraAccessIfNeeded() }
+        .task {
+            // A Viewer that cannot receive notifications is a Viewer that misses
+            // every alert, and the claim below registers this device's APNs
+            // token — so both permissions are asked for here, before scanning.
+            await services.notifications.requestAuthorization()
+            await requestCameraAccessIfNeeded()
+        }
         .onDisappear { model.cancel() }
     }
 

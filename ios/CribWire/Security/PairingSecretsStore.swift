@@ -2,12 +2,14 @@ import CryptoKit
 import Foundation
 import CribWireKit
 
-/// Stores and retrieves a pairing's keys, deciding which Keychain scope each key
-/// belongs in.
+/// Stores and retrieves a pairing's keys.
 ///
-/// The split matters: the Notification Service Extension gets `K_evt` and nothing
-/// else, so a bug in the extension cannot expose the root secret or the signaling
-/// key (`security.md` §5).
+/// Every key of every pairing lives in the app's own Keychain access group. It
+/// used to be split — `K_evt` in an app-group scope, everything else private —
+/// so that a Notification Service Extension could decrypt an event payload
+/// without being able to reach the root secret. With the extension merged into
+/// the app there is no second process to share with, so nothing is shared
+/// (`security.md` §5).
 actor PairingSecretsStore {
 
     /// One key of one pairing. The raw values are Keychain account names, so
@@ -22,19 +24,6 @@ actor PairingSecretsStore {
         case deviceKey = "device_key"
         /// This device's backend-assigned id — its signing principal.
         case deviceID = "device_id"
-
-        var scope: KeychainStore.Scope {
-            switch self {
-            case .event:
-                // The only key the notification extension may read.
-                return .sharedWithExtension
-            case .rootSecret, .auth, .signaling, .sas, .deviceKey, .deviceID:
-                // The device key stays out of the shared group deliberately:
-                // the extension never calls the API, so handing it a key that
-                // can act as this device would be pure downside.
-                return .appPrivate
-            }
-        }
     }
 
     /// Who this device is to the backend, after bootstrap.
@@ -90,6 +79,21 @@ actor PairingSecretsStore {
         )
     }
 
+    /// `K_evt` on its own, for the push-notification path.
+    ///
+    /// A push carries a pairing id and a sealed payload and nothing else, so
+    /// this is the one key the notification code needs — and the only one it
+    /// gets. `nil` when this device holds no such pairing; the caller must treat
+    /// that exactly like a failed decryption (`security.md` §5).
+    func eventKey(for pairingID: UUID) async throws -> SymmetricKey? {
+        guard let data = try await read(.event, pairingID),
+              data.count == PairingKeys.keyByteCount
+        else {
+            return nil
+        }
+        return SymmetricKey(data: data)
+    }
+
     /// Persists the identity handed back by `POST /v1/pairings` or `.../claim`.
     ///
     /// Written only once, at bootstrap: from then on this key signs every
@@ -114,21 +118,21 @@ actor PairingSecretsStore {
         return DeviceIdentity(deviceID: deviceID, deviceKey: deviceKey)
     }
 
-    /// Wipe-on-unpair: removes every key of one pairing from both scopes.
+    /// Wipe-on-unpair: removes every key of one pairing.
     ///
     /// Revocation is only complete once this has run — the peer still holds its
     /// copy, so the local keys are useless and must not linger
     /// (`security.md` §6).
     func wipe(pairingID: UUID) async throws {
         for item in Item.allCases {
-            try await keychain.remove(account: account(item, pairingID), scope: item.scope)
+            try await keychain.remove(account: account(item, pairingID))
         }
     }
 
     /// First-launch cleanup. Keychain items outlive app deletion, so a fresh
     /// install starts by discarding anything an earlier install left behind.
     func wipeEverything() async throws {
-        try await keychain.removeEverything()
+        try await keychain.removeAll()
     }
 
     // MARK: - Plumbing
@@ -138,11 +142,11 @@ actor PairingSecretsStore {
     }
 
     private func write(_ data: Data, _ item: Item, _ pairingID: UUID) async throws {
-        try await keychain.set(data, account: account(item, pairingID), scope: item.scope)
+        try await keychain.set(data, account: account(item, pairingID))
     }
 
     private func read(_ item: Item, _ pairingID: UUID) async throws -> Data? {
-        try await keychain.get(account: account(item, pairingID), scope: item.scope)
+        try await keychain.get(account: account(item, pairingID))
     }
 }
 

@@ -11,7 +11,10 @@ struct CameraPairingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.displayScale) private var displayScale
 
+    private let services: AppServices
+
     init(services: AppServices) {
+        self.services = services
         _model = StateObject(wrappedValue: CameraPairingViewModel(services: services))
     }
 
@@ -45,7 +48,13 @@ struct CameraPairingView: View {
         }
         .navigationTitle("Pair a Viewer")
         .navigationBarTitleDisplayMode(.inline)
-        .task { model.start() }
+        // Pairing is where this device registers its APNs token, so it is also
+        // where asking for notification permission makes sense — a Camera needs
+        // it for its own low-battery alerts.
+        .task {
+            await services.notifications.requestAuthorization()
+            model.start()
+        }
         .onDisappear { model.stop() }
     }
 

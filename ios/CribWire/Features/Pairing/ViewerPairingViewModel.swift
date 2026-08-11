@@ -35,17 +35,28 @@ final class ViewerPairingViewModel: ObservableObject {
     private var claimedDeviceKey: DeviceKey?
 
     private let services: AppServices
-    private let apnsToken: String
-    private let apnsEnvironment: API.APNSEnvironment
+    /// Set by tests; otherwise the token is read from the notification
+    /// coordinator when the claim is actually made, because APNs registration
+    /// completes asynchronously and may well finish after this screen appears.
+    private let overriddenAPNSToken: String?
+    private let overriddenAPNSEnvironment: API.APNSEnvironment?
+
+    /// Empty when this device has no token yet. It matters more here than on the
+    /// Camera — a Viewer with no token receives no alerts — which is why the
+    /// scan screen asks for notification permission before it gets this far.
+    private var apnsToken: String { overriddenAPNSToken ?? services.notifications.apnsToken ?? "" }
+    private var apnsEnvironment: API.APNSEnvironment {
+        overriddenAPNSEnvironment ?? services.notifications.apnsEnvironment
+    }
 
     init(
         services: AppServices,
-        apnsToken: String = "",
-        apnsEnvironment: API.APNSEnvironment = .sandbox
+        apnsToken: String? = nil,
+        apnsEnvironment: API.APNSEnvironment? = nil
     ) {
         self.services = services
-        self.apnsToken = apnsToken
-        self.apnsEnvironment = apnsEnvironment
+        self.overriddenAPNSToken = apnsToken
+        self.overriddenAPNSEnvironment = apnsEnvironment
     }
 
     // MARK: - Intent

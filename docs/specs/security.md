@@ -98,9 +98,16 @@ property comes from binding DTLS to the QR-derived keys.
   ChaCha20-Poly1305 under `K_evt` (random nonce, pairing ID as AAD) on the Camera
   before upload; the backend and Apple see only the ciphertext and a generic
   localizable alert key.
-- The Viewer's Notification Service Extension holds `K_evt` in an app-group Keychain
-  item and decrypts for display. Decryption failure → generic "Activity detected"
-  text, never an error leaking key state.
+- The Viewer app decrypts the payload itself, with `K_evt` from its own Keychain
+  access group. Decryption failure — no key, wrong pairing, tampered bytes — →
+  generic "Activity detected" text, never an error leaking key state, and the four
+  failure modes must be indistinguishable.
+- There is no Notification Service Extension, so there is no second process and no
+  shared app group: `K_evt` never leaves the app's private access group. The
+  trade-off is timing, not confidentiality — a push that arrives while the app is
+  closed is displayed with the generic text and is rewritten with the specific one
+  when the app next opens, since only an extension may rewrite a push before it is
+  displayed.
 
 ## 6. Key lifecycle
 
