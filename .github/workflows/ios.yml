@@ -48,10 +48,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select Xcode ${{ env.XCODE_VERSION }}
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
@@ -64,7 +64,7 @@ jobs:
       # Only the package *checkouts* are cached, not .build: a stale module
       # cache costs more debugging time than the rebuild it saves.
       - name: Cache SwiftPM checkouts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/Library/Caches/org.swift.swiftpm
           key: spm-kit-${{ runner.os }}-${{ hashFiles('ios/CribWireKit/Package.swift', 'ios/CribWireKit/Package.resolved') }}
@@ -97,10 +97,10 @@ jobs:
       DERIVED_DATA: ${{ github.workspace }}/.derived-data
       NSUnbufferedIO: 'YES'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Select Xcode ${{ env.XCODE_VERSION }}
-        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
@@ -116,7 +116,7 @@ jobs:
         run: xcodegen generate --spec project.yml
 
       - name: Cache resolved Swift packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ env.SPM_CLONE_DIR }}
           key: spm-app-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('ios/project.yml', 'ios/CribWireKit/Package.swift') }}
@@ -196,7 +196,7 @@ jobs:
 
       - name: Upload build log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xcodebuild-log
           path: ${{ runner.temp }}/xcodebuild.log
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload xcresult bundle
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cribwire-xcresult
           path: ${{ runner.temp }}/CribWire.xcresult
