@@ -109,7 +109,11 @@ function listFromEnv(env: NodeJS.ProcessEnv, key: string): readonly string[] {
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = intFromEnv(env, 'PORT', 8080);
-  const eventIntervalSeconds = intFromEnv(env, 'EVENT_MIN_INTERVAL_SECONDS', 30);
+  const eventIntervalSeconds = intFromEnv(
+    env,
+    'EVENT_MIN_INTERVAL_SECONDS',
+    30,
+  );
 
   return {
     nodeEnv: nodeEnvFromEnv(env),
@@ -163,7 +167,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         capacity: 1,
         refillPerSecond: 1 / eventIntervalSeconds,
       },
-      eventsPerIp: hourlyRule(intFromEnv(env, 'RATE_LIMIT_EVENTS_PER_HOUR', 240)),
+      eventsPerIp: hourlyRule(
+        intFromEnv(env, 'RATE_LIMIT_EVENTS_PER_HOUR', 240),
+      ),
     },
   };
 }
@@ -176,7 +182,5 @@ export function turnConfigured(config: Config): boolean {
 /** True when the APNs provider credentials are complete. */
 export function apnsConfigured(config: Config): boolean {
   const { privateKeyPem, keyId, teamId, topic } = config.apns;
-  return (
-    privateKeyPem !== '' && keyId !== '' && teamId !== '' && topic !== ''
-  );
+  return privateKeyPem !== '' && keyId !== '' && teamId !== '' && topic !== '';
 }

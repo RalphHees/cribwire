@@ -128,7 +128,9 @@ describe('heartbeat and idle', () => {
     const socket = new FakeSocket();
     await hub.attach(socket, camera);
 
-    clock = new Date(clock.getTime() + (config.wsIdleTimeoutSeconds + 1) * 1000);
+    clock = new Date(
+      clock.getTime() + (config.wsIdleTimeoutSeconds + 1) * 1000,
+    );
     hub.sweep();
     expect(socket.closedWith?.reason).toBe('idle_timeout');
   });
@@ -139,7 +141,9 @@ describe('heartbeat and idle', () => {
     const socket = new FakeSocket();
     const connection = await hub.attach(socket, camera);
 
-    clock = new Date(clock.getTime() + (config.wsIdleTimeoutSeconds - 1) * 1000);
+    clock = new Date(
+      clock.getTime() + (config.wsIdleTimeoutSeconds - 1) * 1000,
+    );
     await hub.handleMessage(
       connection,
       JSON.stringify({

@@ -18,15 +18,34 @@ actor PairingSecretsStore {
         case signaling = "k_sig"
         case event = "k_evt"
         case sas = "k_sas"
+        /// This device's own API authentication key (`shared/protocol.md` 1.1).
+        case deviceKey = "device_key"
+        /// This device's backend-assigned id — its signing principal.
+        case deviceID = "device_id"
 
         var scope: KeychainStore.Scope {
             switch self {
             case .event:
                 // The only key the notification extension may read.
                 return .sharedWithExtension
-            case .rootSecret, .auth, .signaling, .sas:
+            case .rootSecret, .auth, .signaling, .sas, .deviceKey, .deviceID:
+                // The device key stays out of the shared group deliberately:
+                // the extension never calls the API, so handing it a key that
+                // can act as this device would be pure downside.
                 return .appPrivate
             }
+        }
+    }
+
+    /// Who this device is to the backend, after bootstrap.
+    struct DeviceIdentity: Equatable {
+        let deviceID: String
+        let deviceKey: DeviceKey
+
+        static func == (lhs: DeviceIdentity, rhs: DeviceIdentity) -> Bool {
+            lhs.deviceID == rhs.deviceID
+                && lhs.deviceKey.rawBytesForKeychainStorage
+                    == rhs.deviceKey.rawBytesForKeychainStorage
         }
     }
 
@@ -71,6 +90,30 @@ actor PairingSecretsStore {
         )
     }
 
+    /// Persists the identity handed back by `POST /v1/pairings` or `.../claim`.
+    ///
+    /// Written only once, at bootstrap: from then on this key signs every
+    /// request, and losing it means the pairing has to be redone.
+    func storeDeviceIdentity(_ identity: DeviceIdentity, for pairingID: UUID) async throws {
+        try await write(identity.deviceKey.rawBytesForKeychainStorage, .deviceKey, pairingID)
+        try await write(Data(identity.deviceID.utf8), .deviceID, pairingID)
+    }
+
+    /// Reloads this device's API identity. `nil` when the pairing predates
+    /// per-device keys or was never completed.
+    func loadDeviceIdentity(for pairingID: UUID) async throws -> DeviceIdentity? {
+        guard
+            let keyBytes = try await read(.deviceKey, pairingID),
+            let idBytes = try await read(.deviceID, pairingID),
+            let deviceID = String(data: idBytes, encoding: .utf8),
+            !deviceID.isEmpty,
+            let deviceKey = try? DeviceKey(bytes: keyBytes)
+        else {
+            return nil
+        }
+        return DeviceIdentity(deviceID: deviceID, deviceKey: deviceKey)
+    }
+
     /// Wipe-on-unpair: removes every key of one pairing from both scopes.
     ///
     /// Revocation is only complete once this has run — the peer still holds its
@@ -91,7 +134,7 @@ actor PairingSecretsStore {
     // MARK: - Plumbing
 
     private func account(_ item: Item, _ pairingID: UUID) -> String {
-        "\(pairingID.uuidString.lowercased()).\(item.rawValue)"
+        KeychainStore.account(pairingID: pairingID, item: item.rawValue)
     }
 
     private func write(_ data: Data, _ item: Item, _ pairingID: UUID) async throws {

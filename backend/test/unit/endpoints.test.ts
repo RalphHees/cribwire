@@ -566,7 +566,9 @@ describe('DELETE /v1/pairings/:id', () => {
     );
     expect(response.statusCode).toBe(401);
     expect(errorCode(response)).toBe('unknown_principal');
-    expect(await harness.repository.getPairing(camera.pairingId)).not.toBeNull();
+    expect(
+      await harness.repository.getPairing(camera.pairingId),
+    ).not.toBeNull();
   });
 });
 
@@ -608,7 +610,9 @@ describe('viewer key on camera-only routes', () => {
     );
     expect(response.statusCode).toBe(403);
     expect(errorCode(response)).toBe('role_not_permitted');
-    expect(await harness.repository.getPairing(camera.pairingId)).not.toBeNull();
+    expect(
+      await harness.repository.getPairing(camera.pairingId),
+    ).not.toBeNull();
   });
 
   it('cannot evict another viewer', async () => {
@@ -661,7 +665,9 @@ describe('viewer key on camera-only routes', () => {
     );
     expect(response.statusCode).toBe(401);
     expect(errorCode(response)).toBe('invalid_signature');
-    expect(await harness.repository.getPairing(camera.pairingId)).not.toBeNull();
+    expect(
+      await harness.repository.getPairing(camera.pairingId),
+    ).not.toBeNull();
   });
 });
 

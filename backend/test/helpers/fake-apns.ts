@@ -44,7 +44,10 @@ export class FakeApnsSender implements ApnsSender {
       return Promise.resolve({ status: 'unregistered' });
     }
     if (this.#failing.has(notification.deviceToken)) {
-      return Promise.resolve({ status: 'failed', reason: '429:TooManyRequests' });
+      return Promise.resolve({
+        status: 'failed',
+        reason: '429:TooManyRequests',
+      });
     }
     return Promise.resolve({ status: 'sent' });
   }

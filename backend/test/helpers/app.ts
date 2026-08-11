@@ -31,9 +31,9 @@ export interface TestApp {
   readonly config: Config;
   readonly metrics: Metrics;
   readonly apns: FakeApnsSender;
-  setNow(date: Date): void;
-  now(): Date;
-  close(): Promise<void>;
+  readonly setNow: (date: Date) => void;
+  readonly now: () => Date;
+  readonly close: () => Promise<void>;
 }
 
 export function createTestContext(overrides: Partial<Config> = {}): {
@@ -42,8 +42,8 @@ export function createTestContext(overrides: Partial<Config> = {}): {
   config: Config;
   apns: FakeApnsSender;
   metrics: Metrics;
-  setNow(date: Date): void;
-  now(): Date;
+  setNow: (date: Date) => void;
+  now: () => Date;
 } {
   const base = loadConfig({ NODE_ENV: 'test' });
   const config: Config = { ...base, ...overrides };

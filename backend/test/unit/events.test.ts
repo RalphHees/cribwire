@@ -155,7 +155,10 @@ describe('POST /v1/events', () => {
         pairingId: camera.pairingId,
         principal: camera.deviceId,
         timestampSeconds: secondsOf(harness.now()),
-        body: JSON.stringify({ ciphertext: sealed(), pairingId: camera.pairingId }),
+        body: JSON.stringify({
+          ciphertext: sealed(),
+          pairingId: camera.pairingId,
+        }),
       }),
     );
     expect(response.statusCode).toBe(400);
@@ -225,6 +228,8 @@ describe('POST /v1/events', () => {
     expect(harness.metrics.render()).toContain(
       'kidscam_apns_notifications_total{result="sent"} 1',
     );
-    expect(harness.metrics.render()).toContain('kidscam_event_fanout_seconds_count 1');
+    expect(harness.metrics.render()).toContain(
+      'kidscam_event_fanout_seconds_count 1',
+    );
   });
 });

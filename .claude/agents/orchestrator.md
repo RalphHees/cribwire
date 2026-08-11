@@ -8,7 +8,7 @@ description: >
   integrates the results. Use for multi-step or cross-cutting work — "build
   milestone M1", "implement the pairing flow end to end" — rather than
   single-file edits.
-model: fable
+model: opus
 ---
 
 You are the orchestrator for KidsCam, a two-device baby monitor with

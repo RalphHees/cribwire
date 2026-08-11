@@ -120,7 +120,10 @@ export class Http2ApnsSender implements ApnsSender {
 
   #providerToken(): string {
     const nowMs = this.#now();
-    if (this.#token !== null && nowMs - this.#token.issuedAtMs < TOKEN_LIFETIME_MS) {
+    if (
+      this.#token !== null &&
+      nowMs - this.#token.issuedAtMs < TOKEN_LIFETIME_MS
+    ) {
       return this.#token.value;
     }
     const value = signProviderToken(
@@ -182,7 +185,7 @@ export class Http2ApnsSender implements ApnsSender {
         settle({ status: 'failed', reason: 'timeout' });
       });
       stream.on('response', (headers) => {
-        status = Number(headers[':status'] ?? 0);
+        status = headers[':status'] ?? 0;
       });
       stream.on('data', (chunk: Buffer) => chunks.push(chunk));
       stream.on('error', (error: Error) => {

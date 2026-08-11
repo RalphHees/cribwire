@@ -18,6 +18,8 @@ export function registerMetricsRoute(
   ctx: AppContext,
 ): void {
   app.get(METRICS_PATH, (_request, reply) =>
-    reply.header('content-type', METRICS_CONTENT_TYPE).send(ctx.metrics.render()),
+    reply
+      .header('content-type', METRICS_CONTENT_TYPE)
+      .send(ctx.metrics.render()),
   );
 }

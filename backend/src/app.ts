@@ -48,7 +48,9 @@ export function createRedis(url: string): Redis {
 function createApnsSender(config: Config, logger: Logger): ApnsSender {
   if (!apnsConfigured(config)) {
     if (config.nodeEnv === 'production') {
-      throw new Error('APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID and APNS_TOPIC are required in production');
+      throw new Error(
+        'APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID and APNS_TOPIC are required in production',
+      );
     }
     logger.warn('APNs is not configured: detection events will not be pushed');
     return new DisabledApnsSender();
@@ -93,7 +95,9 @@ export function createAppResources(
 
   if (!turnConfigured(config)) {
     if (config.nodeEnv === 'production') {
-      throw new Error('TURN_SHARED_SECRET and TURN_URIS are required in production');
+      throw new Error(
+        'TURN_SHARED_SECRET and TURN_URIS are required in production',
+      );
     }
     logger.warn('TURN is not configured: turn-credentials answers 503');
   }

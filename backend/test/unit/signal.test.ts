@@ -193,7 +193,11 @@ describe('routing', () => {
     await cameraClient.next();
 
     const payload = blob();
-    cameraClient.send({ to: `viewer:${viewer.deviceId}`, seq: 7, blob: payload });
+    cameraClient.send({
+      to: `viewer:${viewer.deviceId}`,
+      seq: 7,
+      blob: payload,
+    });
 
     let message: Record<string, unknown> | undefined;
     for (let i = 0; i < 4 && message === undefined; i += 1) {
@@ -210,7 +214,11 @@ describe('routing', () => {
   it('never delivers to a device of another pairing', async () => {
     const otherCamera = await bootstrapCamera(harness);
     tick();
-    const otherViewer = await bootstrapViewer(harness, otherCamera, 'c'.repeat(64));
+    const otherViewer = await bootstrapViewer(
+      harness,
+      otherCamera,
+      'c'.repeat(64),
+    );
     tick();
 
     const outsider = await connectViewer(otherViewer);
@@ -358,7 +366,11 @@ describe('presence', () => {
 
     const otherCamera = await bootstrapCamera(harness);
     tick();
-    const otherViewer = await bootstrapViewer(harness, otherCamera, 'c'.repeat(64));
+    const otherViewer = await bootstrapViewer(
+      harness,
+      otherCamera,
+      'c'.repeat(64),
+    );
     tick();
     const outsider = await connectViewer(otherViewer);
     await outsider.next();

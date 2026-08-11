@@ -76,9 +76,9 @@ describe.skipIf(!available)('PostgresRepository', () => {
     return { pairingId, cameraId, kAuth, cameraDeviceKey };
   }
 
-  function claimInput(pairingId: string): Parameters<
-    PostgresRepository['claimPairing']
-  >[0] {
+  function claimInput(
+    pairingId: string,
+  ): Parameters<PostgresRepository['claimPairing']>[0] {
     return {
       pairingId,
       viewerDeviceId: randomUUID(),

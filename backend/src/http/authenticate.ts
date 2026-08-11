@@ -15,7 +15,11 @@
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import type { AuthContext, AuthFailureCode, KeyResolver } from '../auth/verify.ts';
+import type {
+  AuthContext,
+  AuthFailureCode,
+  KeyResolver,
+} from '../auth/verify.ts';
 import { verifyRequest } from '../auth/verify.ts';
 import { isBootstrapPrincipal } from '../auth/canonical.ts';
 import type { Device } from '../domain/types.ts';
@@ -99,7 +103,9 @@ export async function verifyDeviceRequest(
   ctx: AppContext,
   input: DeviceRequestInput,
 ): Promise<DeviceAuthResult> {
-  let device: Device | null = null;
+  // Held in an object so the assignment inside the resolver is visible to the
+  // checker after the await.
+  const resolved: { device: Device | null } = { device: null };
 
   const result = await verifyRequest({
     method: input.method,
@@ -116,7 +122,7 @@ export async function verifyDeviceRequest(
         parts.principal,
       );
       if (found === null) return null;
-      device = found;
+      resolved.device = found;
       return found.deviceKey;
     },
     nonceStore: ctx.nonceStore,
@@ -125,6 +131,7 @@ export async function verifyDeviceRequest(
   });
 
   if (!result.ok) return { ok: false, code: result.code };
+  const device = resolved.device;
   if (device === null) {
     // Unreachable: a MAC only verifies once a device key has been resolved.
     return { ok: false, code: 'unknown_principal' };

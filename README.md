@@ -21,7 +21,7 @@ The repo ships Claude Code agents (`.claude/agents/`) for working on the project
 
 | Agent | Model | Role |
 |---|---|---|
-| `orchestrator` | fable | Coordinates whole features/milestones: decomposes work, delegates to the agents below, integrates and verifies |
+| `orchestrator` | opus | Coordinates whole features/milestones: decomposes work, delegates to the agents below, integrates and verifies |
 | `ios-architect` | opus | Designs iOS features against the specs (read-only, produces implementation plans) |
 | `ios-engineer` | opus | Implements the Swift/SwiftUI app, streaming engine, detection, and tests |
 | `backend-architect` | opus | Designs backend features, guarding the zero-knowledge invariant (read-only) |

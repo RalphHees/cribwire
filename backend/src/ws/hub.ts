@@ -107,10 +107,7 @@ export class SignalingHub implements SignalingControl {
    * here: a pairing has exactly one camera row for its whole life, so `to:
    * "camera"` needs no further lookups.
    */
-  async attach(
-    socket: SignalingSocket,
-    device: Device,
-  ): Promise<Connection> {
+  async attach(socket: SignalingSocket, device: Device): Promise<Connection> {
     const address = addressOf(device);
     const devices = await this.#deps.repository.listDevices(device.pairingId);
     const camera = devices.find((candidate) => candidate.role === 'camera');
@@ -220,11 +217,7 @@ export class SignalingHub implements SignalingControl {
     const target = parseTarget(envelope.to);
     if (target === null || !(await this.#targetExists(connection, target))) {
       this.#deps.metrics.wsMessage('unknown_target');
-      this.#error(
-        connection,
-        'unknown_target',
-        'No such peer in this pairing',
-      );
+      this.#error(connection, 'unknown_target', 'No such peer in this pairing');
       return;
     }
 

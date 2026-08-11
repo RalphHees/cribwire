@@ -39,6 +39,18 @@ actor KeychainStore {
     /// `kSecAttrService` value; scopes all KidsCam items under one namespace.
     static let service = "nl.kidscam.pairing"
 
+    /// The `kSecAttrAccount` naming scheme, in one place because two binaries
+    /// depend on it: the app writes these items and the Notification Service
+    /// Extension reads `k_evt` back out of the shared group. A rename here that
+    /// missed the extension would degrade every push to the generic text, and
+    /// nothing would fail loudly.
+    static func account(pairingID: UUID, item: String) -> String {
+        "\(pairingID.uuidString.lowercased()).\(item)"
+    }
+
+    /// Account name of the one item the extension may read.
+    static let eventKeyItem = "k_evt"
+
     private let appGroupIdentifier: String?
 
     /// - Parameter appGroupIdentifier: the app-group identifier used as the

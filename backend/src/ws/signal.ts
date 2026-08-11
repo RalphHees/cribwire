@@ -105,12 +105,7 @@ export function registerSignaling(
     if (!result.ok) {
       ctx.metrics.wsUpgradeRejected(result.code);
       ctx.logger.warn('signal upgrade rejected', { code: result.code });
-      refuse(
-        socket,
-        401,
-        result.code,
-        'Invalid KidsCam-HMAC credentials',
-      );
+      refuse(socket, 401, result.code, 'Invalid KidsCam-HMAC credentials');
       return;
     }
 

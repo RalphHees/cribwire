@@ -122,7 +122,9 @@ export class Histogram implements Metric {
     // `observe` increments every bucket whose bound covers the value, so the
     // counts are already cumulative, as the exposition format requires.
     for (const [index, bound] of this.#buckets.entries()) {
-      lines.push(`${this.name}_bucket{le="${bound}"} ${this.#counts[index] ?? 0}`);
+      lines.push(
+        `${this.name}_bucket{le="${bound}"} ${this.#counts[index] ?? 0}`,
+      );
     }
     lines.push(`${this.name}_bucket{le="+Inf"} ${this.#count}`);
     lines.push(`${this.name}_sum ${this.#sum}`);
@@ -132,11 +134,7 @@ export class Histogram implements Metric {
 }
 
 export type WebSocketMessageResult =
-  | 'routed'
-  | 'unknown_target'
-  | 'too_large'
-  | 'seq_regression'
-  | 'malformed';
+  'routed' | 'unknown_target' | 'too_large' | 'seq_regression' | 'malformed';
 
 export type ApnsResultLabel = 'sent' | 'unregistered' | 'failed';
 

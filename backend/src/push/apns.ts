@@ -43,9 +43,7 @@ export interface ApnsPayload {
 }
 
 /** The exact payload pinned in backend.md §3. */
-export function buildApnsPayload(
-  notification: ApnsNotification,
-): ApnsPayload {
+export function buildApnsPayload(notification: ApnsNotification): ApnsPayload {
   return {
     aps: {
       alert: { 'loc-key': EVENT_ALERT_LOC_KEY },
@@ -62,7 +60,7 @@ export function buildApnsPayload(
  * than silently succeeding, so a misconfigured deployment shows up in metrics.
  */
 export class DisabledApnsSender implements ApnsSender {
-  send(_notification: ApnsNotification): Promise<ApnsResult> {
+  send(): Promise<ApnsResult> {
     return Promise.resolve({ status: 'failed', reason: 'apns_not_configured' });
   }
 

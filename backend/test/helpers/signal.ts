@@ -35,9 +35,9 @@ export interface SignalHarness {
   readonly signaling: Signaling;
   readonly url: string;
   readonly app: ReturnType<typeof buildServer>;
-  setNow(date: Date): void;
-  now(): Date;
-  close(): Promise<void>;
+  readonly setNow: (date: Date) => void;
+  readonly now: () => Date;
+  readonly close: () => Promise<void>;
 }
 
 export async function createSignalHarness(

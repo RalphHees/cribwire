@@ -8,6 +8,7 @@
 
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import type { ApnsSender } from '../../src/push/apns.ts';
 import {
   DisabledApnsSender,
   EVENT_ALERT_LOC_KEY,
@@ -17,9 +18,10 @@ import { APNS_HOSTS, signProviderToken } from '../../src/push/http2-apns.ts';
 
 function decodeSegment(segment: string): Record<string, unknown> {
   return JSON.parse(
-    Buffer.from(segment.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString(
-      'utf8',
-    ),
+    Buffer.from(
+      segment.replace(/-/g, '+').replace(/_/g, '/'),
+      'base64',
+    ).toString('utf8'),
   ) as Record<string, unknown>;
 }
 
@@ -100,7 +102,7 @@ describe('APNs hosts', () => {
 
 describe('DisabledApnsSender', () => {
   it('reports a configuration failure rather than pretending to send', async () => {
-    const sender = new DisabledApnsSender();
+    const sender: ApnsSender = new DisabledApnsSender();
     await expect(
       sender.send({
         deviceToken: 'a'.repeat(64),

@@ -17,10 +17,7 @@ import {
   authenticateDevice,
   pairingKeyResolver,
 } from '../http/authenticate.ts';
-import {
-  requireCameraRole,
-  requirePairingMatch,
-} from '../http/authorize.ts';
+import { requireCameraRole, requirePairingMatch } from '../http/authorize.ts';
 import { sendError } from '../http/errors.ts';
 import {
   enforcePerIpLimit,
