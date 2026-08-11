@@ -11,7 +11,7 @@
 name: CribWire
 
 options:
-  bundleIdPrefix: example.cribwire
+  bundleIdPrefix: com.ralphhees.cribwire
   createIntermediateGroups: true
   deploymentTarget:
     iOS: "16.0"
@@ -47,11 +47,11 @@ settings:
     # accepts an app-group identifier, which is how the Notification Service
     # Extension reads `K_evt` (security.md §5) without a separate
     # keychain-access-groups entitlement.
-    CRIBWIRE_APP_GROUP: group.example.cribwire.shared
-    CRIBWIRE_KEYCHAIN_ACCESS_GROUP: group.example.cribwire.shared
+    CRIBWIRE_APP_GROUP: group.com.ralphhees.cribwire.shared
+    CRIBWIRE_KEYCHAIN_ACCESS_GROUP: group.com.ralphhees.cribwire.shared
     # Default backend used by the Camera when it creates a pairing. The Viewer
     # always uses the URL carried in the scanned QR code, never this one.
-    CRIBWIRE_API_BASE_URL: https://api.cribwire.example
+    CRIBWIRE_API_BASE_URL: https://apicribwire.ralphhees.nl
   configs:
     debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -98,9 +98,12 @@ targets:
         embed: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: example.cribwire.CribWire
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWire
         PRODUCT_NAME: CribWire
         TARGETED_DEVICE_FAMILY: "1"
+        # App icon ships in CribWire/Assets.xcassets; `actool` picks the set up
+        # by name, so the icon set must stay named AppIcon.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: CribWire/CribWire.entitlements
       properties:
@@ -158,7 +161,7 @@ targets:
       - path: NotificationService
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: example.cribwire.CribWire.NotificationService
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWire.NotificationService
         PRODUCT_NAME: NotificationService
     entitlements:
       path: NotificationService/NotificationService.entitlements
@@ -192,5 +195,5 @@ targets:
         product: CribWireKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: example.cribwire.CribWireTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWireTests
         GENERATE_INFOPLIST_FILE: YES
