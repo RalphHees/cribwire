@@ -85,10 +85,10 @@ jobs:
           set -euo pipefail
           registry="$(echo "${HARBOR_REGISTRY}" | tr '[:upper:]' '[:lower:]')"
           sudo mkdir -p /etc/docker/certs.d/${registry}
-          sudo curl -fsSL https://letsencrypt.org/certs/isrgrootx2.pem \
+          sudo curl -fsSL https://letsencrypt.org/certs/isrg-root-x2.pem \
             -o /etc/docker/certs.d/${registry}/ca.crt
-          sudo curl -fsSL https://letsencrypt.org/certs/isrgrootx2.pem \
-            -o /usr/local/share/ca-certificates/isrgrootx2.crt
+          sudo curl -fsSL https://letsencrypt.org/certs/isrg-root-x2.pem \
+            -o /usr/local/share/ca-certificates/isrg-root-x2.crt
           sudo update-ca-certificates
 
       - name: Set up Buildx
