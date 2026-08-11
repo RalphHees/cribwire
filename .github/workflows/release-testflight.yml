@@ -62,7 +62,15 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  XCODE_VERSION: '16.4'
+  # App Store Connect rejects any upload built with an SDK older than iOS 26
+  # ("SDK version issue ... must be built with the iOS 26 SDK or later", a 409
+  # from altool at the very end of the lane, after a successful archive). Xcode
+  # 16.4 ships the iOS 18.5 SDK, so it cannot produce an uploadable build. 26.3
+  # is the newest Xcode on the macos-15 image and ships the iOS 26.2 SDK.
+  #
+  # Keep this in step with the same pin in ios.yml, so CI compiles with the
+  # toolchain that actually ships the release.
+  XCODE_VERSION: '26.3'
 
 jobs:
   testflight:
