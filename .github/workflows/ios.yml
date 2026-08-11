@@ -40,7 +40,13 @@ env:
   # turns a runner-image rollout into a mystery build failure. When GitHub
   # retires this version from the macos-15 image, setup-xcode fails with the
   # list of installed versions — bump this line then.
-  XCODE_VERSION: '16.4'
+  #
+  # Held equal to the pin in release-testflight.yml on purpose. That workflow
+  # needs the iOS 26 SDK or App Store Connect refuses the upload; if CI kept
+  # building with 16.4, a compile error under the release toolchain would stay
+  # invisible until release time. 16.4 is still the macos-15 default, so this
+  # is not the image default — it is a deliberate opt-in to 26.3.
+  XCODE_VERSION: '26.3'
 
 jobs:
   kit-tests:
