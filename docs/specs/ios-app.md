@@ -79,7 +79,12 @@ movement.
 - On an event the Camera calls the backend `POST /v1/events` endpoint; the backend
   fans the event out to all paired Viewers via APNs. The push payload contains only
   the event type and timestamp, encrypted with the pairing key (see `security.md` §5);
-  a Notification Service Extension on the Viewer decrypts it for display.
+  the Viewer app decrypts it. There is no Notification Service Extension: decryption
+  runs in the app, so the specific text ("Noise detected") is shown when the app is
+  in the foreground and is filled in for notifications delivered earlier the next
+  time the app is opened. While the app is closed iOS shows the generic
+  "Activity detected" the server sent, because nothing may rewrite a push before
+  display except an extension.
 - Tapping the notification deep-links straight into the live view of that Camera.
 
 ## 3. Streaming design (client side)
@@ -113,7 +118,7 @@ movement.
 | Capture | AVFoundation (`AVCaptureSession`, `AVAudioEngine`) |
 | QR display / scan | Core Image (`CIQRCodeGenerator`) / `DataScannerViewController` (VisionKit) |
 | Crypto | CryptoKit (X25519, HKDF-SHA256, ChaCha20-Poly1305); keys in Keychain |
-| Push | UNUserNotificationCenter + Notification Service Extension for payload decryption |
+| Push | UNUserNotificationCenter; payload decryption in the app (single target, no extension) |
 | Persistence | Small on-device store (SwiftData or plist) for pairings metadata; secrets only in Keychain |
 | Testing | XCTest unit tests for crypto/pairing/detection logic; XCUITest smoke flow; detection tuned against recorded fixture clips |
 

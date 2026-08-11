@@ -17,8 +17,8 @@ import Crypto
 /// ```
 ///
 /// That is the entire content of a CribWire push. The backend and Apple see only
-/// its ciphertext and a generic alert key; the Viewer's Notification Service
-/// Extension opens it to decide which sentence to show.
+/// its ciphertext and a generic alert key; the Viewer app opens it to decide
+/// which sentence to show (`EventAlert`).
 public struct DetectionEvent: Codable, Equatable, Sendable {
 
     public enum Kind: String, Codable, Equatable, Sendable {
@@ -66,7 +66,7 @@ public struct DetectionEvent: Codable, Equatable, Sendable {
         )
     }
 
-    /// Opens a sealed event — the Notification Service Extension's whole job.
+    /// Opens a sealed event — the whole job of the app's notification path.
     ///
     /// Throws `CryptoError.authenticationFailed` for a wrong key, a wrong
     /// pairing or tampered bytes, all indistinguishable on purpose. The caller

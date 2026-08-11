@@ -39,20 +39,28 @@ final class CameraPairingViewModel: ObservableObject {
 
     private let services: AppServices
     private let apiBaseURL: URL?
-    /// APNs token for this device. Registration is a Phase 3 task; until then a
-    /// placeholder is registered so the backend contract is exercised.
-    private let apnsToken: String
-    private let apnsEnvironment: API.APNSEnvironment
+    /// Set by tests; otherwise the token is read from the notification
+    /// coordinator when the request is actually made, because APNs registration
+    /// completes asynchronously and may well finish after this screen appears.
+    private let overriddenAPNSToken: String?
+    private let overriddenAPNSEnvironment: API.APNSEnvironment?
+
+    /// Empty when this device has no token yet — the backend accepts that and
+    /// simply has nothing to push to until the token is rotated in.
+    private var apnsToken: String { overriddenAPNSToken ?? services.notifications.apnsToken ?? "" }
+    private var apnsEnvironment: API.APNSEnvironment {
+        overriddenAPNSEnvironment ?? services.notifications.apnsEnvironment
+    }
 
     init(
         services: AppServices,
-        apnsToken: String = "",
-        apnsEnvironment: API.APNSEnvironment = .sandbox
+        apnsToken: String? = nil,
+        apnsEnvironment: API.APNSEnvironment? = nil
     ) {
         self.services = services
         self.apiBaseURL = services.configuration.defaultAPIBaseURL
-        self.apnsToken = apnsToken
-        self.apnsEnvironment = apnsEnvironment
+        self.overriddenAPNSToken = apnsToken
+        self.overriddenAPNSEnvironment = apnsEnvironment
     }
 
     // MARK: - Lifecycle

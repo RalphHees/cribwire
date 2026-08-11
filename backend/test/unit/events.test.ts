@@ -80,7 +80,6 @@ describe('POST /v1/events', () => {
     expect(delivered?.payload.pairingId).toBe(camera.pairingId);
     expect(delivered?.payload.aps).toEqual({
       alert: { 'loc-key': EVENT_ALERT_LOC_KEY },
-      'mutable-content': 1,
     });
   });
 

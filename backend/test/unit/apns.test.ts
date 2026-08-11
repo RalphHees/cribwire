@@ -38,11 +38,13 @@ describe('buildApnsPayload', () => {
     expect(payload).toEqual({
       aps: {
         alert: { 'loc-key': EVENT_ALERT_LOC_KEY },
-        'mutable-content': 1,
       },
       pairingId: '7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70',
       ciphertext,
     });
+    // No mutable-content: there is no Notification Service Extension to hand
+    // the push to, and the flag would be inert.
+    expect(payload.aps).not.toHaveProperty('mutable-content');
     // The visible text is a fixed key: no detection detail leaves the device.
     expect(JSON.stringify(payload)).not.toContain('noise');
   });

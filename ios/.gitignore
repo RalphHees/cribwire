@@ -5,8 +5,6 @@
 *.xcworkspace/
 CribWire/Info.plist
 CribWire/CribWire.entitlements
-NotificationService/Info.plist
-NotificationService/NotificationService.entitlements
 
 # SwiftPM
 .build/

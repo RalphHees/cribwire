@@ -12,6 +12,9 @@ final class AppServices: ObservableObject {
     let keychain: KeychainStore
     let secrets: PairingSecretsStore
     let registry: PairingRegistry
+    /// Permission, APNs registration and event-payload decryption — the job the
+    /// Notification Service Extension used to do in its own process.
+    let notifications: PushNotificationCoordinator
     /// Overridable so tests can drive the network without URLSession.
     let makeTransport: @Sendable () -> any HTTPTransport
 
@@ -37,10 +40,11 @@ final class AppServices: ObservableObject {
         self.configuration = configuration
         self.defaults = defaults
 
-        let keychainStore = keychain
-            ?? KeychainStore(appGroupIdentifier: configuration.keychainAccessGroup)
+        let keychainStore = keychain ?? KeychainStore()
         self.keychain = keychainStore
-        self.secrets = PairingSecretsStore(keychain: keychainStore)
+        let secretsStore = PairingSecretsStore(keychain: keychainStore)
+        self.secrets = secretsStore
+        self.notifications = PushNotificationCoordinator(secrets: secretsStore)
 
         // A registry that cannot be created is not a reason to refuse to launch;
         // an in-memory-ish fallback in the temporary directory keeps the app

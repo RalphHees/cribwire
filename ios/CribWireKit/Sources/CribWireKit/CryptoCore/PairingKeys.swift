@@ -33,8 +33,8 @@ public struct PairingKeys: @unchecked Sendable {
     /// `K_sig` — seals signaling blobs. Never leaves the device.
     public let signaling: SymmetricKey
 
-    /// `K_evt` — seals push event payloads. Shared with the Notification Service
-    /// Extension through the app-group Keychain. Never leaves the device.
+    /// `K_evt` — seals push event payloads, and is the only key the notification
+    /// path touches. Never leaves the device.
     public let event: SymmetricKey
 
     /// `K_sas` — source of the 6-digit confirmation code.

@@ -12,24 +12,16 @@ import Security
 /// keys are unreadable while the device is locked, never sync to iCloud Keychain,
 /// and never travel in an encrypted device backup.
 ///
+/// There is no access group. Items land in the app's own default group, which is
+/// the tightest option available now that the app is the only binary in the
+/// bundle — the split into an app-private and an app-group scope existed solely
+/// so a Notification Service Extension could read `K_evt` out of a second
+/// process, and that extension is gone (`security.md` §5).
+///
 /// An `actor` rather than a queue: the Keychain API is synchronous and not
 /// thread-safe against our own read-modify-write sequences, and the project uses
 /// Swift Concurrency throughout (no GCD).
 actor KeychainStore {
-
-    /// Which access group an item lives in.
-    ///
-    /// Splitting these is deliberate. The Notification Service Extension only
-    /// ever needs `K_evt` (`security.md` §5), so only `K_evt` goes in the shared
-    /// group; the root secret and the signaling key stay in the app's private
-    /// group where the extension — a separate, less-audited binary — cannot
-    /// reach them.
-    enum Scope: Hashable {
-        /// The app's own default access group. Not readable by the extension.
-        case appPrivate
-        /// The app-group access group, shared with the notification extension.
-        case sharedWithExtension
-    }
 
     enum KeychainError: Error, Equatable {
         case unexpectedStatus(Int32)
@@ -39,40 +31,28 @@ actor KeychainStore {
     /// `kSecAttrService` value; scopes all CribWire items under one namespace.
     static let service = "nl.cribwire.pairing"
 
-    /// The `kSecAttrAccount` naming scheme, in one place because two binaries
-    /// depend on it: the app writes these items and the Notification Service
-    /// Extension reads `k_evt` back out of the shared group. A rename here that
-    /// missed the extension would degrade every push to the generic text, and
-    /// nothing would fail loudly.
+    /// The `kSecAttrAccount` naming scheme, in one place because it is an
+    /// on-device storage format: a rename silently orphans every stored key of
+    /// every existing pairing, and nothing fails loudly.
     static func account(pairingID: UUID, item: String) -> String {
         "\(pairingID.uuidString.lowercased()).\(item)"
     }
 
-    /// Account name of the one item the extension may read.
-    static let eventKeyItem = "k_evt"
-
-    private let appGroupIdentifier: String?
-
-    /// - Parameter appGroupIdentifier: the app-group identifier used as the
-    ///   Keychain access group for shared items. `nil` (unit tests, previews)
-    ///   makes `.sharedWithExtension` behave like `.appPrivate`.
-    init(appGroupIdentifier: String?) {
-        self.appGroupIdentifier = appGroupIdentifier
-    }
+    init() {}
 
     // MARK: - CRUD
 
     /// Writes (or replaces) an item. Never logs `value` or `account`.
-    func set(_ value: Data, account: String, scope: Scope) throws {
+    func set(_ value: Data, account: String) throws {
         #if canImport(Security)
-        var attributes = baseQuery(account: account, scope: scope)
+        var attributes = baseQuery(account: account)
         attributes[kSecValueData as String] = value
         attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
 
         // Delete-then-add rather than SecItemUpdate: it is one code path, and it
         // guarantees the accessibility and synchronizable attributes of the
         // stored item are ours and not inherited from an older write.
-        SecItemDelete(baseQuery(account: account, scope: scope) as CFDictionary)
+        SecItemDelete(baseQuery(account: account) as CFDictionary)
 
         let status = SecItemAdd(attributes as CFDictionary, nil)
         guard status == errSecSuccess else {
@@ -84,9 +64,9 @@ actor KeychainStore {
     }
 
     /// Reads an item, or `nil` when it is absent.
-    func get(account: String, scope: Scope) throws -> Data? {
+    func get(account: String) throws -> Data? {
         #if canImport(Security)
-        var query = baseQuery(account: account, scope: scope)
+        var query = baseQuery(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -107,9 +87,9 @@ actor KeychainStore {
     }
 
     /// Deletes an item. Deleting something that is not there is a success.
-    func remove(account: String, scope: Scope) throws {
+    func remove(account: String) throws {
         #if canImport(Security)
-        let status = SecItemDelete(baseQuery(account: account, scope: scope) as CFDictionary)
+        let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unexpectedStatus(Int32(status))
         }
@@ -118,21 +98,18 @@ actor KeychainStore {
         #endif
     }
 
-    /// Removes every CribWire item in a scope.
+    /// Removes every CribWire item.
     ///
     /// Used for wipe-on-unpair and for the first-launch cleanup: Keychain items
     /// survive app deletion, so a reinstall must not silently inherit the keys of
     /// a pairing the user thinks is gone (`security.md` §6).
-    func removeAll(scope: Scope) throws {
+    func removeAll() throws {
         #if canImport(Security)
-        var query: [String: Any] = [
+        let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
             kSecAttrSynchronizable as String: false
         ]
-        if let accessGroup = accessGroup(for: scope) {
-            query[kSecAttrAccessGroup as String] = accessGroup
-        }
 
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
@@ -143,38 +120,17 @@ actor KeychainStore {
         #endif
     }
 
-    /// Removes every CribWire item in both scopes.
-    func removeEverything() throws {
-        try removeAll(scope: .appPrivate)
-        try removeAll(scope: .sharedWithExtension)
-    }
-
     // MARK: - Query building
 
     #if canImport(Security)
-    private func baseQuery(account: String, scope: Scope) -> [String: Any] {
-        var query: [String: Any] = [
+    private func baseQuery(account: String) -> [String: Any] {
+        [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: account,
             // Never sync to iCloud Keychain (security.md §3.2).
             kSecAttrSynchronizable as String: false
         ]
-        if let accessGroup = accessGroup(for: scope) {
-            query[kSecAttrAccessGroup as String] = accessGroup
-        }
-        return query
     }
     #endif
-
-    private func accessGroup(for scope: Scope) -> String? {
-        switch scope {
-        case .appPrivate:
-            // No explicit group: the item lands in the app's own default access
-            // group, which the extension cannot read.
-            return nil
-        case .sharedWithExtension:
-            return appGroupIdentifier
-        }
-    }
 }

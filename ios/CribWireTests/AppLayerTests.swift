@@ -1,3 +1,4 @@
+import CryptoKit
 import CribWireKit
 import XCTest
 @testable import CribWire
@@ -13,19 +14,91 @@ final class AppConfigurationTests: XCTestCase {
         let configuration = AppConfiguration(bundle: Bundle(for: Self.self))
         // The test bundle has no CribWire keys, so everything should be nil
         // rather than a bogus value.
-        XCTAssertNil(configuration.appGroupIdentifier)
         XCTAssertNil(configuration.defaultAPIBaseURL)
     }
 
     func testExplicitInitialiserKeepsValues() throws {
         let url = try XCTUnwrap(URL(string: "https://api.cribwire.example"))
-        let configuration = AppConfiguration(
-            appGroupIdentifier: "group.test",
-            keychainAccessGroup: "group.test",
-            defaultAPIBaseURL: url
-        )
-        XCTAssertEqual(configuration.appGroupIdentifier, "group.test")
+        let configuration = AppConfiguration(defaultAPIBaseURL: url)
         XCTAssertEqual(configuration.defaultAPIBaseURL, url)
+    }
+}
+
+/// The decryption the Notification Service Extension used to do, now that it
+/// runs in the app. The rule it has to keep: everything that is not a payload
+/// this device can open must be indistinguishable — one `nil`, one generic
+/// alert, no hint about key state (`security.md` §5).
+final class EventNotificationDecoderTests: XCTestCase {
+
+    private let pairingID = UUID(uuidString: "0f3b8b8a-1d2c-4a5b-9c8d-7e6f5a4b3c2d")!
+    private let eventKey = SymmetricKey(size: .bits256)
+
+    private func decoder(
+        holding keys: [UUID: SymmetricKey]
+    ) -> EventNotificationDecoder {
+        EventNotificationDecoder { pairingID in keys[pairingID] }
+    }
+
+    private func userInfo(pairingID: UUID, ciphertext: String) -> [AnyHashable: Any] {
+        [
+            EventNotificationPayload.pairingIDKey: pairingID.uuidString,
+            EventNotificationPayload.ciphertextKey: ciphertext
+        ]
+    }
+
+    func testOpensAnEventSealedForThisPairing() async throws {
+        let event = DetectionEvent(type: .noise, ts: 1_754_850_000)
+        let ciphertext = try event.sealed(using: eventKey, pairingID: pairingID)
+
+        let decoded = await decoder(holding: [pairingID: eventKey])
+            .decode(userInfo: userInfo(pairingID: pairingID, ciphertext: ciphertext))
+
+        XCTAssertEqual(decoded, DecodedEvent(pairingID: pairingID, event: event))
+        XCTAssertEqual(EventAlert.body(for: try XCTUnwrap(decoded).event), "Noise detected")
+    }
+
+    func testReturnsNilWhenTheDeviceHoldsNoKeyForThePairing() async throws {
+        let ciphertext = try DetectionEvent(type: .motion, ts: 1)
+            .sealed(using: eventKey, pairingID: pairingID)
+
+        let decoded = await decoder(holding: [:])
+            .decode(userInfo: userInfo(pairingID: pairingID, ciphertext: ciphertext))
+
+        XCTAssertNil(decoded)
+    }
+
+    func testReturnsNilForAnotherPairingsCiphertext() async throws {
+        // Right key, wrong pairing: the pairing id is the AAD, so this must fail
+        // exactly like a tampered payload.
+        let other = UUID()
+        let ciphertext = try DetectionEvent(type: .noise, ts: 1)
+            .sealed(using: eventKey, pairingID: other)
+
+        let decoded = await decoder(holding: [pairingID: eventKey])
+            .decode(userInfo: userInfo(pairingID: pairingID, ciphertext: ciphertext))
+
+        XCTAssertNil(decoded)
+    }
+
+    func testReturnsNilForTamperedCiphertext() async throws {
+        var ciphertext = try DetectionEvent(type: .noise, ts: 1)
+            .sealed(using: eventKey, pairingID: pairingID)
+        ciphertext = String(ciphertext.dropLast()) + (ciphertext.hasSuffix("A") ? "B" : "A")
+
+        let decoded = await decoder(holding: [pairingID: eventKey])
+            .decode(userInfo: userInfo(pairingID: pairingID, ciphertext: ciphertext))
+
+        XCTAssertNil(decoded)
+    }
+
+    func testIgnoresNotificationsTheAppPostedItself() async {
+        // The re-posted, already-decrypted copy carries a pairing id but no
+        // ciphertext — that is what stops it being decrypted a second time.
+        let decoded = await decoder(holding: [pairingID: eventKey]).decode(
+            userInfo: [EventNotificationPayload.pairingIDKey: pairingID.uuidString]
+        )
+
+        XCTAssertNil(decoded)
     }
 }
 
