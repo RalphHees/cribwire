@@ -23,12 +23,15 @@
 # Repository/environment VARIABLES (not secrets — they are not confidential and
 # keeping them out of `secrets` means they can be shown in logs):
 #   APPLE_TEAM_ID                 10-character Apple Developer team id
-#   APP_IDENTIFIER                Real app bundle id, e.g. com.acme.cribwire
+#   APP_IDENTIFIER                The app target's FULL bundle id, e.g.
+#                                 com.ralphhees.cribwire.CribWire — not the
+#                                 `bundleIdPrefix`. The prefix alone still
+#                                 satisfies the preflight grep below, then fails
+#                                 later in match with a missing profile.
 #
-# `ios/project.yml` still ships the placeholder prefix `example.cribwire`. Until
-# a human replaces it (and sets DEVELOPMENT_TEAM), no signed build is possible;
-# the preflight step below fails with exactly that message rather than
-# uploading something meaningless.
+# `ios/project.yml` must declare that same bundle id and a real DEVELOPMENT_TEAM;
+# the preflight step below fails with exactly that message rather than uploading
+# something meaningless.
 #
 # Protect the `testflight` environment with required reviewers so the secrets
 # above are only reachable from an approved run.

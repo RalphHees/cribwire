@@ -20,7 +20,7 @@
 #     provisioning profile for the app — one bundle id, since notification
 #     decryption lives in the app rather than in an extension;
 #   * the real bundle id prefix and DEVELOPMENT_TEAM written into
-#     ios/project.yml, replacing the `example.cribwire` placeholders.
+#     ios/project.yml.
 
 require 'shellwords'
 
@@ -80,6 +80,34 @@ platform :ios do
       readonly: true
     )
 
+    # match has now installed the App Store profile and exported its name. The
+    # generated project still declares CODE_SIGN_STYLE=Automatic, under which
+    # xcodebuild ignores that profile, asks the Developer portal for an *iOS App
+    # Development* profile instead, and fails the archive with "Automatic signing
+    # is disabled and unable to generate a profile" — the runner has no Apple
+    # account to generate one with. Pin the target to what match installed.
+    #
+    # Only the Release configuration is rewritten, so a developer's local Debug
+    # builds keep using automatic signing and their own personal team.
+    profile_name = ENV["sigh_#{app_identifier}_appstore_profile-name"].to_s
+    if profile_name.empty?
+      UI.user_error!(
+        "match installed no App Store profile for #{app_identifier}. Run " \
+        '`fastlane match appstore` for it from a machine with Apple Developer ' \
+        'access — CI runs match in readonly mode and cannot create one.'
+      )
+    end
+
+    update_code_signing_settings(
+      path: XCODEPROJ,
+      use_automatic_signing: false,
+      team_id: team_id,
+      targets: [SCHEME],
+      code_sign_identity: 'Apple Distribution',
+      profile_name: profile_name,
+      build_configurations: ['Release']
+    )
+
     xcargs = [
       "DEVELOPMENT_TEAM=#{team_id.shellescape}",
       "CURRENT_PROJECT_VERSION=#{build_number.shellescape}",
@@ -97,8 +125,9 @@ platform :ios do
       include_symbols: true,
       xcargs: xcargs.join(' '),
       export_options: {
+        signingStyle: 'manual',
         provisioningProfiles: {
-          app_identifier => ENV["sigh_#{app_identifier}_appstore_profile-name"]
+          app_identifier => profile_name
         }
       }
     )
