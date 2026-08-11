@@ -1,0 +1,43 @@
+{
+  "name": "@cribwire/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CribWire zero-knowledge signaling and pairing API",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "node --experimental-strip-types src/db/migrate-cli.ts",
+    "purge": "node --experimental-strip-types src/jobs/purge-cli.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.11.3",
+    "ioredis": "^5.11.1",
+    "pg": "^8.16.3",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.6",
+    "@types/ws": "^8.18.1",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,196 @@
+# CribWire — XcodeGen project spec.
+#
+# The .xcodeproj is generated, never committed: run `xcodegen generate` from this
+# directory (see README.md). That keeps the project file out of merge conflicts
+# and makes the build settings reviewable as text.
+#
+# Placeholders to replace before signing a real build:
+#   DEVELOPMENT_TEAM, PRODUCT_BUNDLE_IDENTIFIER prefix, CRIBWIRE_APP_GROUP,
+#   CRIBWIRE_KEYCHAIN_ACCESS_GROUP, CRIBWIRE_API_BASE_URL.
+
+name: CribWire
+
+options:
+  bundleIdPrefix: example.cribwire
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: en
+  groupSortPosition: top
+  minimumXcodeGenVersion: "2.38.0"
+  xcodeVersion: "16.0"
+
+# ---------------------------------------------------------------------------
+# Shared build settings
+# ---------------------------------------------------------------------------
+settings:
+  base:
+    # Language mode, not toolchain version: SWIFT_VERSION only accepts 4.0/4.2/
+    # 5.0/6.0. The project targets the Swift 5 language mode built with a
+    # 5.10-or-newer toolchain (CI pins Xcode 16.4); `CribWireKit/Package.swift`
+    # declares swift-tools-version 5.10 separately.
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Placeholder — set to the real Apple Developer team ID.
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: targeted
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    CLANG_ENABLE_MODULES: YES
+
+    # --- Placeholders shared by the app and the notification extension ------
+    # The app group doubles as the Keychain access group: `kSecAttrAccessGroup`
+    # accepts an app-group identifier, which is how the Notification Service
+    # Extension reads `K_evt` (security.md §5) without a separate
+    # keychain-access-groups entitlement.
+    CRIBWIRE_APP_GROUP: group.example.cribwire.shared
+    CRIBWIRE_KEYCHAIN_ACCESS_GROUP: group.example.cribwire.shared
+    # Default backend used by the Camera when it creates a pairing. The Viewer
+    # always uses the URL carried in the scanned QR code, never this one.
+    CRIBWIRE_API_BASE_URL: https://api.cribwire.example
+  configs:
+    debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+      SWIFT_COMPILATION_MODE: wholemodule
+
+# ---------------------------------------------------------------------------
+# Packages
+# ---------------------------------------------------------------------------
+packages:
+  # Every piece of pure logic (crypto, protocol encoding, pairing state machine,
+  # API client) lives here so it can also be tested with `swift test`.
+  CribWireKit:
+    path: CribWireKit
+
+  # libwebrtc binary distribution. Wired up in Phase 0 so the dependency graph
+  # and CI resolution are proven; no source file imports it until Phase 2
+  # (docs/TASKS.md → Phase 2, StreamingEngine).
+  WebRTC:
+    url: https://github.com/stasel/WebRTC
+    minVersion: 120.0.0
+    maxVersion: 200.0.0
+
+# ---------------------------------------------------------------------------
+# Targets
+# ---------------------------------------------------------------------------
+targets:
+
+  CribWire:
+    type: application
+    platform: iOS
+    sources:
+      - path: CribWire
+    dependencies:
+      - package: CribWireKit
+        product: CribWireKit
+      # App target only — the extension must stay tiny and must not link
+      # libwebrtc.
+      - package: WebRTC
+        product: WebRTC
+      - target: NotificationService
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: example.cribwire.CribWire
+        PRODUCT_NAME: CribWire
+        TARGETED_DEVICE_FAMILY: "1"
+    entitlements:
+      path: CribWire/CribWire.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - $(CRIBWIRE_APP_GROUP)
+        aps-environment: development
+    info:
+      path: CribWire/Info.plist
+      properties:
+        CFBundleDisplayName: CribWire
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Night-first design language (docs/design/README.md).
+        UIUserInterfaceStyle: Dark
+
+        # --- Permission strings (ios-app.md §4) --------------------------
+        NSCameraUsageDescription: >-
+          CribWire uses the camera to stream your child's room to your paired
+          device, and to scan the pairing QR code. Video never leaves your
+          devices unencrypted.
+        NSMicrophoneUsageDescription: >-
+          CribWire uses the microphone to stream room audio and to detect noise
+          on this device. Audio is end-to-end encrypted and is never sent to a
+          server in the clear.
+        NSLocalNetworkUsageDescription: >-
+          CribWire connects directly to your paired device over your local
+          network, so video stays in your home whenever possible.
+
+        # Audio only. `voip` would require CallKit, which CribWire does not use
+        # (ios-app.md §4).
+        UIBackgroundModes:
+          - audio
+
+        # --- Runtime configuration ---------------------------------------
+        CribWireAppGroupIdentifier: $(CRIBWIRE_APP_GROUP)
+        CribWireKeychainAccessGroup: $(CRIBWIRE_KEYCHAIN_ACCESS_GROUP)
+        CribWireAPIBaseURL: $(CRIBWIRE_API_BASE_URL)
+    scheme:
+      testTargets:
+        - CribWireTests
+      gatherCoverageData: true
+      coverageTargets:
+        - CribWire
+
+  NotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: NotificationService
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: example.cribwire.CribWire.NotificationService
+        PRODUCT_NAME: NotificationService
+    entitlements:
+      path: NotificationService/NotificationService.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - $(CRIBWIRE_APP_GROUP)
+    info:
+      path: NotificationService/Info.plist
+      properties:
+        CFBundleDisplayName: CribWire
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CribWireAppGroupIdentifier: $(CRIBWIRE_APP_GROUP)
+        CribWireKeychainAccessGroup: $(CRIBWIRE_KEYCHAIN_ACCESS_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+
+  CribWireTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: CribWireTests
+      # The one normative copy of the cross-implementation vectors. Referenced,
+      # never duplicated (shared/protocol.md).
+      - path: ../shared/test-vectors/cribwire-v1.json
+        buildPhase: resources
+    dependencies:
+      - target: CribWire
+      - package: CribWireKit
+        product: CribWireKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: example.cribwire.CribWireTests
+        GENERATE_INFOPLIST_FILE: YES

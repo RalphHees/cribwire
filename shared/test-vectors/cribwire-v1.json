@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "revision": "1.1",
+  "description": "CribWire v1 cross-implementation test vectors. iOS (CryptoKit) and backend (Node crypto) MUST reproduce these byte-for-byte. Formats are normative and documented in shared/protocol.md. Revision 1.1 adds per-device authentication keys: the pairing-wide K_auth authenticates ONLY pairing creation and claim; every later request is signed with the calling device's own key and the server derives the role from the stored device record.",
+  "hkdf": {
+    "algorithm": "HKDF-SHA256, empty salt, 32-byte output",
+    "rootSecretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "keys": {
+      "k_auth": {
+        "info": "cribwire/v1/auth",
+        "keyHex": "cd3202965017a1441948e1232e60817ee369cd31ac9d29d4cc993aa0afff7652"
+      },
+      "k_sig": {
+        "info": "cribwire/v1/sig",
+        "keyHex": "5d32ad6ac6a10a18ac93bdaf3df94d05f55f9d7cb1939333c7e2757eaa76b0e8"
+      },
+      "k_evt": {
+        "info": "cribwire/v1/event",
+        "keyHex": "10f8a4568a9e4f9df0139be9738c531299b829cd746fdd2f4706a1a781cff14d"
+      },
+      "k_sas": {
+        "info": "cribwire/v1/sas",
+        "keyHex": "1af78ffd5ae0a98edacd1020b85af4e6b4e504a49d5fd0ac9a63f33264651f7b"
+      }
+    }
+  },
+  "sas": {
+    "rule": "first 4 bytes of K_sas as big-endian uint32, mod 1000000, left-padded with zeros to 6 digits",
+    "code": "431869"
+  },
+  "qrPayload": {
+    "rule": "cribwire://pair?v=1&id=<uuid lowercase>&s=<root secret, base64url no padding>&api=<percent-encoded base URL>",
+    "example": "cribwire://pair?v=1&id=7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70&s=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8&api=https%3A%2F%2Fapi.cribwire.example",
+    "sBase64url": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+  },
+  "deviceKeys": {
+    "rule": "32 random bytes generated on-device at pairing-create (camera) or claim (viewer), stored in the Keychain, uploaded once in the bootstrap-authenticated request body as base64. The server stores it against the device row and thereafter authenticates that device by it. Device keys decrypt nothing.",
+    "cameraDeviceId": "1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7",
+    "viewerDeviceId": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "cameraDeviceKeyBase64": "oaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaE=",
+    "viewerDeviceKeyBase64": "srKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrI="
+  },
+  "sealedEnvelope": {
+    "rule": "base64( nonce(12) || ChaCha20-Poly1305 ciphertext || tag(16) ); AAD is UTF-8 of the stated string; production nonces are random, fixed here for the vector",
+    "signaling": {
+      "keyHex": "5d32ad6ac6a10a18ac93bdaf3df94d05f55f9d7cb1939333c7e2757eaa76b0e8",
+      "nonceHex": "000000000000000000000001",
+      "aad": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70|camera",
+      "plaintextUtf8": "{\"t\":\"offer\",\"sdp\":\"v=0 EXAMPLE\",\"fp\":\"SHA-256 AB:CD:EF\"}",
+      "sealedBase64": "AAAAAAAAAAAAAAABU3hNL9cZZ6mMcAnoGPiJYIPUPKPgvPH2f9QYoD8hazwt0uaplvLtx2YWnTjLXfCuiqac+q8/0luWkgW4THuzfhFdYDX3R6CDTw=="
+    },
+    "event": {
+      "keyHex": "10f8a4568a9e4f9df0139be9738c531299b829cd746fdd2f4706a1a781cff14d",
+      "nonceHex": "000000000000000000000002",
+      "aad": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70|event",
+      "plaintextUtf8": "{\"type\":\"noise\",\"ts\":1754850000}",
+      "sealedBase64": "AAAAAAAAAAAAAAACxyR8aRT7B85VNGsGZO18LBxBMJUzW9YoWcJey8Xix1Lacky14k/tMcSIsSv/yvti"
+    }
+  },
+  "requestAuth": {
+    "rule": "canonical = METHOD\\nPATH\\nTIMESTAMP\\nPRINCIPAL\\nlowercase-hex(SHA-256(body)); mac = lowercase-hex(HMAC-SHA256(key, canonical)); header = CribWire-HMAC <pairingId>:<principal>:<timestamp>:<mac>. PRINCIPAL is the literal string \"bootstrap\" for POST /v1/pairings and POST /v1/pairings/:id/claim (signed with K_auth), and the calling device's UUID for every other authenticated request (signed with that device's key). The client never asserts a role; the server reads it from the device row.",
+    "pairingId": "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70",
+    "examples": {
+      "bootstrapCreate": {
+        "principal": "bootstrap",
+        "method": "POST",
+        "path": "/v1/pairings",
+        "timestamp": "1754850000",
+        "bodyUtf8": "{\"kAuth\":\"zTICllAXoUQZSOEjLmCBfuNpzTGsnSnUzJk6oK//dlI=\",\"deviceKey\":\"oaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaE=\",\"apnsToken\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"apnsEnvironment\":\"sandbox\"}",
+        "bodySha256Hex": "92f92c30bb10e6447ecdc2ff3533b84eddf2e3f7a8dea79bd98a6c5931af86d6",
+        "canonicalString": "POST\n/v1/pairings\n1754850000\nbootstrap\n92f92c30bb10e6447ecdc2ff3533b84eddf2e3f7a8dea79bd98a6c5931af86d6",
+        "macHex": "737c124cd02a85edd261d5001e281430203214e44de98ab43779e048106e40bf",
+        "authorizationHeader": "CribWire-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:bootstrap:1754850000:737c124cd02a85edd261d5001e281430203214e44de98ab43779e048106e40bf"
+      },
+      "bootstrapClaim": {
+        "principal": "bootstrap",
+        "method": "POST",
+        "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim",
+        "timestamp": "1754850000",
+        "bodyUtf8": "{\"deviceKey\":\"srKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrI=\",\"apnsToken\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"apnsEnvironment\":\"sandbox\"}",
+        "bodySha256Hex": "0e08115d564f1ec3a6a970699c531d65a8864b3913007f93940a4b8938939c5f",
+        "canonicalString": "POST\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/claim\n1754850000\nbootstrap\n0e08115d564f1ec3a6a970699c531d65a8864b3913007f93940a4b8938939c5f",
+        "macHex": "329a6e95645f731c72987dedea1524bff9a72903c9ea87a39cf226c443ffe68b",
+        "authorizationHeader": "CribWire-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:bootstrap:1754850000:329a6e95645f731c72987dedea1524bff9a72903c9ea87a39cf226c443ffe68b"
+      },
+      "deviceCameraRevoke": {
+        "principal": "1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7",
+        "method": "DELETE",
+        "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70",
+        "timestamp": "1754850000",
+        "bodyUtf8": "",
+        "bodySha256Hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "canonicalString": "DELETE\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70\n1754850000\n1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "macHex": "82c474876e17e7139ba779e4a577b624f0f58a0251ebe79acd3bea8aeef2bab2",
+        "authorizationHeader": "CribWire-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:1f2e3d4c-5b6a-4798-8071-a2b3c4d5e6f7:1754850000:82c474876e17e7139ba779e4a577b624f0f58a0251ebe79acd3bea8aeef2bab2"
+      },
+      "deviceViewerTurnCredentials": {
+        "principal": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+        "method": "POST",
+        "path": "/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials",
+        "timestamp": "1754850000",
+        "bodyUtf8": "",
+        "bodySha256Hex": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "canonicalString": "POST\n/v1/pairings/7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70/turn-credentials\n1754850000\n9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "macHex": "61cabc488f10268195c19245519b0ce45fca4fd89b622a74e3f1fd0c7d912be1",
+        "authorizationHeader": "CribWire-HMAC 7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70:9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d:1754850000:61cabc488f10268195c19245519b0ce45fca4fd89b622a74e3f1fd0c7d912be1"
+      }
+    }
+  }
+}

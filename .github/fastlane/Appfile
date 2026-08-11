@@ -1,0 +1,12 @@
+# Identity of the app being shipped.
+#
+# Both values come from GitHub Actions *variables* (not secrets — a team id and
+# a bundle id are not confidential), so nothing App-Store-specific is hardcoded
+# in the repo. The fallbacks match the placeholders in ios/project.yml and are
+# rejected by the workflow preflight, so a misconfigured run fails instead of
+# uploading to the wrong app record.
+app_identifier(ENV.fetch('CRIBWIRE_APP_IDENTIFIER', 'example.cribwire.CribWire'))
+team_id(ENV.fetch('CRIBWIRE_APPLE_TEAM_ID', ''))
+
+# Authentication is via the App Store Connect API key (see Fastfile), so no
+# `apple_id` / Apple ID password is needed or wanted here.

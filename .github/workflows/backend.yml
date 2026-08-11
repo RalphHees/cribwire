@@ -1,0 +1,263 @@
+# Backend CI — runs on every push to main and every pull request that touches
+# the backend or the shared test vectors (docs/TASKS.md, Phase 0: "backend lint
+# + tests, Docker image build").
+#
+# Nothing in this workflow needs a secret, so it is safe on `pull_request` from
+# forks: `GITHUB_TOKEN` stays read-only and no registry push happens here.
+# Publishing the image is a separate, environment-gated workflow
+# (.github/workflows/deploy-backend.yml).
+name: backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'shared/**'
+      - '.github/workflows/backend.yml'
+
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR makes the in-flight run obsolete.
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  static:
+    name: lint / typecheck / format
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Kept as separate steps so a red check names the failing gate directly.
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript (--noEmit)
+        run: npm run typecheck
+
+      - name: Prettier (--check)
+        run: npm run format:check
+
+      - name: Compile (tsc -p tsconfig.build.json)
+        run: npm run build
+
+  test:
+    name: tests (postgres + redis)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+
+    # Real services, not mocks: `backend/test/helpers/services.ts` probes these
+    # URLs and silently *skips* the integration suites when they are
+    # unreachable, so the guard steps below turn a skip into a hard failure.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cribwire
+          POSTGRES_PASSWORD: cribwire
+          POSTGRES_DB: cribwire_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cribwire -d cribwire_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # Local dev credentials for a throwaway container — not a secret.
+      TEST_DATABASE_URL: postgres://cribwire:cribwire@127.0.0.1:5432/cribwire_test
+      TEST_REDIS_URL: redis://127.0.0.1:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify shared test vectors are present
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [ ! -f shared/test-vectors/cribwire-v1.json ]; then
+            echo "::error::shared/test-vectors/cribwire-v1.json is missing — both test suites load it."
+            exit 1
+          fi
+
+      - name: Verify service containers answer
+        working-directory: .
+        run: |
+          set -euo pipefail
+          pg_isready -h 127.0.0.1 -p 5432 -U cribwire -d cribwire_test
+
+          # redis-cli is not installed on the runner image, so speak RESP over a
+          # raw TCP socket instead of pulling in a package just to say PING.
+          exec 3<>/dev/tcp/127.0.0.1/6379
+          printf 'PING\r\n' >&3
+          read -r reply <&3
+          exec 3<&-
+          if [ "${reply%$'\r'}" != "+PONG" ]; then
+            echo "::error::Redis service container did not answer PING (got: ${reply})"
+            exit 1
+          fi
+          echo "postgres and redis are reachable"
+
+      - name: Run test suite
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee "${RUNNER_TEMP}/vitest.log"
+
+      - name: Fail if any test was skipped
+        run: |
+          set -euo pipefail
+          # `describe.skipIf(!available)` makes the integration suites vanish
+          # quietly when Postgres/Redis are unreachable — vitest still exits 0
+          # and the run looks green while having proved nothing. The only
+          # conditional skips in this repo are those two suites, so any skip
+          # here means the service containers were not actually exercised.
+          if grep -Eq '[0-9]+ skipped' "${RUNNER_TEMP}/vitest.log"; then
+            echo "::error::Integration tests were skipped — the Postgres/Redis service containers were not reachable from the test process."
+            grep -E '(Test Files|Tests) ' "${RUNNER_TEMP}/vitest.log" || true
+            exit 1
+          fi
+
+  migrations:
+    name: migration check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cribwire
+          POSTGRES_PASSWORD: cribwire
+          POSTGRES_DB: cribwire
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cribwire -d cribwire"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://cribwire:cribwire@127.0.0.1:5432/cribwire
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations to an empty database
+        run: |
+          set -euo pipefail
+          npm run migrate 2>&1 | tee "${RUNNER_TEMP}/migrate-1.log"
+          if ! grep -Eq 'migrations: [1-9][0-9]* applied' "${RUNNER_TEMP}/migrate-1.log"; then
+            echo "::error::First migration run applied no migrations — backend/migrations/ was not picked up."
+            exit 1
+          fi
+
+      - name: Re-run migrations (must be idempotent)
+        run: |
+          set -euo pipefail
+          npm run migrate 2>&1 | tee "${RUNNER_TEMP}/migrate-2.log"
+          if ! grep -Eq 'migrations: 0 applied' "${RUNNER_TEMP}/migrate-2.log"; then
+            echo "::error::Re-running migrations applied changes again — migrations are not idempotent."
+            exit 1
+          fi
+
+      - name: Show resulting schema
+        run: |
+          set -euo pipefail
+          psql "${DATABASE_URL}" -Atc \
+            "select table_name from information_schema.tables where table_schema = 'public' order by 1"
+
+  docker:
+    name: docker image build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+
+      # Build only — never push from CI. The registry push lives in
+      # deploy-backend.yml, which runs on main and holds the packages:write
+      # permission.
+      - name: Build backend image
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          load: true
+          tags: cribwire-backend:ci
+          cache-from: type=gha
+          # Fork PRs get a read-only Actions cache; writing from them fails the
+          # export, so only push cache layers for same-repo runs.
+          cache-to: ${{ github.event.pull_request.head.repo.fork && '' || 'type=gha,mode=max' }}
+
+      - name: Smoke-check the image
+        run: |
+          set -euo pipefail
+          # Starting the server needs Postgres, so just prove the runtime layer
+          # is coherent: the compiled entry point and the migrations the
+          # container has to apply at deploy time are both present.
+          docker run --rm --entrypoint sh cribwire-backend:ci -c \
+            'node --version && test -f dist/index.js && test -d migrations && ls migrations'

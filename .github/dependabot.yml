@@ -1,0 +1,65 @@
+# Dependency updates. Everything lands as a PR, so the normal required checks
+# (backend.yml / ios.yml) decide whether an update is safe.
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------
+  # Backend (Node 22 / TypeScript)
+  # ---------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Amsterdam
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    groups:
+      # One PR for the toolchain instead of six; runtime dependencies stay
+      # separate because they are the ones that can break the API at runtime.
+      dev-tooling:
+        dependency-type: development
+        patterns: ['*']
+    labels:
+      - dependencies
+      - backend
+
+  # ---------------------------------------------------------------------
+  # GitHub Actions used by the workflows in this directory
+  # ---------------------------------------------------------------------
+  # Third-party actions are pinned to commit SHAs; Dependabot understands the
+  # `# vX.Y.Z` comment convention and rewrites both the SHA and the comment.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Amsterdam
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
+    labels:
+      - dependencies
+      - ci
+
+  # ---------------------------------------------------------------------
+  # Swift packages
+  # ---------------------------------------------------------------------
+  # Covers CribWireKit's own dependencies (swift-crypto). The app-level WebRTC
+  # binary package is declared in ios/project.yml, which XcodeGen turns into an
+  # .xcodeproj at build time — Dependabot cannot see it, so its version range
+  # has to be reviewed by hand.
+  - package-ecosystem: swift
+    directory: /ios/CribWireKit
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Amsterdam
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ios

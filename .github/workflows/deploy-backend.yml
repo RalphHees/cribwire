@@ -1,0 +1,168 @@
+# Backend image publish + production deploy — docs/TASKS.md Phase 4 ("Backend
+# production deploy: EU region, TLS/HSTS, Prometheus + alerting, secrets
+# manager, Terraform"), docs/specs/backend.md §6.
+#
+# Runs only on pushes to main. Pull requests build the same image without
+# pushing it (see backend.yml), so a fork PR never touches the registry.
+#
+# Two jobs on purpose:
+#   1. `image`  — builds and pushes to GHCR, tagged with the full commit SHA.
+#                 This is the only job that holds `packages: write`.
+#   2. `deploy` — environment-protected, and deliberately NOT implemented.
+#                 CribWire has no cloud account, no Terraform state and no
+#                 deploy credentials yet, so anything here would be a lie that
+#                 goes green while nothing ships. It is opt-in via a repository
+#                 variable and hard-fails until someone fills it in.
+name: deploy-backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+permissions:
+  contents: read
+
+# Deployments queue; they never cancel each other.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: build + push image to GHCR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image reference
+        id: meta
+        run: |
+          set -euo pipefail
+          # GHCR rejects uppercase path segments; the owner/repo may contain them.
+          repo="${GITHUB_REPOSITORY,,}"
+          echo "image=ghcr.io/${repo}-backend" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Job-scoped token; no long-lived registry credential exists.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          provenance: true
+          sbom: true
+          # The immutable SHA tag is what a deploy pins to; `main` is a
+          # convenience pointer only and must never be used by production.
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:main
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Backend image published"
+            echo
+            echo '```'
+            echo "${IMAGE}:${TAG}"
+            echo "${IMAGE}@${DIGEST}"
+            echo '```'
+            echo
+            if [ "${DEPLOY_ENABLED:-}" != "true" ]; then
+              echo "**Not deployed.** No production environment is configured yet, so the"
+              echo "\`deploy\` job is skipped. See the header of"
+              echo "\`.github/workflows/deploy-backend.yml\` for what has to exist first."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: deploy to production
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Opt-in switch. While it is unset the job is skipped and shows as such —
+    # honest about the fact that nothing was deployed, instead of a green
+    # check over a no-op.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    # Protect this environment with required reviewers and a deployment branch
+    # rule limited to `main`; the deploy credentials belong to it, not to the
+    # repository.
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    permissions:
+      contents: read
+    steps:
+      - name: Preflight — required deploy configuration
+        env:
+          DEPLOY_KUBECONFIG: ${{ secrets.DEPLOY_KUBECONFIG }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${DEPLOY_KUBECONFIG:-}" ] || missing="${missing} secrets.DEPLOY_KUBECONFIG"
+          [ -n "${PRODUCTION_URL:-}" ] || missing="${missing} vars.PRODUCTION_URL"
+          if [ -n "${missing}" ]; then
+            echo "::error::Production deploy is enabled but not configured. Missing:${missing}"
+            exit 1
+          fi
+
+      # ---------------------------------------------------------------------
+      # TO IMPLEMENT (docs/specs/backend.md §6: EU region, Kubernetes or
+      # equivalent, Terraform, secrets manager). Everything below is a
+      # description of the work, not the work:
+      #
+      #   1. Authenticate to the EU-region cluster/host. Prefer OIDC over a
+      #      stored kubeconfig — add `permissions: id-token: write` and the
+      #      cloud provider's login action, then delete DEPLOY_KUBECONFIG.
+      #   2. Run `npm run migrate` against the production database as a
+      #      pre-deploy job (the image ships /app/migrations for this).
+      #   3. Roll out the image *by digest*, not by tag:
+      #        ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}
+      #      DATABASE_URL, REDIS_URL, the APNs .p8 and the TURN shared secret
+      #      come from the secrets manager at run time — never from this file
+      #      and never from the image.
+      #   4. Wait for the rollout, poll /v1/health, and roll back on failure.
+      #   5. Record the deployment (`/v1/version` should report the SHA).
+      # ---------------------------------------------------------------------
+      - name: Deploy
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          echo "::error::deploy-backend.yml: the production deploy step is a placeholder — no rollout was performed for ${IMAGE}@${DIGEST}. Implement it before setting vars.DEPLOY_ENABLED=true."
+          exit 1

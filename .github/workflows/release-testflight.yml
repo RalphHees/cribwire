@@ -1,0 +1,179 @@
+# TestFlight delivery — docs/TASKS.md Phase 4 ("TestFlight beta with >= 10
+# external testers").
+#
+# Triggers: a `v*` tag, or a manual `workflow_dispatch`. Never on an ordinary
+# merge to main, and never on `pull_request` — the signing material must not be
+# reachable from a fork's code.
+#
+# ---------------------------------------------------------------------------
+# Configuration a human must provide before this workflow can ever go green
+# ---------------------------------------------------------------------------
+# Repository/environment SECRETS (Settings > Environments > "testflight"):
+#   APP_STORE_CONNECT_KEY_ID      App Store Connect API key id (10 chars)
+#   APP_STORE_CONNECT_ISSUER_ID   App Store Connect issuer id (UUID)
+#   APP_STORE_CONNECT_KEY_P8      The full contents of AuthKey_<KEYID>.p8,
+#                                 including the BEGIN/END lines
+#   MATCH_PASSWORD                Passphrase of the fastlane match repo
+#   MATCH_GIT_URL                 https URL of the private match certificates
+#                                 repo
+# Optional secret, required in practice when MATCH_GIT_URL is a private HTTPS
+# repo (match cannot use the runner's git credentials):
+#   MATCH_GIT_BASIC_AUTHORIZATION base64("<user>:<PAT with repo read>")
+#
+# Repository/environment VARIABLES (not secrets — they are not confidential and
+# keeping them out of `secrets` means they can be shown in logs):
+#   APPLE_TEAM_ID                 10-character Apple Developer team id
+#   APP_IDENTIFIER                Real app bundle id, e.g. com.acme.cribwire
+#
+# `ios/project.yml` still ships the placeholder prefix `example.cribwire`. Until
+# a human replaces it (and sets DEVELOPMENT_TEAM), no signed build is possible;
+# the preflight step below fails with exactly that message rather than
+# uploading something meaningless.
+#
+# Protect the `testflight` environment with required reviewers so the secrets
+# above are only reachable from an approved run.
+name: release-testflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'CFBundleVersion to ship (defaults to the workflow run number)'
+        required: false
+        type: string
+      changelog:
+        description: 'What to Test notes for this build'
+        required: false
+        default: 'Internal build from CI.'
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+# Uploads are not interchangeable; never cancel one mid-flight.
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+env:
+  XCODE_VERSION: '16.4'
+
+jobs:
+  testflight:
+    name: build + upload to TestFlight
+    runs-on: macos-15
+    # Gate for the signing secrets; add required reviewers on this environment.
+    environment: testflight
+    timeout-minutes: 90
+    defaults:
+      run:
+        # fastlane discovers .github/fastlane/{Appfile,Fastfile} relative to the
+        # working directory, and bundler discovers .github/Gemfile.
+        working-directory: .github
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fails loudly and early, before any macOS minutes are spent building,
+      # and prints only the NAMES of what is missing — never a value.
+      - name: Preflight — required secrets and configuration
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+        run: |
+          set -euo pipefail
+          # A plain string, not an array: macOS runners still ship bash 3.2,
+          # where `${#arr[@]}` on an empty array trips `set -u`.
+          missing=""
+          for name in APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID \
+                      APP_STORE_CONNECT_KEY_P8 MATCH_PASSWORD MATCH_GIT_URL; do
+            if [ -z "${!name:-}" ]; then missing="${missing} secrets.${name}"; fi
+          done
+          for name in APPLE_TEAM_ID APP_IDENTIFIER; do
+            if [ -z "${!name:-}" ]; then missing="${missing} vars.${name}"; fi
+          done
+          if [ -n "${missing}" ]; then
+            echo "::error::TestFlight delivery is not configured. Missing:${missing}. See the header of .github/workflows/release-testflight.yml."
+            exit 1
+          fi
+
+          if ! grep -q "${APP_IDENTIFIER}" ../ios/project.yml; then
+            echo "::error::ios/project.yml does not declare bundle id '${APP_IDENTIFIER}' — replace the placeholder 'example.cribwire' prefix and DEVELOPMENT_TEAM before releasing."
+            exit 1
+          fi
+          echo "preflight ok"
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          brew install --quiet xcodegen
+          xcodegen --version
+
+      - name: Generate CribWire.xcodeproj
+        working-directory: ios
+        run: xcodegen generate --spec project.yml
+
+      - name: Set up Ruby + fastlane
+        uses: ruby/setup-ruby@e5517072e87f198d9533967ae13d97c11b604005 # v1.99.0
+        with:
+          ruby-version: '3.3'
+          working-directory: .github
+          bundler-cache: true
+
+      - name: Resolve version numbers
+        id: version
+        env:
+          INPUT_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          build_number="${INPUT_BUILD_NUMBER:-${GITHUB_RUN_NUMBER}}"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            marketing_version="${GITHUB_REF_NAME#v}"
+          else
+            marketing_version=""
+          fi
+          echo "build_number=${build_number}" >> "$GITHUB_OUTPUT"
+          echo "marketing_version=${marketing_version}" >> "$GITHUB_OUTPUT"
+          echo "build ${build_number}, marketing version '${marketing_version:-<from project.yml>}'"
+
+      - name: fastlane beta
+        env:
+          # Consumed by fastlane; never echoed. `--verbose` is deliberately not
+          # used: fastlane prints resolved option values at that level.
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          CRIBWIRE_APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          CRIBWIRE_APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          CRIBWIRE_BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          CRIBWIRE_MARKETING_VERSION: ${{ steps.version.outputs.marketing_version }}
+          CRIBWIRE_CHANGELOG: ${{ inputs.changelog }}
+          FASTLANE_SKIP_UPDATE_CHECK: '1'
+          FASTLANE_HIDE_CHANGELOG: '1'
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: '120'
+        run: bundle exec fastlane ios beta
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs
+          # gym writes its xcodebuild log here; it contains no secrets.
+          path: ~/Library/Logs/gym
+          retention-days: 7
+          if-no-files-found: ignore
