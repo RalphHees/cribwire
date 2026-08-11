@@ -45,6 +45,17 @@ docker compose --profile api up --build   # api + postgres + redis
 docker compose --profile turn up          # coturn (host networking)
 ```
 
+### Production
+
+`.github/workflows/deploy-backend.yml` builds this image on every push to `main`
+and pushes it to Harbor (`harbor.aviodata.net/ralphhees/cribwire`), tagged with
+the commit SHA. It publishes only — the rollout is a separate, deliberate step.
+
+The Kubernetes deployment lives in [`deploy/helm/cribwire-backend`](../deploy/helm/cribwire-backend/README.md):
+the API, a Valkey instance for the nonce cache / rate limits / signaling bus, a
+migration hook, and an nginx + cert-manager Ingress for
+`https://apicribwire.ralphhees.nl`. Postgres stays external.
+
 ## Layout
 
 ```

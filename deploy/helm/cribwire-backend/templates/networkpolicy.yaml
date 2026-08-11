@@ -1,0 +1,102 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $np := .Values.networkPolicy }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cribwire-backend.fullname" . }}
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cribwire-backend.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Public traffic arrives only through the ingress controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.ingressControllerNamespace }}
+      ports:
+        - port: http
+          protocol: TCP
+    {{- if ne (int .Values.service.metricsPort) (int .Values.service.port) }}
+    # Prometheus reaches the metrics port and nothing else.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.monitoringNamespace }}
+      ports:
+        - port: metrics
+          protocol: TCP
+    {{- end }}
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- if .Values.valkey.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "cribwire-backend.valkey.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: {{ .Values.valkey.service.port }}
+          protocol: TCP
+    {{- end }}
+    # The external Postgres. Narrow `postgresCidr` to the database's actual
+    # address once it is known — the default permits any destination on that
+    # port, which is a weak rule.
+    - to:
+        - ipBlock:
+            cidr: {{ $np.postgresCidr }}
+      ports:
+        - port: {{ $np.postgresPort }}
+          protocol: TCP
+    # api.push.apple.com. Apple publishes no stable address range, so this is
+    # port-scoped rather than address-scoped; the private ranges are excluded
+    # so it cannot double as a path back into the cluster.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+    {{- with $np.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- if .Values.valkey.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cribwire-backend.valkey.fullname" . }}
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cribwire-backend.valkey.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Valkey holds the replay-nonce cache and the signaling bus: only the API
+    # pods have any business talking to it.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "cribwire-backend.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: api
+      ports:
+        - port: valkey
+          protocol: TCP
+{{- end }}
+{{- end }}

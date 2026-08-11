@@ -1,0 +1,73 @@
+{{- if .Values.migrations.enabled }}
+# Schema migrations, applied before any new pod starts.
+#
+# `runMigrations` is forward-only, wraps each file in its own transaction and
+# takes a Postgres advisory lock, so two deploys racing each other is safe —
+# the second one waits and then reports every file as already present.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "cribwire-backend.fullname" . }}-migrate
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: '0'
+    # Kept until the next deploy replaces it, so a failed migration's logs are
+    # still there to read.
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "cribwire-backend.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      {{- with (include "cribwire-backend.imagePullSecrets" . | trim) }}
+      imagePullSecrets:
+        {{- . | nindent 8 }}
+      {{- end }}
+      # Deliberately the namespace's `default` ServiceAccount: this Job is a
+      # pre-install hook, so it runs before the chart's own ServiceAccount
+      # exists. It needs no API access either way.
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "cribwire-backend.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          # The runtime image ships `dist/` and `migrations/` but not `src/`,
+          # so this is the compiled CLI, not the `npm run migrate` script.
+          command: ['node', 'dist/db/migrate-cli.js']
+          env:
+            # Only the database URL: the migration CLI loads config but touches
+            # nothing else, so Valkey, TURN and APNs need not be reachable.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cribwire-backend.secretName" . }}
+                  key: DATABASE_URL
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

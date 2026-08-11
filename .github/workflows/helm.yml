@@ -1,0 +1,140 @@
+# Helm chart checks for deploy/helm/cribwire-backend.
+#
+# A chart is code that only ever runs at deploy time, which is the worst moment
+# to discover it does not render. These jobs render it on every change instead,
+# and validate the output against the Kubernetes API schemas.
+name: helm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/helm/**'
+      - '.github/workflows/helm.yml'
+  pull_request:
+    paths:
+      - 'deploy/helm/**'
+      - '.github/workflows/helm.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CHART: deploy/helm/cribwire-backend
+  # Placeholder credentials for rendering only — the chart refuses to render
+  # without a credentials source, which is the behaviour being exercised here.
+  RENDER_ARGS: --set secret.existingSecret=cribwire-backend
+
+jobs:
+  lint:
+    name: lint + render
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: helm lint (defaults)
+        run: helm lint "${CHART}" ${RENDER_ARGS}
+
+      - name: helm lint (production overlay)
+        run: helm lint "${CHART}" -f deploy/helm/values-production.yaml
+
+      - name: Render — defaults
+        run: helm template cribwire-backend "${CHART}" ${RENDER_ARGS} > /tmp/default.yaml
+
+      - name: Render — production overlay
+        run: |
+          set -euo pipefail
+          helm template cribwire-backend "${CHART}" \
+            -f deploy/helm/values-production.yaml \
+            --set image.digest=sha256:0000000000000000000000000000000000000000000000000000000000000000 \
+            --set revision=deadbeef \
+            > /tmp/production.yaml
+
+      - name: Render — every optional feature on
+        run: |
+          set -euo pipefail
+          helm template cribwire-backend "${CHART}" ${RENDER_ARGS} \
+            --set autoscaling.enabled=true \
+            --set networkPolicy.enabled=true \
+            --set serviceMonitor.enabled=true \
+            --set podDisruptionBudget.enabled=true \
+            > /tmp/everything.yaml
+
+      - name: Render — Valkey off, external Redis
+        run: |
+          set -euo pipefail
+          helm template cribwire-backend "${CHART}" ${RENDER_ARGS} \
+            --set valkey.enabled=false \
+            --set externalRedis.url=redis://redis.internal:6379/0 \
+            > /tmp/external-redis.yaml
+
+      - name: Render — chart-managed secrets (bootstrap path)
+        run: |
+          set -euo pipefail
+          helm template cribwire-backend "${CHART}" \
+            --set secret.create=true \
+            --set-string secret.data.DATABASE_URL=postgres://u:p@db:5432/cribwire \
+            --set imagePullSecrets.create.enabled=true \
+            --set-string imagePullSecrets.create.username=robot \
+            --set-string imagePullSecrets.create.password=hunter2 \
+            > /tmp/bootstrap.yaml
+
+      - name: Reject a render with no credentials source
+        run: |
+          set -euo pipefail
+          # Installing without a Secret would produce pods that crash-loop on
+          # missing DATABASE_URL. The chart is supposed to fail the render
+          # instead, so a passing template here is the bug.
+          if helm template cribwire-backend "${CHART}" > /dev/null 2>&1; then
+            echo "::error::Chart rendered without secret.existingSecret or secret.create — the guard in _helpers.tpl is not firing."
+            exit 1
+          fi
+
+      - name: Assertions on the production render
+        run: |
+          set -euo pipefail
+          manifest=/tmp/production.yaml
+
+          fail() { echo "::error::$1"; exit 1; }
+
+          grep -q 'host: "apicribwire.ralphhees.nl"' "$manifest" \
+            || fail "Ingress does not carry the production host."
+          grep -q 'secretName: cribwire-backend-tls' "$manifest" \
+            || fail "Ingress has no TLS secret — cert-manager would not issue a certificate."
+          grep -q 'cert-manager.io/cluster-issuer' "$manifest" \
+            || fail "Ingress is missing the cert-manager issuer annotation."
+          grep -q 'image: harbor.aviodata.net/ralphhees/cribwire@sha256:' "$manifest" \
+            || fail "Production render is not pinned to an image digest."
+
+          # A credential reaching a ConfigMap is the failure this guards against.
+          if awk '/^kind: ConfigMap$/,/^---$/' "$manifest" | grep -Eiq 'APNS_KEY_P8|TURN_SHARED_SECRET|DATABASE_URL'; then
+            fail "A credential key was rendered into a ConfigMap."
+          fi
+
+      - name: Validate against Kubernetes schemas
+        run: |
+          set -euo pipefail
+          version=v0.6.7
+          curl -fsSL "https://github.com/yannh/kubeconform/releases/download/${version}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C /tmp kubeconform
+          for manifest in /tmp/default.yaml /tmp/production.yaml /tmp/everything.yaml /tmp/external-redis.yaml /tmp/bootstrap.yaml; do
+            echo "== ${manifest}"
+            # ServiceMonitor is a Prometheus Operator CRD, hence the CRD schema
+            # source alongside the built-in ones.
+            /tmp/kubeconform \
+              -strict \
+              -summary \
+              -kubernetes-version 1.30.0 \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              "${manifest}"
+          done

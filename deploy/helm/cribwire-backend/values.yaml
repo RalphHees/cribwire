@@ -1,0 +1,315 @@
+# Defaults for the cribwire-backend chart.
+#
+# Nothing here is a secret. DATABASE_URL, the TURN shared secret and the APNs
+# `.p8` key live in a Kubernetes Secret this chart references but does not own
+# by default (docs/specs/backend.md §6: "Secrets … in a secrets manager, never
+# in the repo"). See `secret` below.
+
+# -- Overrides for the generated resource names.
+nameOverride: ''
+fullnameOverride: ''
+
+image:
+  # Harbor project that `.github/workflows/deploy-backend.yml` pushes to.
+  repository: harbor.aviodata.net/ralphhees/cribwire
+  # Mutable tag, used only when `digest` is empty. Defaults to .Chart.AppVersion.
+  tag: ''
+  # Preferred: pin the exact image the CI run published, e.g.
+  #   --set image.digest=sha256:1234…
+  # A digest beats a tag — a tag can be repointed in the registry, a digest
+  # cannot, so a rollback and a redeploy always land on the same bytes.
+  digest: ''
+  pullPolicy: IfNotPresent
+
+# Harbor is private, so the nodes need a pull credential.
+imagePullSecrets:
+  # Reference Secrets you already created in the namespace.
+  existing: []
+  # …or let the chart create one from a Harbor robot account. Only use this
+  # when the values are supplied at deploy time (`--set`), never committed.
+  create:
+    enabled: false
+    name: '' # defaults to <fullname>-registry
+    registry: harbor.aviodata.net
+    username: ''
+    password: ''
+
+# Commit SHA of the running build; surfaced by GET /v1/version.
+revision: ''
+
+replicaCount: 2
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+# The pod loads its credentials with `envFrom.secretRef`, so the Secret's keys
+# are the environment variable names:
+#
+#   DATABASE_URL        required — postgres://…  (external database)
+#   TURN_SHARED_SECRET  required in production — coturn `use-auth-secret`
+#   APNS_KEY_P8         required in production — PEM contents of the .p8 file
+#   APNS_KEY_ID         required in production
+#   APNS_TEAM_ID        required in production
+#   REDIS_URL           only when `valkey.enabled=false` and Redis needs auth
+#
+# The app refuses to start in production when any of these is missing, rather
+# than degrading quietly (see backend/src/app.ts).
+secret:
+  # Recommended: a Secret managed outside this chart (External Secrets,
+  # Sealed Secrets, Vault Agent, …).
+  existingSecret: ''
+
+  # Escape hatch for bootstrapping a cluster. Values set here end up in the
+  # Helm release stored in etcd — acceptable for a first install, not for
+  # steady state.
+  create: false
+  data: {}
+  #   DATABASE_URL: postgres://cribwire:…@postgres.internal:5432/cribwire
+  #   TURN_SHARED_SECRET: …
+  #   APNS_KEY_P8: |
+  #     -----BEGIN PRIVATE KEY-----
+  #     …
+  #   APNS_KEY_ID: …
+  #   APNS_TEAM_ID: …
+
+# ---------------------------------------------------------------------------
+# Application configuration (non-secret; rendered into a ConfigMap)
+# ---------------------------------------------------------------------------
+config:
+  logLevel: info
+
+  # Protocol limits — defaults match backend/src/config.ts.
+  pairingTtlSeconds: 600
+  authWindowSeconds: 60
+  maxViewersPerPairing: 5
+  maxBodyBytes: 16384
+  maxWsMessageBytes: 16384
+  wsHeartbeatSeconds: 30
+  wsIdleTimeoutSeconds: 300
+  eventMinIntervalSeconds: 30
+
+  turn:
+    ttlSeconds: 3600
+    # Comma-separated coturn URIs handed to clients. coturn itself is not part
+    # of this chart: it needs host networking and a public UDP range, so it is
+    # deployed alongside the cluster rather than in it.
+    uris: ''
+    # e.g. 'turn:turn.ralphhees.nl:3478?transport=udp,turns:turn.ralphhees.nl:5349?transport=tcp'
+
+  apns:
+    topic: com.example.cribwire
+    timeoutMs: 5000
+
+  rateLimits:
+    pairingCreatePerHour: 10
+    claimPerHour: 20
+    perPairingPerHour: 30
+    signalUpgradePerHour: 120
+    eventsPerHour: 240
+
+# Extra environment variables, appended after the ConfigMap and Secret so they
+# win on conflict.
+extraEnv: []
+#   - name: SOMETHING
+#     value: 'value'
+extraEnvFrom: []
+#   - secretRef:
+#       name: extra-secret
+
+# ---------------------------------------------------------------------------
+# Networking
+# ---------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 8080
+  # `/metrics` binds to its own port so the scrape endpoint is never routed
+  # through the public Ingress.
+  metricsPort: 9090
+  annotations: {}
+
+ingress:
+  enabled: true
+  className: nginx
+  host: apicribwire.ralphhees.nl
+  path: /
+  pathType: Prefix
+  annotations:
+    # cert-manager issues and renews the certificate for the host below.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    # Signaling sockets are long-lived: the app pings every 30 s and drops a
+    # client after 300 s idle, so nginx must not close the connection first.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    # A backstop above MAX_BODY_BYTES (16 KiB), so oversized bodies normally
+    # get the API's own JSON 413 rather than an nginx error page, while
+    # genuinely huge uploads still die at the edge.
+    nginx.ingress.kubernetes.io/proxy-body-size: 64k
+  tls:
+    enabled: true
+    # cert-manager writes the issued certificate here.
+    secretName: cribwire-backend-tls
+
+# ---------------------------------------------------------------------------
+# Database (external — never deployed by this chart)
+# ---------------------------------------------------------------------------
+# Connection string comes from the Secret above as DATABASE_URL.
+migrations:
+  # Runs `node dist/db/migrate-cli.js` as a pre-install/pre-upgrade hook. The
+  # runner takes a Postgres advisory lock, so concurrent deploys are safe.
+  enabled: true
+  backoffLimit: 2
+  # Hook Jobs are deleted before the next hook run, so a failed migration's
+  # logs survive until the following deploy.
+  activeDeadlineSeconds: 600
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# ---------------------------------------------------------------------------
+# Valkey (Redis-compatible) — nonce cache, rate-limit buckets, signaling bus
+# ---------------------------------------------------------------------------
+valkey:
+  enabled: true
+  image:
+    repository: valkey/valkey
+    tag: 8-alpine
+    pullPolicy: IfNotPresent
+  service:
+    port: 6379
+  # Persistence is off and not configurable: everything stored here is
+  # short-lived by construction — replay nonces expire inside the 60 s auth
+  # window, token buckets refill, and the signaling bus is pub/sub with no
+  # backlog. An RDB snapshot would only cost fsyncs.
+  #
+  # `noeviction`, not an LRU policy: evicting a nonce would reopen the replay
+  # window. Under pressure Valkey rejects writes and the API fails closed.
+  maxmemory: 200mb
+  maxmemoryPolicy: noeviction
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Used only when `valkey.enabled=false`. If the URL embeds a password, leave
+# this empty and put REDIS_URL in the application Secret instead — a ConfigMap
+# is not a place for credentials.
+externalRedis:
+  url: ''
+
+# ---------------------------------------------------------------------------
+# Scheduling and resources
+# ---------------------------------------------------------------------------
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    # No CPU limit on purpose: throttling a Node event loop that is holding
+    # 10 k sockets shows up as signaling latency (backend.md §6: < 200 ms P95).
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: ''
+  behavior: {}
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  maxUnavailable: ''
+
+# Spread replicas across nodes so one node draining does not take the API with
+# it. `preferred`, not `required`: a single-node cluster must still schedule.
+affinity: {}
+defaultPodAntiAffinity: true
+
+nodeSelector: {}
+tolerations: []
+topologySpreadConstraints: []
+
+# WebSocket clients need a moment to be told the server is going away.
+terminationGracePeriodSeconds: 45
+
+podAnnotations: {}
+podLabels: {}
+
+serviceAccount:
+  create: true
+  name: ''
+  annotations: {}
+  # The API never calls the Kubernetes API.
+  automountServiceAccountToken: false
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# `/v1/health` is a liveness signal only — it answers from the process, not
+# from Postgres, so a database outage does not cascade into every pod being
+# restarted at once.
+probes:
+  startup:
+    enabled: true
+    periodSeconds: 2
+    failureThreshold: 30
+  readiness:
+    enabled: true
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  liveness:
+    enabled: true
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 5
+
+# ---------------------------------------------------------------------------
+# Observability
+# ---------------------------------------------------------------------------
+serviceMonitor:
+  # Requires the Prometheus Operator CRDs.
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+  relabelings: []
+  metricRelabelings: []
+
+# ---------------------------------------------------------------------------
+# NetworkPolicy (off by default — enable once the cluster's CNI enforces them)
+# ---------------------------------------------------------------------------
+networkPolicy:
+  enabled: false
+  # Namespace the ingress controller runs in.
+  ingressControllerNamespace: ingress-nginx
+  # Namespace Prometheus runs in; allowed to reach the metrics port only.
+  monitoringNamespace: monitoring
+  # Where the external Postgres lives. Narrow this to the database's real
+  # address — the default permits any destination on the port below.
+  postgresCidr: 0.0.0.0/0
+  postgresPort: 5432
+  extraEgress: []

@@ -1,0 +1,59 @@
+{{ .Chart.Name }} {{ .Chart.Version }} — release {{ .Release.Name }} in namespace {{ .Release.Namespace }}
+
+Image:   {{ include "cribwire-backend.image" . }}
+{{- if not .Values.image.digest }}
+
+  ⚠ Pinned by tag, not digest. A tag can be repointed in the registry, so this
+    release is not reproducible. Deploy with:
+      --set image.digest=sha256:…
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+API:     https://{{ .Values.ingress.host }}
+Signal:  wss://{{ .Values.ingress.host }}/v1/signal?pairingId=…
+
+Check it once cert-manager has issued the certificate:
+
+  curl -fsS https://{{ .Values.ingress.host }}/v1/health
+  curl -fsS https://{{ .Values.ingress.host }}/v1/version
+
+  kubectl -n {{ .Release.Namespace }} get certificate {{ .Values.ingress.tls.secretName }}
+{{- else }}
+
+Ingress is disabled; reach the API in-cluster at
+  http://{{ include "cribwire-backend.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+{{- end }}
+
+{{- if .Values.migrations.enabled }}
+
+Migrations ran as a pre-upgrade hook. If the release failed, the Job is still
+there to read:
+
+  kubectl -n {{ .Release.Namespace }} logs job/{{ include "cribwire-backend.fullname" . }}-migrate
+{{- else }}
+
+⚠ migrations.enabled=false — apply backend/migrations/ yourself before the new
+  pods take traffic.
+{{- end }}
+
+{{- if not .Values.valkey.enabled }}
+{{- if not .Values.externalRedis.url }}
+
+⚠ Valkey is disabled and externalRedis.url is empty. REDIS_URL must then come
+  from the Secret ({{ include "cribwire-backend.secretName" . }}), or the pods
+  will refuse to start — production requires it.
+{{- end }}
+{{- end }}
+
+{{- if not .Values.config.turn.uris }}
+
+⚠ config.turn.uris is empty. The app refuses to start in production without it
+  (together with TURN_SHARED_SECRET in the Secret).
+{{- end }}
+
+{{- if eq .Values.config.apns.topic "com.example.cribwire" }}
+
+⚠ config.apns.topic is still the placeholder bundle id — push will target the
+  wrong topic.
+{{- end }}

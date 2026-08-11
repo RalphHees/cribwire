@@ -1,0 +1,115 @@
+{{- if .Values.valkey.enabled }}
+{{- $name := include "cribwire-backend.valkey.fullname" . }}
+# Valkey backs three things the API cannot do per-process once it has more than
+# one replica: the HMAC replay-nonce cache, the token-bucket rate limits, and
+# the pub/sub bus that routes signaling frames between pods.
+#
+# None of it is durable state — nonces expire inside the 60 s auth window,
+# buckets refill, and the bus carries no backlog — so this is a single
+# in-memory replica with no persistence rather than a clustered datastore.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  type: ClusterIP
+  ports:
+    - name: valkey
+      port: {{ .Values.valkey.service.port }}
+      targetPort: valkey
+      protocol: TCP
+  selector:
+    {{- include "cribwire-backend.valkey.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "cribwire-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    # Two Valkey pods would split the nonce cache and the bus between them, so
+    # the old pod goes away before the new one arrives. The API fails closed
+    # during the gap (`enableOfflineQueue: false`) — a few seconds of 5xx, not
+    # silently unchecked auth.
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "cribwire-backend.valkey.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cribwire-backend.valkey.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: valkey
+      {{- with .Values.valkey.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: valkey
+          image: {{ .Values.valkey.image.repository }}:{{ .Values.valkey.image.tag }}
+          imagePullPolicy: {{ .Values.valkey.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          args:
+            - --save
+            - ''
+            - --appendonly
+            - 'no'
+            {{- with .Values.valkey.maxmemory }}
+            - --maxmemory
+            - {{ . | quote }}
+            {{- end }}
+            # Deliberately not an LRU policy: evicting a nonce would reopen the
+            # replay window that cache exists to close.
+            - --maxmemory-policy
+            - {{ .Values.valkey.maxmemoryPolicy | quote }}
+          ports:
+            - name: valkey
+              containerPort: {{ .Values.valkey.service.port }}
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command: ['valkey-cli', 'ping']
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: valkey
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 5
+          resources:
+            {{- toYaml .Values.valkey.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        # Present because the image chdir's here, not because anything is kept:
+        # persistence is off (`--save "" --appendonly no`).
+        - name: data
+          emptyDir: {}
+      {{- with .Values.valkey.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.valkey.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.valkey.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
