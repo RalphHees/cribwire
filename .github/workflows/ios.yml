@@ -157,10 +157,15 @@ jobs:
 
       # Build and test are split so the check that fails names the phase, and
       # so the test phase never silently recompiles.
+      # xcodebuild's full transcript buries diagnostics thousands of lines deep,
+      # so the log is kept but only the `error:` lines are echoed at the end and
+      # written to the job summary. A red build should say what is wrong without
+      # anyone downloading an artifact.
       - name: Build for testing
         working-directory: ios
         run: |
           set -euo pipefail
+          status=0
           xcodebuild build-for-testing \
             -project KidsCam.xcodeproj \
             -scheme KidsCam \
@@ -173,7 +178,30 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS=""
+            CODE_SIGN_ENTITLEMENTS="" > "${RUNNER_TEMP}/xcodebuild.log" 2>&1 || status=$?
+
+          if [ "${status}" -ne 0 ]; then
+            {
+              echo '## Swift compile errors'
+              echo '```'
+              grep -E '(error|warning): ' "${RUNNER_TEMP}/xcodebuild.log" | sort -u | head -60 || true
+              echo '```'
+            } >> "${GITHUB_STEP_SUMMARY}"
+            echo "----- compile diagnostics -----"
+            grep -E 'error: ' "${RUNNER_TEMP}/xcodebuild.log" | sort -u | head -60 || true
+            echo "----- end diagnostics -----"
+            tail -30 "${RUNNER_TEMP}/xcodebuild.log"
+            exit "${status}"
+          fi
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: ${{ runner.temp }}/xcodebuild.log
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Run unit tests
         working-directory: ios
