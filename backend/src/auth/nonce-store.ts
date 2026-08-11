@@ -1,5 +1,5 @@
 /**
- * Replay protection for `KidsCam-HMAC`.
+ * Replay protection for `CribWire-HMAC`.
  *
  * A MAC is deterministic in (method, path, timestamp, body), so recording
  * `(pairingId, mac)` for the length of the timestamp window is enough to make
@@ -27,7 +27,7 @@ export interface NonceStore {
 }
 
 function nonceKey(pairingId: string, macHex: string): string {
-  return `kidscam:nonce:${pairingId}:${macHex}`;
+  return `cribwire:nonce:${pairingId}:${macHex}`;
 }
 
 export class MemoryNonceStore implements NonceStore {

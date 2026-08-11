@@ -226,10 +226,10 @@ describe('POST /v1/events', () => {
     await postEvent(sealed());
     expect(harness.metrics.apnsCount('sent')).toBe(1);
     expect(harness.metrics.render()).toContain(
-      'kidscam_apns_notifications_total{result="sent"} 1',
+      'cribwire_apns_notifications_total{result="sent"} 1',
     );
     expect(harness.metrics.render()).toContain(
-      'kidscam_event_fanout_seconds_count 1',
+      'cribwire_event_fanout_seconds_count 1',
     );
   });
 });

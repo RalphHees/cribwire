@@ -5,8 +5,8 @@
 # in the repo. The fallbacks match the placeholders in ios/project.yml and are
 # rejected by the workflow preflight, so a misconfigured run fails instead of
 # uploading to the wrong app record.
-app_identifier(ENV.fetch('KIDSCAM_APP_IDENTIFIER', 'example.kidscam.KidsCam'))
-team_id(ENV.fetch('KIDSCAM_APPLE_TEAM_ID', ''))
+app_identifier(ENV.fetch('CRIBWIRE_APP_IDENTIFIER', 'example.cribwire.CribWire'))
+team_id(ENV.fetch('CRIBWIRE_APPLE_TEAM_ID', ''))
 
 # Authentication is via the App Store Connect API key (see Fastfile), so no
 # `apple_id` / Apple ID password is needed or wanted here.

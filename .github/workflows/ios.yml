@@ -44,7 +44,7 @@ env:
 
 jobs:
   kit-tests:
-    name: KidsCamKit (swift test)
+    name: CribWireKit (swift test)
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/org.swift.swiftpm
-          key: spm-kit-${{ runner.os }}-${{ hashFiles('ios/KidsCamKit/Package.swift', 'ios/KidsCamKit/Package.resolved') }}
+          key: spm-kit-${{ runner.os }}-${{ hashFiles('ios/CribWireKit/Package.swift', 'ios/CribWireKit/Package.resolved') }}
           restore-keys: |
             spm-kit-${{ runner.os }}-
 
@@ -76,14 +76,14 @@ jobs:
           set -euo pipefail
           # The package test resource is a symlink into shared/test-vectors; a
           # broken link would otherwise surface as a confusing decode failure.
-          test -f shared/test-vectors/kidscam-v1.json
-          test -f ios/KidsCamKit/Tests/KidsCamKitTests/Resources/kidscam-v1.json
+          test -f shared/test-vectors/cribwire-v1.json
+          test -f ios/CribWireKit/Tests/CribWireKitTests/Resources/cribwire-v1.json
 
       - name: swift test
-        run: swift test --package-path ios/KidsCamKit
+        run: swift test --package-path ios/CribWireKit
 
   app-build:
-    name: KidsCam app (build + unit tests)
+    name: CribWire app (build + unit tests)
     # Gated on the fast job so a failing unit test does not buy a full
     # simulator build. Costs ~2 min of latency, saves ~15 macOS minutes per
     # failing run.
@@ -111,7 +111,7 @@ jobs:
           brew install --quiet xcodegen
           xcodegen --version
 
-      - name: Generate KidsCam.xcodeproj
+      - name: Generate CribWire.xcodeproj
         working-directory: ios
         run: xcodegen generate --spec project.yml
 
@@ -119,7 +119,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.SPM_CLONE_DIR }}
-          key: spm-app-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('ios/project.yml', 'ios/KidsCamKit/Package.swift') }}
+          key: spm-app-${{ runner.os }}-${{ env.XCODE_VERSION }}-${{ hashFiles('ios/project.yml', 'ios/CribWireKit/Package.swift') }}
           restore-keys: |
             spm-app-${{ runner.os }}-${{ env.XCODE_VERSION }}-
 
@@ -128,8 +128,8 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild -resolvePackageDependencies \
-            -project KidsCam.xcodeproj \
-            -scheme KidsCam \
+            -project CribWire.xcodeproj \
+            -scheme CribWire \
             -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}"
 
       - name: Pick an iOS simulator
@@ -167,8 +167,8 @@ jobs:
           set -euo pipefail
           status=0
           xcodebuild build-for-testing \
-            -project KidsCam.xcodeproj \
-            -scheme KidsCam \
+            -project CribWire.xcodeproj \
+            -scheme CribWire \
             -configuration Debug \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}" \
@@ -208,24 +208,24 @@ jobs:
         run: |
           set -euo pipefail
           xcodebuild test-without-building \
-            -project KidsCam.xcodeproj \
-            -scheme KidsCam \
+            -project CribWire.xcodeproj \
+            -scheme CribWire \
             -configuration Debug \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}" \
             -derivedDataPath "${DERIVED_DATA}" \
-            -resultBundlePath "${RUNNER_TEMP}/KidsCam.xcresult"
+            -resultBundlePath "${RUNNER_TEMP}/CribWire.xcresult"
 
       # UI smoke tests (docs/TASKS.md Phase 4 / ios-app.md §4 "XCUITest smoke
       # flow") plug in here once a UI test target exists in ios/project.yml:
-      # add it to the KidsCam scheme's testTargets and it runs with the step
+      # add it to the CribWire scheme's testTargets and it runs with the step
       # above, no workflow change needed.
 
       - name: Upload xcresult bundle
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: kidscam-xcresult
-          path: ${{ runner.temp }}/KidsCam.xcresult
+          name: cribwire-xcresult
+          path: ${{ runner.temp }}/CribWire.xcresult
           retention-days: 7
           if-no-files-found: ignore

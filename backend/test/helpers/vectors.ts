@@ -54,7 +54,7 @@ export interface TestVectors {
 
 export const VECTORS_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../../shared/test-vectors/kidscam-v1.json',
+  '../../../shared/test-vectors/cribwire-v1.json',
 );
 
 export function loadVectors(): TestVectors {

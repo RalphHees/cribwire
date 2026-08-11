@@ -54,7 +54,7 @@ describe.skipIf(!available)('Redis-backed stores', () => {
       const pairingId = randomUUID();
       const mac = 'c'.repeat(64);
       expect(await store.checkAndRecord(pairingId, mac, 1)).toBe(true);
-      const ttl = await redis.ttl(`kidscam:nonce:${pairingId}:${mac}`);
+      const ttl = await redis.ttl(`cribwire:nonce:${pairingId}:${mac}`);
       expect(ttl).toBeGreaterThan(0);
       expect(ttl).toBeLessThanOrEqual(1);
     });

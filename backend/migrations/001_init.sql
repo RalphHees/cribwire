@@ -1,4 +1,4 @@
--- KidsCam initial schema — backend.md §5.
+-- CribWire initial schema — backend.md §5.
 -- Only pairings and device push tokens are stored: no media, no events, no
 -- accounts. `k_auth` authenticates devices and decrypts nothing.
 

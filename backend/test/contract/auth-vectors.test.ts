@@ -1,5 +1,5 @@
 /**
- * Contract tests against `shared/test-vectors/kidscam-v1.json` (revision 1.1).
+ * Contract tests against `shared/test-vectors/cribwire-v1.json` (revision 1.1).
  *
  * These are the cross-implementation gate: if the backend and the iOS app
  * disagree about a single byte of the canonical string, this file fails. All
@@ -32,7 +32,7 @@ import {
 const vectors = loadVectors();
 const pairingId = vectors.requestAuth.pairingId;
 
-describe('KidsCam-HMAC vectors', () => {
+describe('CribWire-HMAC vectors', () => {
   it('loads revision 1.1 of the shared vector file', () => {
     expect(vectors.version).toBe(1);
     expect(vectors.revision).toBe('1.1');

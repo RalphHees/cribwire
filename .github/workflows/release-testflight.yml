@@ -23,9 +23,9 @@
 # Repository/environment VARIABLES (not secrets — they are not confidential and
 # keeping them out of `secrets` means they can be shown in logs):
 #   APPLE_TEAM_ID                 10-character Apple Developer team id
-#   APP_IDENTIFIER                Real app bundle id, e.g. com.acme.kidscam
+#   APP_IDENTIFIER                Real app bundle id, e.g. com.acme.cribwire
 #
-# `ios/project.yml` still ships the placeholder prefix `example.kidscam`. Until
+# `ios/project.yml` still ships the placeholder prefix `example.cribwire`. Until
 # a human replaces it (and sets DEVELOPMENT_TEAM), no signed build is possible;
 # the preflight step below fails with exactly that message rather than
 # uploading something meaningless.
@@ -105,7 +105,7 @@ jobs:
           fi
 
           if ! grep -q "${APP_IDENTIFIER}" ../ios/project.yml; then
-            echo "::error::ios/project.yml does not declare bundle id '${APP_IDENTIFIER}' — replace the placeholder 'example.kidscam' prefix and DEVELOPMENT_TEAM before releasing."
+            echo "::error::ios/project.yml does not declare bundle id '${APP_IDENTIFIER}' — replace the placeholder 'example.cribwire' prefix and DEVELOPMENT_TEAM before releasing."
             exit 1
           fi
           echo "preflight ok"
@@ -121,7 +121,7 @@ jobs:
           brew install --quiet xcodegen
           xcodegen --version
 
-      - name: Generate KidsCam.xcodeproj
+      - name: Generate CribWire.xcodeproj
         working-directory: ios
         run: xcodegen generate --spec project.yml
 
@@ -158,11 +158,11 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-          KIDSCAM_APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          KIDSCAM_APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
-          KIDSCAM_BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
-          KIDSCAM_MARKETING_VERSION: ${{ steps.version.outputs.marketing_version }}
-          KIDSCAM_CHANGELOG: ${{ inputs.changelog }}
+          CRIBWIRE_APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          CRIBWIRE_APP_IDENTIFIER: ${{ vars.APP_IDENTIFIER }}
+          CRIBWIRE_BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          CRIBWIRE_MARKETING_VERSION: ${{ steps.version.outputs.marketing_version }}
+          CRIBWIRE_CHANGELOG: ${{ inputs.changelog }}
           FASTLANE_SKIP_UPDATE_CHECK: '1'
           FASTLANE_HIDE_CHANGELOG: '1'
           FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: '120'

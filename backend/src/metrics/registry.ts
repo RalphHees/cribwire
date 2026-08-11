@@ -144,36 +144,36 @@ export type ApnsResultLabel = 'sent' | 'unregistered' | 'failed';
  */
 export class Metrics {
   readonly #wsConnections = new Gauge(
-    'kidscam_ws_connections',
+    'cribwire_ws_connections',
     'Currently open signaling WebSocket connections on this instance.',
   );
   readonly #wsConnectionsTotal = new Counter(
-    'kidscam_ws_connections_total',
+    'cribwire_ws_connections_total',
     'Signaling WebSocket connections accepted since start.',
   );
   readonly #wsUpgradesRejected = new Counter(
-    'kidscam_ws_upgrades_rejected_total',
+    'cribwire_ws_upgrades_rejected_total',
     'Signaling WebSocket upgrades rejected, by reason.',
   );
   readonly #wsMessages = new Counter(
-    'kidscam_ws_messages_total',
+    'cribwire_ws_messages_total',
     'Signaling messages handled, by outcome.',
   );
   readonly #eventsAccepted = new Counter(
-    'kidscam_events_accepted_total',
+    'cribwire_events_accepted_total',
     'Detection events accepted for fan-out.',
   );
   readonly #eventFanout = new Histogram(
-    'kidscam_event_fanout_seconds',
+    'cribwire_event_fanout_seconds',
     'Time from accepting an event to the last APNs handoff.',
     [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
   );
   readonly #apnsNotifications = new Counter(
-    'kidscam_apns_notifications_total',
+    'cribwire_apns_notifications_total',
     'APNs notifications attempted, by result.',
   );
   readonly #apnsTokensDeleted = new Counter(
-    'kidscam_apns_tokens_deleted_total',
+    'cribwire_apns_tokens_deleted_total',
     'Device rows deleted after APNs answered 410 Unregistered.',
   );
 

@@ -1,4 +1,4 @@
-# KidsCam — Task List
+# CribWire — Task List
 
 Derived from `docs/specs/ios-app.md`, `docs/specs/backend.md`, `docs/specs/security.md`.
 Order within a phase is roughly dependency order; phases 2–4 each end in a testable
@@ -77,7 +77,7 @@ Keychain survival across reboot) are inherently device-only and remain unverifie
       adaptive resolution, low-light boost, capture-only mode when no viewer
 - [ ] Viewer live view: video rendering, mute, snapshot, connection-quality
       indicator; audio-only mode
-- [x] Reconnect logic: backoff/ICE-restart policy in `KidsCamKit` (`ReconnectPolicy`);
+- [x] Reconnect logic: backoff/ICE-restart policy in `CribWireKit` (`ReconnectPolicy`);
       `NWPathMonitor` wiring still to do
 - [ ] Camera status screen: dimming, idle-timer disable, battery warnings,
       Guided Access setup instructions

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 
-export const SERVICE_NAME = 'kidscam-backend';
+export const SERVICE_NAME = 'cribwire-backend';
 
 export interface VersionInfo {
   readonly service: string;

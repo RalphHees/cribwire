@@ -1,12 +1,12 @@
 /**
- * `KidsCam-HMAC` wire format — normative definition in `shared/protocol.md`
- * (revision 1.1), fixtures in `shared/test-vectors/kidscam-v1.json`. This
+ * `CribWire-HMAC` wire format — normative definition in `shared/protocol.md`
+ * (revision 1.1), fixtures in `shared/test-vectors/cribwire-v1.json`. This
  * module is cross-implemented by the iOS app; any change here needs
  * regenerated vectors and a matching change on the iOS side.
  *
  *   canonical = METHOD \n PATH \n TIMESTAMP \n PRINCIPAL \n hex(SHA-256(body))
  *   mac       = lowercase-hex(HMAC-SHA256(key, canonical))
- *   header    = Authorization: KidsCam-HMAC <pairingId>:<principal>:<ts>:<mac>
+ *   header    = Authorization: CribWire-HMAC <pairingId>:<principal>:<ts>:<mac>
  *
  * `PRINCIPAL` is the literal `bootstrap` for the two calls that establish a
  * device (signed with `K_auth`), and the calling device's UUID for every other
@@ -17,7 +17,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { isUuid } from '../domain/types.ts';
 
-export const AUTH_SCHEME = 'KidsCam-HMAC';
+export const AUTH_SCHEME = 'CribWire-HMAC';
 
 /** The principal of the two `K_auth`-authenticated bootstrap calls. */
 export const BOOTSTRAP_PRINCIPAL = 'bootstrap';
@@ -75,7 +75,7 @@ export function devicePrincipalId(principal: string): string | null {
 }
 
 /**
- * Parses `KidsCam-HMAC <pairingId>:<principal>:<timestamp>:<mac>`.
+ * Parses `CribWire-HMAC <pairingId>:<principal>:<timestamp>:<mac>`.
  * Returns `null` for anything that does not match the pinned shape.
  */
 export function parseAuthHeader(

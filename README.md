@@ -1,4 +1,6 @@
-# kidscam
+# CribWire
+
+**Secure babyphone next to your crib.**
 
 A private baby monitor built from two iOS devices: one streams as the **Camera**, the
 other watches as the **Viewer**. Video and audio are end-to-end encrypted — pairing

@@ -1,7 +1,7 @@
 /**
  * `GET /v1/signal` — the WebSocket upgrade (backend.md §3).
  *
- * The upgrade carries the same `KidsCam-HMAC` header as every REST call, with
+ * The upgrade carries the same `CribWire-HMAC` header as every REST call, with
  * a device principal, and is verified before a single frame is read. An
  * unauthenticated upgrade never becomes a WebSocket: it is answered with a
  * plain `401` and the socket is destroyed.
@@ -105,7 +105,7 @@ export function registerSignaling(
     if (!result.ok) {
       ctx.metrics.wsUpgradeRejected(result.code);
       ctx.logger.warn('signal upgrade rejected', { code: result.code });
-      refuse(socket, 401, result.code, 'Invalid KidsCam-HMAC credentials');
+      refuse(socket, 401, result.code, 'Invalid CribWire-HMAC credentials');
       return;
     }
 

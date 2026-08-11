@@ -1,4 +1,4 @@
-# KidsCam — Security & Pairing Specification
+# CribWire — Security & Pairing Specification
 
 Version 0.1 — 2026-08-10 — Status: Draft
 
@@ -32,7 +32,7 @@ person; there is no way to grant access through the server.
 ### 3.1 QR payload
 
 ```
-kidscam://pair?v=1
+cribwire://pair?v=1
   &id=<pairingId, UUIDv4>
   &s=<S, 32 random bytes, base64url>     ← root secret, CSPRNG (SecRandomCopyBytes)
   &api=<backend base URL>
@@ -47,10 +47,10 @@ never written to disk, the pasteboard, or logs.
 ### 3.2 Key derivation (HKDF-SHA256, per pairing)
 
 ```
-K_auth  = HKDF(S, info="kidscam/v1/auth",  32)  → API/WS HMAC authentication (shared with server)
-K_sig   = HKDF(S, info="kidscam/v1/sig",   32)  → seals signaling blobs (never leaves devices)
-K_evt   = HKDF(S, info="kidscam/v1/event", 32)  → seals push notification payloads (never leaves devices)
-K_sas   = HKDF(S, info="kidscam/v1/sas",   32)  → 6-digit confirmation code shown on both screens
+K_auth  = HKDF(S, info="cribwire/v1/auth",  32)  → API/WS HMAC authentication (shared with server)
+K_sig   = HKDF(S, info="cribwire/v1/sig",   32)  → seals signaling blobs (never leaves devices)
+K_evt   = HKDF(S, info="cribwire/v1/event", 32)  → seals push notification payloads (never leaves devices)
+K_sas   = HKDF(S, info="cribwire/v1/sas",   32)  → 6-digit confirmation code shown on both screens
 ```
 
 `S` and all derived keys are stored in the iOS Keychain with
@@ -72,7 +72,7 @@ of `K_auth` proves membership of the pairing but decrypts nothing.
 
 WebRTC media is always encrypted with **DTLS-SRTP** between the two peers. The known
 weakness is that a malicious signaling server could substitute its own DTLS
-fingerprints and MITM the handshake. KidsCam closes that hole in two layers:
+fingerprints and MITM the handshake. CribWire closes that hole in two layers:
 
 1. **Sealed signaling**: every signaling message (SDP offers/answers, ICE
    candidates) is encrypted and authenticated with ChaCha20-Poly1305 under `K_sig`

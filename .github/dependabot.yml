@@ -48,12 +48,12 @@ updates:
   # ---------------------------------------------------------------------
   # Swift packages
   # ---------------------------------------------------------------------
-  # Covers KidsCamKit's own dependencies (swift-crypto). The app-level WebRTC
+  # Covers CribWireKit's own dependencies (swift-crypto). The app-level WebRTC
   # binary package is declared in ios/project.yml, which XcodeGen turns into an
   # .xcodeproj at build time — Dependabot cannot see it, so its version range
   # has to be reviewed by hand.
   - package-ecosystem: swift
-    directory: /ios/KidsCamKit
+    directory: /ios/CribWireKit
     schedule:
       interval: weekly
       day: monday

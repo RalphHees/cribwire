@@ -80,13 +80,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: kidscam
-          POSTGRES_PASSWORD: kidscam
-          POSTGRES_DB: kidscam_test
+          POSTGRES_USER: cribwire
+          POSTGRES_PASSWORD: cribwire
+          POSTGRES_DB: cribwire_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U kidscam -d kidscam_test"
+          --health-cmd "pg_isready -U cribwire -d cribwire_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
@@ -102,7 +102,7 @@ jobs:
 
     env:
       # Local dev credentials for a throwaway container — not a secret.
-      TEST_DATABASE_URL: postgres://kidscam:kidscam@127.0.0.1:5432/kidscam_test
+      TEST_DATABASE_URL: postgres://cribwire:cribwire@127.0.0.1:5432/cribwire_test
       TEST_REDIS_URL: redis://127.0.0.1:6379/1
 
     steps:
@@ -121,8 +121,8 @@ jobs:
         working-directory: .
         run: |
           set -euo pipefail
-          if [ ! -f shared/test-vectors/kidscam-v1.json ]; then
-            echo "::error::shared/test-vectors/kidscam-v1.json is missing — both test suites load it."
+          if [ ! -f shared/test-vectors/cribwire-v1.json ]; then
+            echo "::error::shared/test-vectors/cribwire-v1.json is missing — both test suites load it."
             exit 1
           fi
 
@@ -130,7 +130,7 @@ jobs:
         working-directory: .
         run: |
           set -euo pipefail
-          pg_isready -h 127.0.0.1 -p 5432 -U kidscam -d kidscam_test
+          pg_isready -h 127.0.0.1 -p 5432 -U cribwire -d cribwire_test
 
           # redis-cli is not installed on the runner image, so speak RESP over a
           # raw TCP socket instead of pulling in a package just to say PING.
@@ -175,19 +175,19 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: kidscam
-          POSTGRES_PASSWORD: kidscam
-          POSTGRES_DB: kidscam
+          POSTGRES_USER: cribwire
+          POSTGRES_PASSWORD: cribwire
+          POSTGRES_DB: cribwire
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U kidscam -d kidscam"
+          --health-cmd "pg_isready -U cribwire -d cribwire"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
 
     env:
-      DATABASE_URL: postgres://kidscam:kidscam@127.0.0.1:5432/kidscam
+      DATABASE_URL: postgres://cribwire:cribwire@127.0.0.1:5432/cribwire
 
     steps:
       - uses: actions/checkout@v4
@@ -247,7 +247,7 @@ jobs:
           file: ./backend/Dockerfile
           push: false
           load: true
-          tags: kidscam-backend:ci
+          tags: cribwire-backend:ci
           cache-from: type=gha
           # Fork PRs get a read-only Actions cache; writing from them fails the
           # export, so only push cache layers for same-repo runs.
@@ -259,5 +259,5 @@ jobs:
           # Starting the server needs Postgres, so just prove the runtime layer
           # is coherent: the compiled entry point and the migrations the
           # container has to apply at deploy time are both present.
-          docker run --rm --entrypoint sh kidscam-backend:ci -c \
+          docker run --rm --entrypoint sh cribwire-backend:ci -c \
             'node --version && test -f dist/index.js && test -d migrations && ls migrations'

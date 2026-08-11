@@ -1,7 +1,7 @@
-# KidsCam — iOS
+# CribWire — iOS
 
 SwiftUI app (iOS 16+) plus a Notification Service Extension, backed by
-`KidsCamKit`, a local Swift package holding everything that is pure logic:
+`CribWireKit`, a local Swift package holding everything that is pure logic:
 crypto, the wire formats from [`shared/protocol.md`](../shared/protocol.md), the
 pairing state machine, and the REST client.
 
@@ -10,20 +10,20 @@ pairing state machine, and the REST client.
 ```
 ios/
 ├── project.yml              XcodeGen spec — the .xcodeproj is generated, not committed
-├── KidsCamKit/              Local Swift package: crypto + protocol + pairing logic
-│   ├── Sources/KidsCamKit/
+├── CribWireKit/              Local Swift package: crypto + protocol + pairing logic
+│   ├── Sources/CribWireKit/
 │   │   ├── CryptoCore/      Root secret, HKDF, SAS, sealed envelope
-│   │   ├── Protocol/        QR payload, KidsCam-HMAC authenticator, roles
+│   │   ├── Protocol/        QR payload, CribWire-HMAC authenticator, roles
 │   │   ├── Pairing/         Camera + Viewer pairing state machines
 │   │   └── API/             Async REST client and its transport seam
 │   └── Tests/               Vector contract tests + state machine + client tests
-├── KidsCam/                 App target (SwiftUI)
+├── CribWire/                 App target (SwiftUI)
 │   ├── App/                 Entry point, service graph, config, pairing registry
 │   ├── Design/              Palette, type scale, shared components
 │   ├── Features/            Role selection, pairing (camera + viewer), device list
 │   └── Security/            Keychain layer
 ├── NotificationService/     Notification Service Extension (Phase 3 skeleton)
-└── KidsCamTests/            App-target unit tests
+└── CribWireTests/            App-target unit tests
 ```
 
 ## Generate and build
@@ -33,39 +33,39 @@ XcodeGen is required; the `.xcodeproj` is intentionally not in version control.
 ```sh
 brew install xcodegen          # or: mint install yonaskolb/XcodeGen
 cd ios
-xcodegen generate             # writes KidsCam.xcodeproj
-open KidsCam.xcodeproj
+xcodegen generate             # writes CribWire.xcodeproj
+open CribWire.xcodeproj
 ```
 
 Command line (what CI runs on a macOS runner):
 
 ```sh
 # 1. Pure-logic tests — no simulator, no signing, fastest signal.
-swift test --package-path ios/KidsCamKit
+swift test --package-path ios/CribWireKit
 
 # 2. App + extension build and app-target tests.
 cd ios && xcodegen generate
 xcodebuild test \
-  -project ios/KidsCam.xcodeproj \
-  -scheme KidsCam \
+  -project ios/CribWire.xcodeproj \
+  -scheme CribWire \
   -destination 'platform=iOS Simulator,name=iPhone 15' \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-`KidsCamKit` also builds and tests on Linux: it imports `CryptoKit` where it
+`CribWireKit` also builds and tests on Linux: it imports `CryptoKit` where it
 exists and [swift-crypto](https://github.com/apple/swift-crypto) everywhere else,
 via `#if canImport(CryptoKit)`. swift-crypto is only linked on non-Apple
 platforms (`.when(platforms: [.linux, .windows])`).
 
 ## Test vectors
 
-`KidsCamKit/Tests/KidsCamKitTests/Resources/kidscam-v1.json` is a **symlink** to
-[`shared/test-vectors/kidscam-v1.json`](../shared/test-vectors/kidscam-v1.json),
+`CribWireKit/Tests/CribWireKitTests/Resources/cribwire-v1.json` is a **symlink** to
+[`shared/test-vectors/cribwire-v1.json`](../shared/test-vectors/cribwire-v1.json),
 and the Xcode test target references the same file directly. Nothing is copied:
 the iOS and backend suites must never be able to drift onto different vectors.
 The suite reproduces, byte for byte, the HKDF outputs, the SAS code, both sealed
 envelopes (plus tamper, wrong-key, wrong-role and wrong-pairing rejection), both
-`KidsCam-HMAC` examples, and the QR payload round trip.
+`CribWire-HMAC` examples, and the QR payload round trip.
 
 Changing any format means regenerating the vector file and updating both
 implementations in one change set — see the note at the top of
@@ -78,10 +78,10 @@ implementations in one change set — see the note at the top of
 | Setting | Placeholder | Notes |
 |---|---|---|
 | `DEVELOPMENT_TEAM` | empty | Apple Developer team ID |
-| `PRODUCT_BUNDLE_IDENTIFIER` | `example.kidscam.*` | app, extension, tests |
-| `KIDSCAM_APP_GROUP` | `group.example.kidscam.shared` | app group, shared with the extension |
-| `KIDSCAM_KEYCHAIN_ACCESS_GROUP` | same as the app group | see below |
-| `KIDSCAM_API_BASE_URL` | `https://api.kidscam.example` | Camera-side default only |
+| `PRODUCT_BUNDLE_IDENTIFIER` | `example.cribwire.*` | app, extension, tests |
+| `CRIBWIRE_APP_GROUP` | `group.example.cribwire.shared` | app group, shared with the extension |
+| `CRIBWIRE_KEYCHAIN_ACCESS_GROUP` | same as the app group | see below |
+| `CRIBWIRE_API_BASE_URL` | `https://api.cribwire.example` | Camera-side default only |
 
 The app group doubles as the Keychain access group: `kSecAttrAccessGroup`
 accepts an app-group identifier, so no separate `keychain-access-groups`

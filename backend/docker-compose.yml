@@ -5,16 +5,16 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: kidscam
-      POSTGRES_PASSWORD: kidscam
-      POSTGRES_DB: kidscam
+      POSTGRES_USER: cribwire
+      POSTGRES_PASSWORD: cribwire
+      POSTGRES_DB: cribwire
     ports:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U kidscam -d kidscam']
+      test: ['CMD-SHELL', 'pg_isready -U cribwire -d cribwire']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -49,7 +49,7 @@ services:
       NODE_ENV: production
       PORT: '8080'
       METRICS_PORT: '9090'
-      DATABASE_URL: postgres://kidscam:kidscam@postgres:5432/kidscam
+      DATABASE_URL: postgres://cribwire:cribwire@postgres:5432/cribwire
       REDIS_URL: redis://redis:6379/0
       LOG_LEVEL: info
       # Must match docker/coturn/turnserver.conf; a development value only.

@@ -1,4 +1,4 @@
-# KidsCam backend
+# CribWire backend
 
 Zero-knowledge pairing, signaling, and push API — Node 22, TypeScript (strict),
 Fastify, `ws`, Postgres, Redis. The service authenticates devices, routes opaque
@@ -8,7 +8,7 @@ and never sees plaintext: the keys it holds authenticate and decrypt nothing.
 Specs: [`docs/specs/backend.md`](../docs/specs/backend.md),
 [`docs/specs/security.md`](../docs/specs/security.md). Wire formats:
 [`shared/protocol.md`](../shared/protocol.md) (revision 1.1) with fixtures in
-[`shared/test-vectors/kidscam-v1.json`](../shared/test-vectors/kidscam-v1.json).
+[`shared/test-vectors/cribwire-v1.json`](../shared/test-vectors/cribwire-v1.json).
 
 ## Setup
 
@@ -49,7 +49,7 @@ docker compose --profile turn up          # coturn (host networking)
 
 ```
 migrations/          plain SQL, applied in filename order
-src/auth/            KidsCam-HMAC canonicalisation, verification, nonce cache
+src/auth/            CribWire-HMAC canonicalisation, verification, nonce cache
 src/ratelimit/       token buckets (Redis + in-memory)
 src/repositories/    Postgres and in-memory implementations of one port
 src/routes/          REST handlers
@@ -90,7 +90,7 @@ whether a pairing or device exists), authorization failures `403`, rate limits
 ```
 canonical = METHOD \n PATH \n TIMESTAMP \n PRINCIPAL \n lowercase-hex(SHA-256(body))
 mac       = lowercase-hex(HMAC-SHA256(key, canonical))
-header    = Authorization: KidsCam-HMAC <pairingId>:<principal>:<timestamp>:<mac>
+header    = Authorization: CribWire-HMAC <pairingId>:<principal>:<timestamp>:<mac>
 ```
 
 - `PRINCIPAL` is the literal `bootstrap` for the two calls that establish a
@@ -160,7 +160,7 @@ maxMessageBytes}` on connect,
 - A second connection from the same device replaces the first (`replaced`), and
   revoking a pairing or evicting a viewer closes the affected sockets at once.
 - Every message and presence event travels over a Redis pub/sub channel
-  (`kidscam:signal:<pairingId>`), so two peers on different API instances talk
+  (`cribwire:signal:<pairingId>`), so two peers on different API instances talk
   normally. Without `REDIS_URL` the bus is per-process — development only.
 
 ### Push notifications
@@ -227,10 +227,10 @@ npm test                      # integration tests now run
 Integration tests probe Postgres and Redis at load time and use
 `describe.skipIf`, so a machine without Docker still gets a green suite; CI
 fails the build if anything skips while the services are up. They use
-`TEST_DATABASE_URL` (default database `kidscam_test`, created by the compose
+`TEST_DATABASE_URL` (default database `cribwire_test`, created by the compose
 init script) so a run never touches development data.
 
-The contract suite reads `shared/test-vectors/kidscam-v1.json` from disk — the
+The contract suite reads `shared/test-vectors/cribwire-v1.json` from disk — the
 same file the iOS suite loads — and verifies all four pinned auth examples,
 each under the key that signs it. Values are never copied into source.
 

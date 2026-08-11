@@ -23,8 +23,8 @@ const TURN: Config['turn'] = {
   sharedSecret: 'test-turn-secret',
   ttlSeconds: 3600,
   uris: [
-    'turn:turn.kidscam.example:3478?transport=udp',
-    'turns:turn.kidscam.example:5349?transport=tcp',
+    'turn:turn.cribwire.example:3478?transport=udp',
+    'turns:turn.cribwire.example:5349?transport=tcp',
   ],
 };
 

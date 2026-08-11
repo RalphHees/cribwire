@@ -1,4 +1,4 @@
-/** Abuse cases for `KidsCam-HMAC` verification (protocol.md 1.1). */
+/** Abuse cases for `CribWire-HMAC` verification (protocol.md 1.1). */
 
 import { describe, expect, it } from 'vitest';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -64,7 +64,7 @@ describe('parseAuthHeader', () => {
   it('accepts the bootstrap literal and a device UUID as principals', () => {
     const mac = 'f'.repeat(64);
     for (const principal of [BOOTSTRAP_PRINCIPAL, deviceId]) {
-      const header = `KidsCam-HMAC ${pairingId}:${principal}:1754850000:${mac}`;
+      const header = `CribWire-HMAC ${pairingId}:${principal}:1754850000:${mac}`;
       expect(parseAuthHeader(header)?.principal).toBe(principal);
     }
   });
@@ -75,19 +75,19 @@ describe('parseAuthHeader', () => {
       undefined,
       '',
       'Bearer abc',
-      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000`,
-      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000:${mac}:extra`,
+      `CribWire-HMAC ${pairingId}:${deviceId}:1754850000`,
+      `CribWire-HMAC ${pairingId}:${deviceId}:1754850000:${mac}:extra`,
       // A role is not a principal any more: 1.0 headers must not parse.
-      `KidsCam-HMAC ${pairingId}:camera:1754850000:${mac}`,
-      `KidsCam-HMAC ${pairingId}:viewer:1754850000:${mac}`,
-      `KidsCam-HMAC ${pairingId}:admin:1754850000:${mac}`,
-      `KidsCam-HMAC ${pairingId}::1754850000:${mac}`,
-      `KidsCam-HMAC ${pairingId}:BOOTSTRAP:1754850000:${mac}`,
-      `KidsCam-HMAC not-a-uuid:${deviceId}:1754850000:${mac}`,
-      `KidsCam-HMAC ${pairingId}:${deviceId}:not-a-number:${mac}`,
-      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000:XYZ`,
-      `KidsCam-HMAC ${pairingId}:${deviceId}:1754850000:${'F'.repeat(64)}`,
-      `kidscam-hmac ${pairingId}:${deviceId}:1754850000:${mac}`,
+      `CribWire-HMAC ${pairingId}:camera:1754850000:${mac}`,
+      `CribWire-HMAC ${pairingId}:viewer:1754850000:${mac}`,
+      `CribWire-HMAC ${pairingId}:admin:1754850000:${mac}`,
+      `CribWire-HMAC ${pairingId}::1754850000:${mac}`,
+      `CribWire-HMAC ${pairingId}:BOOTSTRAP:1754850000:${mac}`,
+      `CribWire-HMAC not-a-uuid:${deviceId}:1754850000:${mac}`,
+      `CribWire-HMAC ${pairingId}:${deviceId}:not-a-number:${mac}`,
+      `CribWire-HMAC ${pairingId}:${deviceId}:1754850000:XYZ`,
+      `CribWire-HMAC ${pairingId}:${deviceId}:1754850000:${'F'.repeat(64)}`,
+      `cribwire-hmac ${pairingId}:${deviceId}:1754850000:${mac}`,
     ];
     for (const header of cases) {
       expect(parseAuthHeader(header), header ?? 'undefined').toBeNull();

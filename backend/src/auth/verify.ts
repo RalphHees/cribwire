@@ -1,5 +1,5 @@
 /**
- * Transport-independent verification of a `KidsCam-HMAC` request, so the same
+ * Transport-independent verification of a `CribWire-HMAC` request, so the same
  * code path serves REST and the WebSocket upgrade.
  *
  * Verification answers one question only: *which principal signed this?* The

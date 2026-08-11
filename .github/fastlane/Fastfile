@@ -1,4 +1,4 @@
-# fastlane configuration for KidsCam.
+# fastlane configuration for CribWire.
 #
 # Location: `.github/fastlane/` rather than the repo root, so the Ruby tooling
 # lives next to the workflow that is its only caller. Run it with `.github` as
@@ -19,7 +19,7 @@
 #     match appstore`, holding the distribution certificate and the App Store
 #     provisioning profiles for BOTH bundle ids (app and NotificationService);
 #   * the real bundle id prefix and DEVELOPMENT_TEAM written into
-#     ios/project.yml, replacing the `example.kidscam` placeholders.
+#     ios/project.yml, replacing the `example.cribwire` placeholders.
 
 require 'shellwords'
 
@@ -27,8 +27,8 @@ default_platform(:ios)
 
 # .github/fastlane/Fastfile -> repo root
 REPO_ROOT = File.expand_path('../..', __dir__)
-XCODEPROJ = File.join(REPO_ROOT, 'ios', 'KidsCam.xcodeproj')
-SCHEME = 'KidsCam'
+XCODEPROJ = File.join(REPO_ROOT, 'ios', 'CribWire.xcodeproj')
+SCHEME = 'CribWire'
 
 def required_env(name)
   value = ENV[name].to_s
@@ -49,14 +49,14 @@ platform :ios do
       UI.user_error!("#{XCODEPROJ} not found — run `xcodegen generate` in ios/ first")
     end
 
-    team_id = required_env('KIDSCAM_APPLE_TEAM_ID')
-    app_identifier = required_env('KIDSCAM_APP_IDENTIFIER')
+    team_id = required_env('CRIBWIRE_APPLE_TEAM_ID')
+    app_identifier = required_env('CRIBWIRE_APP_IDENTIFIER')
     extension_identifier = "#{app_identifier}.NotificationService"
-    build_number = required_env('KIDSCAM_BUILD_NUMBER')
-    marketing_version = ENV['KIDSCAM_MARKETING_VERSION'].to_s
+    build_number = required_env('CRIBWIRE_BUILD_NUMBER')
+    marketing_version = ENV['CRIBWIRE_MARKETING_VERSION'].to_s
     # A tag push supplies no changelog input, so the env var arrives empty
     # rather than absent — ENV.fetch's default would not apply.
-    changelog = ENV['KIDSCAM_CHANGELOG'].to_s
+    changelog = ENV['CRIBWIRE_CHANGELOG'].to_s
     changelog = 'Internal build from CI.' if changelog.strip.empty?
 
     api_key = app_store_connect_api_key(

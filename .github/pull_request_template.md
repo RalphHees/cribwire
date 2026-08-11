@@ -4,7 +4,7 @@
 
 ## Scope
 
-- [ ] iOS app / KidsCamKit
+- [ ] iOS app / CribWireKit
 - [ ] Backend
 - [ ] Shared protocol or test vectors (`shared/`)
 - [ ] CI / release tooling (`.github/`)
@@ -20,7 +20,7 @@ Related task in `docs/TASKS.md`: <!-- e.g. Phase 1 → "HMAC request authenticat
 ## Checklist
 
 - [ ] Tests cover the change (unit, and integration where services are involved)
-- [ ] `shared/test-vectors/kidscam-v1.json` unchanged, or updated on **both** sides
+- [ ] `shared/test-vectors/cribwire-v1.json` unchanged, or updated on **both** sides
       with the iOS and backend suites green
 - [ ] No secrets, keys, tokens, certificates or `.p8` files added to the repo
 - [ ] No plaintext media, payloads or push tokens added to logs

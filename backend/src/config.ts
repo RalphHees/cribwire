@@ -40,7 +40,7 @@ export interface Config {
   readonly logLevel: string;
   /** Age at which an unclaimed pairing stops being claimable, in seconds. */
   readonly pairingTtlSeconds: number;
-  /** Accepted clock skew for `KidsCam-HMAC` timestamps, in seconds. */
+  /** Accepted clock skew for `CribWire-HMAC` timestamps, in seconds. */
   readonly authWindowSeconds: number;
   /** Maximum viewers that may claim a single pairing. */
   readonly maxViewersPerPairing: number;
@@ -122,7 +122,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     metricsPort: intFromEnv(env, 'METRICS_PORT', port),
     databaseUrl:
       env['DATABASE_URL'] ??
-      'postgres://kidscam:kidscam@localhost:5432/kidscam',
+      'postgres://cribwire:cribwire@localhost:5432/cribwire',
     redisUrl: env['REDIS_URL'],
     logLevel: env['LOG_LEVEL'] ?? 'info',
     pairingTtlSeconds: intFromEnv(env, 'PAIRING_TTL_SECONDS', 600),

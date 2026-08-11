@@ -3,8 +3,8 @@
 # `entitlements:` blocks in project.yml, which is the reviewable source of truth.
 *.xcodeproj/
 *.xcworkspace/
-KidsCam/Info.plist
-KidsCam/KidsCam.entitlements
+CribWire/Info.plist
+CribWire/CribWire.entitlements
 NotificationService/Info.plist
 NotificationService/NotificationService.entitlements
 

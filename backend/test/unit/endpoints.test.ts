@@ -52,7 +52,7 @@ describe('ops endpoints', () => {
     expect(version.statusCode).toBe(200);
     expect(jsonOf(version)).toMatchObject({
       api: 'v1',
-      service: 'kidscam-backend',
+      service: 'cribwire-backend',
     });
   });
 

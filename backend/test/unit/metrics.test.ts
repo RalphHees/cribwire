@@ -40,18 +40,20 @@ describe('Metrics registry', () => {
     metrics.eventFanoutObserved(3);
 
     const rendered = metrics.render();
-    expect(rendered).toContain('kidscam_ws_connections 1');
-    expect(rendered).toContain('kidscam_ws_connections_total 2');
-    expect(rendered).toContain('kidscam_ws_messages_total{result="routed"} 1');
+    expect(rendered).toContain('cribwire_ws_connections 1');
+    expect(rendered).toContain('cribwire_ws_connections_total 2');
+    expect(rendered).toContain('cribwire_ws_messages_total{result="routed"} 1');
     expect(rendered).toContain(
-      'kidscam_ws_messages_total{result="too_large"} 1',
+      'cribwire_ws_messages_total{result="too_large"} 1',
     );
     expect(rendered).toContain(
-      'kidscam_apns_notifications_total{result="unregistered"} 1',
+      'cribwire_apns_notifications_total{result="unregistered"} 1',
     );
-    expect(rendered).toContain('kidscam_event_fanout_seconds_count 2');
-    expect(rendered).toContain('kidscam_event_fanout_seconds_sum 3.2');
-    expect(rendered).toContain('# TYPE kidscam_event_fanout_seconds histogram');
+    expect(rendered).toContain('cribwire_event_fanout_seconds_count 2');
+    expect(rendered).toContain('cribwire_event_fanout_seconds_sum 3.2');
+    expect(rendered).toContain(
+      '# TYPE cribwire_event_fanout_seconds histogram',
+    );
   });
 
   it('accumulates histogram buckets cumulatively', () => {
@@ -59,9 +61,13 @@ describe('Metrics registry', () => {
     metrics.eventFanoutObserved(0.01);
     metrics.eventFanoutObserved(0.4);
     const lines = metrics.render().split('\n');
-    expect(lines).toContain('kidscam_event_fanout_seconds_bucket{le="0.05"} 1');
-    expect(lines).toContain('kidscam_event_fanout_seconds_bucket{le="0.5"} 2');
-    expect(lines).toContain('kidscam_event_fanout_seconds_bucket{le="+Inf"} 2');
+    expect(lines).toContain(
+      'cribwire_event_fanout_seconds_bucket{le="0.05"} 1',
+    );
+    expect(lines).toContain('cribwire_event_fanout_seconds_bucket{le="0.5"} 2');
+    expect(lines).toContain(
+      'cribwire_event_fanout_seconds_bucket{le="+Inf"} 2',
+    );
   });
 });
 
@@ -73,7 +79,7 @@ describe('GET /metrics', () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('text/plain');
-    expect(response.body).toContain('# HELP kidscam_ws_connections');
+    expect(response.body).toContain('# HELP cribwire_ws_connections');
   });
 
   it('never exposes a pairing id, device id, or token', async () => {
@@ -100,7 +106,7 @@ describe('GET /metrics', () => {
       url: '/metrics',
     });
     expect(response.body).toContain(
-      'kidscam_apns_notifications_total{result="sent"} 1',
+      'cribwire_apns_notifications_total{result="sent"} 1',
     );
     for (const secret of [
       camera.pairingId,
@@ -130,7 +136,7 @@ describe('GET /metrics', () => {
       url: '/metrics',
     });
     expect(response.statusCode).toBe(200);
-    expect(response.body).toContain('kidscam_ws_connections');
+    expect(response.body).toContain('cribwire_ws_connections');
 
     // Nothing else is reachable there.
     const health = await metricsApp.inject({

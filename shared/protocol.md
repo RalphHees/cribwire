@@ -1,11 +1,11 @@
-# KidsCam v1 — Normative Wire Formats
+# CribWire v1 — Normative Wire Formats
 
 Revision 1.1 (2026-08-10).
 
 This file pins the exact byte-level encodings and JSON shapes that are
 cross-implemented by the iOS app (CryptoKit) and the backend (Node crypto).
 `docs/specs/security.md` defines the design; this file defines the bits. Both
-implementations MUST reproduce `shared/test-vectors/kidscam-v1.json`
+implementations MUST reproduce `shared/test-vectors/cribwire-v1.json`
 byte-for-byte, and any change here requires regenerating the vectors and
 updating both sides in one change set.
 
@@ -20,8 +20,8 @@ updating both sides in one change set.
 ## Key derivation
 
 `HKDF-SHA256(ikm = S, salt = empty, info, length = 32)` with `info` strings
-exactly: `kidscam/v1/auth`, `kidscam/v1/sig`, `kidscam/v1/event`,
-`kidscam/v1/sas` (UTF-8, no terminator).
+exactly: `cribwire/v1/auth`, `cribwire/v1/sig`, `cribwire/v1/event`,
+`cribwire/v1/sas` (UTF-8, no terminator).
 
 ## SAS confirmation code
 
@@ -30,7 +30,7 @@ First 4 bytes of `K_sas` interpreted as a big-endian unsigned 32-bit integer,
 
 ## QR payload
 
-`kidscam://pair?v=1&id=<pairingId>&s=<S>&api=<url>` where `id` is the lowercase
+`cribwire://pair?v=1&id=<pairingId>&s=<S>&api=<url>` where `id` is the lowercase
 UUID, `s` is base64url without padding, `api` is the percent-encoded base URL
 and MUST use `https` (implementations MAY allow `http` only when explicitly
 built for local development). Unknown query parameters MUST be ignored; a `v`
@@ -73,7 +73,7 @@ the role **from that row** — the client never asserts a role. Device keys, lik
 ```
 canonical = METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + PRINCIPAL + "\n" + lowercase-hex(SHA-256(body))
 mac       = lowercase-hex(HMAC-SHA256(key, canonical))
-header    = Authorization: KidsCam-HMAC <pairingId>:<principal>:<timestamp>:<mac>
+header    = Authorization: CribWire-HMAC <pairingId>:<principal>:<timestamp>:<mac>
 ```
 
 - `PRINCIPAL` is the literal string `bootstrap` for `POST /v1/pairings` and
@@ -169,7 +169,7 @@ or revoked, `410` expired pairing, `413` oversized body, `429` rate limited
 
 ## Test vectors
 
-`shared/test-vectors/kidscam-v1.json` contains: HKDF outputs for the fixed root
+`shared/test-vectors/cribwire-v1.json` contains: HKDF outputs for the fixed root
 secret `000102…1f`, the SAS code, a QR example, the fixed device keys and ids,
 sealed envelopes for a signaling blob and an event, and four complete auth
 examples — both bootstrap calls plus a camera-principal and a viewer-principal

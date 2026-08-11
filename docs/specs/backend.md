@@ -1,4 +1,4 @@
-# KidsCam — Backend Specification
+# CribWire — Backend Specification
 
 Version 0.1 — 2026-08-10 — Status: Draft
 
@@ -43,7 +43,7 @@ All public endpoints are TLS 1.3 (TLS 1.2 minimum), HSTS enabled.
 ## 3. API surface
 
 Auth model: every request is authenticated per pairing with an HMAC bearer scheme —
-`Authorization: KidsCam-HMAC <pairingId>:<role>:<timestamp>:<hmac>` where the HMAC is
+`Authorization: CribWire-HMAC <pairingId>:<role>:<timestamp>:<hmac>` where the HMAC is
 computed with the pairing's `K_auth` key (derived on-device from the QR secret,
 `security.md` §3.2) over method, path, timestamp, and body hash. The server stores
 only `K_auth` — it authenticates devices but cannot decrypt anything. Timestamps
@@ -84,7 +84,7 @@ cache in Redis).
 
 ## 4. TURN/STUN
 
-- coturn behind the same domain (`turn.kidscam.example`), UDP 3478 + TLS 5349
+- coturn behind the same domain (`turn.cribwire.example`), UDP 3478 + TLS 5349
   (turns), relayed port range 49152–65535.
 - Ephemeral credentials: `username = <expiry-unix>:<pairingId>`, `password =
   base64(HMAC-SHA1(turn_shared_secret, username))` (coturn `use-auth-secret` mode).

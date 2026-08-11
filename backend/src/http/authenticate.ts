@@ -1,5 +1,5 @@
 /**
- * Fastify glue for `KidsCam-HMAC` (see `auth/verify.ts` for the protocol).
+ * Fastify glue for `CribWire-HMAC` (see `auth/verify.ts` for the protocol).
  *
  * Two shapes of caller exist, and they are deliberately separate functions:
  *
@@ -27,7 +27,7 @@ import { isUuid } from '../domain/types.ts';
 import type { AppContext } from './context.ts';
 import { sendError } from './errors.ts';
 
-const FAILURE_MESSAGE = 'Invalid KidsCam-HMAC credentials';
+const FAILURE_MESSAGE = 'Invalid CribWire-HMAC credentials';
 
 /** Path used for canonicalisation: the request target without its query. */
 export function canonicalPath(url: string): string {

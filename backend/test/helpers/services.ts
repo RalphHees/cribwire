@@ -12,7 +12,7 @@ import pg from 'pg';
 export const TEST_DATABASE_URL =
   process.env['TEST_DATABASE_URL'] ??
   process.env['DATABASE_URL'] ??
-  'postgres://kidscam:kidscam@localhost:5432/kidscam_test';
+  'postgres://cribwire:cribwire@localhost:5432/cribwire_test';
 
 export const TEST_REDIS_URL =
   process.env['TEST_REDIS_URL'] ??

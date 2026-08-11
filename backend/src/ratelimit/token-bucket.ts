@@ -22,7 +22,7 @@ export interface RateLimiter {
 const ALLOWED: RateLimitResult = { allowed: true, retryAfterSeconds: 0 };
 
 function bucketKey(key: string): string {
-  return `kidscam:rl:${key}`;
+  return `cribwire:rl:${key}`;
 }
 
 /** TTL after which an untouched, full bucket can be forgotten. */

@@ -49,11 +49,11 @@ export interface MessageBus {
 }
 
 export function channelFor(pairingId: string): string {
-  return `kidscam:signal:${pairingId}`;
+  return `cribwire:signal:${pairingId}`;
 }
 
 function pairingFromChannel(channel: string): string | null {
-  const prefix = 'kidscam:signal:';
+  const prefix = 'cribwire:signal:';
   return channel.startsWith(prefix) ? channel.slice(prefix.length) : null;
 }
 

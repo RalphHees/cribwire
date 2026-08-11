@@ -1,8 +1,8 @@
 {
-  "name": "@kidscam/backend",
+  "name": "@cribwire/backend",
   "version": "0.1.0",
   "private": true,
-  "description": "KidsCam zero-knowledge signaling and pairing API",
+  "description": "CribWire zero-knowledge signaling and pairing API",
   "type": "module",
   "engines": {
     "node": ">=22"

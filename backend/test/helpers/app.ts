@@ -1,7 +1,7 @@
 /**
  * Test harness: the real Fastify app on an in-memory repository, a
  * controllable clock, a fake APNs sender, and a signer that produces
- * `KidsCam-HMAC` headers the way the iOS app will (protocol.md 1.1).
+ * `CribWire-HMAC` headers the way the iOS app will (protocol.md 1.1).
  */
 
 import { randomBytes, randomUUID } from 'node:crypto';

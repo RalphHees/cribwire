@@ -1,10 +1,10 @@
-# KidsCam — iOS App Specification
+# CribWire — iOS App Specification
 
 Version 0.1 — 2026-08-10 — Status: Draft
 
 ## 1. Purpose
 
-KidsCam turns two iOS devices into a private baby monitor. One device acts as the
+CribWire turns two iOS devices into a private baby monitor. One device acts as the
 **Camera** (placed in the child's room), the other as the **Viewer** (carried by the
 parent). Video and audio stream live from Camera to Viewer with end-to-end encryption,
 and the Camera can send push notifications to the Viewer when it detects noise or

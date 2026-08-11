@@ -9,7 +9,7 @@
 #   1. `image`  — builds and pushes to GHCR, tagged with the full commit SHA.
 #                 This is the only job that holds `packages: write`.
 #   2. `deploy` — environment-protected, and deliberately NOT implemented.
-#                 KidsCam has no cloud account, no Terraform state and no
+#                 CribWire has no cloud account, no Terraform state and no
 #                 deploy credentials yet, so anything here would be a lie that
 #                 goes green while nothing ships. It is opt-in via a repository
 #                 variable and hard-fails until someone fills it in.

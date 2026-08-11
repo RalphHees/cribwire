@@ -1,4 +1,4 @@
-# KidsCam — Design
+# CribWire — Design
 
 Visual design for the iOS app and the backend architecture, as self-contained HTML
 mockups. Rendered PNGs live in [`screenshots/`](screenshots/).
