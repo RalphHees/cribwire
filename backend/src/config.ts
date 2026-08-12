@@ -52,6 +52,12 @@ export interface Config {
   readonly wsHeartbeatSeconds: number;
   /** Idle (no client message) timeout on signaling sockets, in seconds. */
   readonly wsIdleTimeoutSeconds: number;
+  /**
+   * How long the hub may reuse a pairing's cached device roster before
+   * reloading it. Bounds how long a revocation performed on another instance
+   * can stay invisible to this one.
+   */
+  readonly wsRosterTtlSeconds: number;
   readonly turn: TurnSettings;
   readonly apns: ApnsSettings;
   readonly rateLimits: {
@@ -136,6 +142,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     ),
     wsHeartbeatSeconds: intFromEnv(env, 'WS_HEARTBEAT_SECONDS', 30),
     wsIdleTimeoutSeconds: intFromEnv(env, 'WS_IDLE_TIMEOUT_SECONDS', 300),
+    wsRosterTtlSeconds: intFromEnv(env, 'WS_ROSTER_TTL_SECONDS', 30),
     turn: {
       sharedSecret: env['TURN_SHARED_SECRET'] ?? '',
       ttlSeconds: intFromEnv(env, 'TURN_TTL_SECONDS', 3600),

@@ -42,7 +42,7 @@ export interface Connection {
   /** Highest `seq` accepted from this connection; regressions are rejected. */
   lastSeq: number | null;
   /**
-   * Serialises this connection's frames. Handling a frame involves a database
+   * Serialises this connection's frames. Handling a frame awaits a roster
    * lookup, and without a queue two frames would interleave across that await:
    * they could be published out of order, and a `seq` regression could slip
    * past a check that had not yet recorded its predecessor.
@@ -71,10 +71,29 @@ export interface SignalingControl {
   closeDevice(pairingId: string, deviceId: string, reason: string): void;
 }
 
+/**
+ * A pairing's viewer device ids, as of `expiresAtMs`. Routing needs to know
+ * only whether an addressed viewer belongs to the sender's pairing, so the set
+ * of ids is the whole answer — no device row is held here, and nothing in it is
+ * secret.
+ */
+interface ViewerRoster {
+  readonly viewerIds: ReadonlySet<string>;
+  readonly expiresAtMs: number;
+}
+
 export class SignalingHub implements SignalingControl {
   readonly #deps: HubDependencies;
   /** pairingId → address → connection, for this instance only. */
   readonly #connections = new Map<string, Map<Address, Connection>>();
+  /**
+   * pairingId → viewer roster. Without this, every frame addressed to a viewer
+   * costs a `getDevice` round-trip, which on a busy pairing is the hub's
+   * dominant database load. Entries live only while the pairing has a
+   * connection on this instance and are dropped when the last one goes, so the
+   * map is bounded by live pairings rather than by pairings ever seen.
+   */
+  readonly #rosters = new Map<string, ViewerRoster>();
   #timer: NodeJS.Timeout | null = null;
 
   constructor(deps: HubDependencies) {
@@ -111,6 +130,9 @@ export class SignalingHub implements SignalingControl {
     const address = addressOf(device);
     const devices = await this.#deps.repository.listDevices(device.pairingId);
     const camera = devices.find((candidate) => candidate.role === 'camera');
+    // This attach may itself be a newly claimed viewer joining, so the roster
+    // any other connection on this pairing holds is now stale: replace it.
+    this.#storeRoster(device.pairingId, devices);
 
     const connection: Connection = {
       socket,
@@ -254,11 +276,16 @@ export class SignalingHub implements SignalingControl {
 
     if (byAddress.size === 0) {
       this.#connections.delete(connection.pairingId);
+      this.#rosters.delete(connection.pairingId);
       await this.#deps.bus.unsubscribe(connection.pairingId);
     }
   }
 
   closePairing(pairingId: string, reason: string): void {
+    // Dropped before the connection sweep, and unconditionally: the roster
+    // outlives any single socket, so an early return must not leave the
+    // revoked pairing's ids cached.
+    this.#rosters.delete(pairingId);
     const byAddress = this.#connections.get(pairingId);
     if (byAddress === undefined) return;
     for (const connection of [...byAddress.values()]) {
@@ -267,6 +294,7 @@ export class SignalingHub implements SignalingControl {
   }
 
   closeDevice(pairingId: string, deviceId: string, reason: string): void {
+    this.#rosters.delete(pairingId);
     const byAddress = this.#connections.get(pairingId);
     if (byAddress === undefined) return;
     for (const connection of [...byAddress.values()]) {
@@ -311,6 +339,7 @@ export class SignalingHub implements SignalingControl {
       await this.#deps.bus.unsubscribe(pairingId);
     }
     this.#connections.clear();
+    this.#rosters.clear();
   }
 
   async #targetExists(
@@ -320,14 +349,46 @@ export class SignalingHub implements SignalingControl {
     if (target.kind === 'camera') {
       return connection.cameraDeviceId !== null;
     }
-    // Cross-pairing addressing is impossible: the lookup is scoped to the
+    // Cross-pairing addressing is impossible: the roster is scoped to the
     // sender's own pairing, so a viewer id from another pairing simply is not
     // found.
-    const device = await this.#deps.repository.getDevice(
-      connection.pairingId,
-      target.deviceId,
-    );
-    return device !== null && device.role === 'viewer';
+    const viewerIds = await this.#viewerRoster(connection.pairingId);
+    return viewerIds.has(target.deviceId);
+  }
+
+  /**
+   * The pairing's viewer ids, reloaded when the cached copy has aged out. A
+   * miss costs one `listDevices` and then answers every frame until it
+   * expires, where the uncached path cost one `getDevice` per frame.
+   *
+   * Two connections on the same pairing can miss concurrently and both reload;
+   * that is a duplicate read, not a wrong answer, and it is bounded by the
+   * number of local connections on the pairing.
+   */
+  async #viewerRoster(pairingId: string): Promise<ReadonlySet<string>> {
+    const cached = this.#rosters.get(pairingId);
+    if (cached !== undefined && cached.expiresAtMs > this.#nowMs()) {
+      return cached.viewerIds;
+    }
+    const devices = await this.#deps.repository.listDevices(pairingId);
+    return this.#storeRoster(pairingId, devices).viewerIds;
+  }
+
+  #storeRoster(pairingId: string, devices: readonly Device[]): ViewerRoster {
+    const roster: ViewerRoster = {
+      viewerIds: new Set(
+        devices
+          .filter((candidate) => candidate.role === 'viewer')
+          .map((candidate) => candidate.id),
+      ),
+      expiresAtMs: this.#nowMs() + this.#deps.config.wsRosterTtlSeconds * 1000,
+    };
+    this.#rosters.set(pairingId, roster);
+    return roster;
+  }
+
+  #nowMs(): number {
+    return this.#deps.now().getTime();
   }
 
   #onBusMessage(pairingId: string, message: BusMessage): void {
