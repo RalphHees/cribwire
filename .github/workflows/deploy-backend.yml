@@ -1,15 +1,18 @@
-# Backend image + Helm chart publish to Harbor — docs/TASKS.md Phase 4
-# ("Backend production deploy: EU region, TLS/HSTS, Prometheus + alerting,
-# secrets manager"), docs/specs/backend.md §6.
+# Backend image publish + production deploy — docs/TASKS.md Phase 4 ("Backend
+# production deploy: EU region, TLS/HSTS, Prometheus + alerting, secrets
+# manager, Terraform"), docs/specs/backend.md §6.
 #
 # Runs only on pushes to main. Pull requests build the same image without
 # pushing it (see backend.yml), so a fork PR never touches the registry.
 #
-# This workflow publishes; it does not roll out. The cluster pulls what it is
-# told to pull — the job summary prints the exact `helm upgrade` command,
-# pinned to the digest that was just pushed. Nothing here holds cluster
-# credentials, which is the point: a compromised Actions run can publish an
-# image, not replace production.
+# Two jobs on purpose:
+#   1. `image`  — builds and pushes to GHCR, tagged with the full commit SHA.
+#                 This is the only job that holds `packages: write`.
+#   2. `deploy` — environment-protected, and deliberately NOT implemented.
+#                 CribWire has no cloud account, no Terraform state and no
+#                 deploy credentials yet, so anything here would be a lie that
+#                 goes green while nothing ships. It is opt-in via a repository
+#                 variable and hard-fails until someone fills it in.
 name: deploy-backend
 
 on:
@@ -17,93 +20,52 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
-      - 'deploy/helm/**'
       - '.github/workflows/deploy-backend.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
-# Publishes queue; they never cancel each other.
+# Deployments queue; they never cancel each other.
 concurrency:
   group: deploy-backend
   cancel-in-progress: false
 
-env:
-  # Overridable per repository without touching this file.
-  HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY || 'harbor.aviodata.net' }}
-  HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'ralphhees' }}
-  IMAGE_NAME: ${{ vars.HARBOR_IMAGE_NAME || 'cribwire' }}
-  CHART_PATH: deploy/helm/cribwire-backend
-
 jobs:
-  publish:
-    name: publish image + chart to Harbor
+  image:
+    name: build + push image to GHCR
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 20
     permissions:
       contents: read
+      packages: write
     outputs:
       image: ${{ steps.meta.outputs.image }}
       tag: ${{ steps.meta.outputs.tag }}
       digest: ${{ steps.build.outputs.digest }}
-      chart-version: ${{ steps.chart-meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Preflight — Harbor credentials
-        env:
-          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
-          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
-        run: |
-          set -euo pipefail
-          missing=""
-          [ -n "${HARBOR_USERNAME:-}" ] || missing="${missing} secrets.HARBOR_USERNAME"
-          [ -n "${HARBOR_PASSWORD:-}" ] || missing="${missing} secrets.HARBOR_PASSWORD"
-          if [ -n "${missing}" ]; then
-            echo "::error::Harbor credentials are missing:${missing}. Create a Harbor robot account scoped to push on ${HARBOR_REGISTRY}/${HARBOR_PROJECT} and store it as those repository secrets."
-            exit 1
-          fi
 
       - name: Compute image reference
         id: meta
         run: |
           set -euo pipefail
-          # Harbor, like any OCI registry, rejects uppercase path segments.
-          registry="$(echo "${HARBOR_REGISTRY}" | tr '[:upper:]' '[:lower:]')"
-          project="$(echo "${HARBOR_PROJECT}" | tr '[:upper:]' '[:lower:]')"
-          name="$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
-          {
-            echo "registry=${registry}"
-            echo "image=${registry}/${project}/${name}"
-            echo "tag=sha-${GITHUB_SHA}"
-            echo "short-sha=${GITHUB_SHA::7}"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Trust Let's Encrypt root for Harbor
-        run: |
-          set -euo pipefail
-          registry="$(echo "${HARBOR_REGISTRY}" | tr '[:upper:]' '[:lower:]')"
-          sudo mkdir -p /etc/docker/certs.d/${registry}
-          sudo curl -fsSL https://letsencrypt.org/certs/isrg-root-x2.pem \
-            -o /etc/docker/certs.d/${registry}/ca.crt
-          sudo curl -fsSL https://letsencrypt.org/certs/isrg-root-x2.pem \
-            -o /usr/local/share/ca-certificates/isrg-root-x2.crt
-          sudo update-ca-certificates
+          # GHCR rejects uppercase path segments; the owner/repo may contain them.
+          repo="${GITHUB_REPOSITORY,,}"
+          echo "image=ghcr.io/${repo}-backend" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
 
-      - name: Log in to Harbor
+      - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
-          registry: ${{ steps.meta.outputs.registry }}
-          # A Harbor robot account with push on this project only — never a
-          # human login, and never an account with delete rights.
-          username: ${{ secrets.HARBOR_USERNAME }}
-          password: ${{ secrets.HARBOR_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Job-scoped token; no long-lived registry credential exists.
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push image
+      - name: Build and push
         id: build
         uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
         with:
@@ -120,79 +82,87 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.created=${{ github.event.repository.updated_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.16.4
-
-      - name: Package and push chart
-        id: chart-meta
-        env:
-          IMAGE: ${{ steps.meta.outputs.image }}
-          SHORT_SHA: ${{ steps.meta.outputs.short-sha }}
-          REGISTRY: ${{ steps.meta.outputs.registry }}
-          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
-          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
-        run: |
-          set -euo pipefail
-          project="$(echo "${HARBOR_PROJECT}" | tr '[:upper:]' '[:lower:]')"
-
-          # Build metadata keeps every commit's chart distinguishable without
-          # hand-bumping Chart.yaml. Helm rewrites `+` to `_` in the OCI tag.
-          base="$(helm show chart "${CHART_PATH}" | awk '$1 == "version:" { print $2 }')"
-          version="${base}+${SHORT_SHA}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-
-          helm package "${CHART_PATH}" \
-            --version "${version}" \
-            --app-version "${SHORT_SHA}" \
-            --destination "${RUNNER_TEMP}"
-
-          echo "${HARBOR_PASSWORD}" | helm registry login "${REGISTRY}" \
-            --username "${HARBOR_USERNAME}" --password-stdin
-
-          helm push "${RUNNER_TEMP}"/cribwire-backend-*.tgz "oci://${REGISTRY}/${project}"
-          helm registry logout "${REGISTRY}"
 
       - name: Summary
         env:
           IMAGE: ${{ steps.meta.outputs.image }}
           TAG: ${{ steps.meta.outputs.tag }}
           DIGEST: ${{ steps.build.outputs.digest }}
-          CHART_VERSION: ${{ steps.chart-meta.outputs.version }}
-          REGISTRY: ${{ steps.meta.outputs.registry }}
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
         run: |
           set -euo pipefail
-          project="$(echo "${HARBOR_PROJECT}" | tr '[:upper:]' '[:lower:]')"
           {
-            echo "### Published to Harbor"
+            echo "### Backend image published"
             echo
             echo '```'
             echo "${IMAGE}:${TAG}"
             echo "${IMAGE}@${DIGEST}"
-            echo "oci://${REGISTRY}/${project}/cribwire-backend:${CHART_VERSION}"
             echo '```'
             echo
-            echo "### Deploy"
-            echo
-            echo "Nothing was rolled out — this workflow only publishes. Roll out with:"
-            echo
-            echo '```sh'
-            echo "helm upgrade --install cribwire-backend deploy/helm/cribwire-backend \\"
-            echo "  --namespace cribwire --create-namespace \\"
-            echo "  -f deploy/helm/values-production.yaml \\"
-            echo "  --set image.digest=${DIGEST} \\"
-            echo "  --set revision=${GITHUB_SHA} \\"
-            echo "  --wait --timeout 10m"
-            echo '```'
-            echo
-            echo "Verify:"
-            echo
-            echo '```sh'
-            echo "curl -fsS https://apicribwire.ralphhees.nl/v1/version"
-            echo '```'
+            if [ "${DEPLOY_ENABLED:-}" != "true" ]; then
+              echo "**Not deployed.** No production environment is configured yet, so the"
+              echo "\`deploy\` job is skipped. See the header of"
+              echo "\`.github/workflows/deploy-backend.yml\` for what has to exist first."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: deploy to production
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # Opt-in switch. While it is unset the job is skipped and shows as such —
+    # honest about the fact that nothing was deployed, instead of a green
+    # check over a no-op.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    # Protect this environment with required reviewers and a deployment branch
+    # rule limited to `main`; the deploy credentials belong to it, not to the
+    # repository.
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    permissions:
+      contents: read
+    steps:
+      - name: Preflight — required deploy configuration
+        env:
+          DEPLOY_KUBECONFIG: ${{ secrets.DEPLOY_KUBECONFIG }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -n "${DEPLOY_KUBECONFIG:-}" ] || missing="${missing} secrets.DEPLOY_KUBECONFIG"
+          [ -n "${PRODUCTION_URL:-}" ] || missing="${missing} vars.PRODUCTION_URL"
+          if [ -n "${missing}" ]; then
+            echo "::error::Production deploy is enabled but not configured. Missing:${missing}"
+            exit 1
+          fi
+
+      # ---------------------------------------------------------------------
+      # TO IMPLEMENT (docs/specs/backend.md §6: EU region, Kubernetes or
+      # equivalent, Terraform, secrets manager). Everything below is a
+      # description of the work, not the work:
+      #
+      #   1. Authenticate to the EU-region cluster/host. Prefer OIDC over a
+      #      stored kubeconfig — add `permissions: id-token: write` and the
+      #      cloud provider's login action, then delete DEPLOY_KUBECONFIG.
+      #   2. Run `npm run migrate` against the production database as a
+      #      pre-deploy job (the image ships /app/migrations for this).
+      #   3. Roll out the image *by digest*, not by tag:
+      #        ${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}
+      #      DATABASE_URL, REDIS_URL, the APNs .p8 and the TURN shared secret
+      #      come from the secrets manager at run time — never from this file
+      #      and never from the image.
+      #   4. Wait for the rollout, poll /v1/health, and roll back on failure.
+      #   5. Record the deployment (`/v1/version` should report the SHA).
+      # ---------------------------------------------------------------------
+      - name: Deploy
+        env:
+          IMAGE: ${{ needs.image.outputs.image }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          echo "::error::deploy-backend.yml: the production deploy step is a placeholder — no rollout was performed for ${IMAGE}@${DIGEST}. Implement it before setting vars.DEPLOY_ENABLED=true."
+          exit 1
