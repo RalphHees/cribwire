@@ -292,3 +292,116 @@ describe('sequence handling', () => {
     expect(connection.lastSeq).toBe(6);
   });
 });
+
+describe('viewer roster cache', () => {
+  /** Counts the reads the roster is meant to eliminate. */
+  class CountingRepository extends MemoryRepository {
+    listDevicesCalls = 0;
+    getDeviceCalls = 0;
+
+    override listDevices(pairingId: string): Promise<Device[]> {
+      this.listDevicesCalls += 1;
+      return super.listDevices(pairingId);
+    }
+
+    override getDevice(
+      pairingId: string,
+      deviceId: string,
+    ): Promise<Device | null> {
+      this.getDeviceCalls += 1;
+      return super.getDevice(pairingId, deviceId);
+    }
+  }
+
+  let counting: CountingRepository;
+
+  function frameTo(viewerId: string, seq: number): string {
+    return JSON.stringify({
+      to: `viewer:${viewerId}`,
+      seq,
+      blob: randomBytes(16).toString('base64'),
+    });
+  }
+
+  beforeEach(() => {
+    counting = new CountingRepository();
+    repository = counting;
+  });
+
+  it('routes repeated frames without re-reading the devices table', async () => {
+    const hub = createHub();
+    const { camera, viewer } = await seedPairing();
+    const socket = new FakeSocket();
+    const connection = await hub.attach(socket, camera);
+
+    const afterAttach = counting.listDevicesCalls;
+    for (let seq = 1; seq <= 20; seq += 1) {
+      await hub.handleMessage(connection, frameTo(viewer.id, seq));
+    }
+
+    expect(socket.typed('error')).toHaveLength(0);
+    expect(counting.listDevicesCalls).toBe(afterAttach);
+    expect(counting.getDeviceCalls).toBe(0);
+  });
+
+  it('reloads the roster once the ttl has passed', async () => {
+    const hub = createHub();
+    const { camera, viewer } = await seedPairing();
+    const connection = await hub.attach(new FakeSocket(), camera);
+
+    await hub.handleMessage(connection, frameTo(viewer.id, 1));
+    const afterFirst = counting.listDevicesCalls;
+
+    clock = new Date(clock.getTime() + (config.wsRosterTtlSeconds + 1) * 1000);
+    await hub.handleMessage(connection, frameTo(viewer.id, 2));
+
+    expect(counting.listDevicesCalls).toBe(afterFirst + 1);
+  });
+
+  it('stops routing to a viewer revoked on this instance', async () => {
+    const hub = createHub();
+    const { camera, viewer } = await seedPairing();
+    const socket = new FakeSocket();
+    const connection = await hub.attach(socket, camera);
+
+    await hub.handleMessage(connection, frameTo(viewer.id, 1));
+    expect(socket.typed('error')).toHaveLength(0);
+
+    await repository.deleteDevice(viewer.pairingId, viewer.id);
+    hub.closeDevice(viewer.pairingId, viewer.id, 'device_revoked');
+
+    await hub.handleMessage(connection, frameTo(viewer.id, 2));
+    expect(socket.typed('error')).toEqual([
+      expect.objectContaining({ error: 'unknown_target' }),
+    ]);
+  });
+
+  it('sees a newly claimed viewer as soon as it connects', async () => {
+    const hub = createHub();
+    const { camera, viewer } = await seedPairing();
+    const socket = new FakeSocket();
+    const connection = await hub.attach(socket, camera);
+    // Warm the roster so the new viewer is genuinely absent from it.
+    await hub.handleMessage(connection, frameTo(viewer.id, 1));
+
+    const claimed = await repository.claimPairing({
+      pairingId: viewer.pairingId,
+      viewerDeviceId: randomUUID(),
+      viewerDeviceKey: randomBytes(32),
+      apnsToken: 'c'.repeat(64),
+      apnsEnvironment: 'sandbox',
+      maxViewers: 5,
+      expiredBefore: new Date(clock.getTime() - 600_000),
+      now: clock,
+    });
+    if (!claimed.ok) throw new Error('claim failed');
+
+    // The camera only learns a viewer's id from its peer-online announcement,
+    // and attaching refreshes the roster, so the id is routable by the time
+    // the camera could address it.
+    await hub.attach(new FakeSocket(), claimed.device);
+    await hub.handleMessage(connection, frameTo(claimed.device.id, 2));
+
+    expect(socket.typed('error')).toHaveLength(0);
+  });
+});
