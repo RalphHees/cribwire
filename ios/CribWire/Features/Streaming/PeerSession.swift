@@ -12,6 +12,19 @@ enum PeerLinkState: Equatable, Sendable {
     case closed
 
     var isUsable: Bool { self == .connected }
+
+    /// Whether this peer connection is worth keeping.
+    ///
+    /// Used to decide that a *duplicate* presence event should be ignored rather
+    /// than acted on: restarting a connection that is still gathering, checking
+    /// or up throws away ICE credentials and a certificate the other side is
+    /// actively handshaking against.
+    var isNegotiatingOrUp: Bool {
+        switch self {
+        case .new, .checking, .connected: return true
+        case .disconnected, .failed, .closed: return false
+        }
+    }
 }
 
 /// What a peer connection tells the engine. Deliberately plain `Sendable`
@@ -117,6 +130,9 @@ final class PeerSession {
     /// arrived. Everything about trusting this connection hangs off it.
     private(set) var expectedRemoteFingerprint: DTLSFingerprint?
     private(set) var isVerified = false
+    /// This connection's own ICE state, so the engine can tell a session that is
+    /// mid-handshake from one that has given up.
+    var linkState: PeerLinkState = .new
 
     init(peer: SignalingRecipient, connection: RTCPeerConnection, observer: PeerConnectionObserver) {
         self.peer = peer
@@ -154,6 +170,40 @@ final class PeerSession {
     /// unmuting is instant and needs no renegotiation.
     func setRemoteAudioEnabled(_ enabled: Bool) {
         remoteAudioTrack()?.isEnabled = enabled
+    }
+
+    /// Attaches a local audio track for talk-back **without adding an m-line**.
+    ///
+    /// `addTrack` looks like the obvious call and is the wrong one here. In
+    /// Unified Plan it is free to create a *new* transceiver, and doing that
+    /// while answering produces an answer with more media sections than the offer
+    /// — which the offerer rejects outright. The visible result is not "talk-back
+    /// does not work"; it is that the whole connection never establishes, because
+    /// the answer is discarded before ICE ever starts.
+    ///
+    /// So the track is fitted to the audio transceiver the remote offer already
+    /// created. If there is no free one, talk-back is skipped: losing the feature
+    /// is a great deal better than losing the video.
+    ///
+    /// - Returns: whether the track was attached.
+    @discardableResult
+    func attachTalkback(_ track: RTCAudioTrack) -> Bool {
+        for transceiver in connection.transceivers where transceiver.mediaType == .audio {
+            let sender = transceiver.sender
+            // Already ours from an earlier negotiation — nothing to do, and
+            // certainly nothing to add.
+            if sender.track?.trackId == track.trackId { return true }
+            guard sender.track == nil else { continue }
+
+            sender.track = track
+            // The Camera offers its audio `sendrecv`, so answering `sendrecv` is
+            // legal and is what actually carries talk-back. If the offer was
+            // send-only this fails, and the track simply stays silent rather than
+            // making the answer invalid.
+            transceiver.setDirection(.sendRecv, error: nil)
+            return true
+        }
+        return false
     }
 
     /// Caps the encoder, so the ladder in `VideoQuality` actually bites.

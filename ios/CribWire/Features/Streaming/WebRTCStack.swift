@@ -58,6 +58,31 @@ enum WebRTCStack {
         configuration.continualGatheringPolicy = .gatherContinually
         configuration.bundlePolicy = .maxBundle
         configuration.rtcpMuxPolicy = .require
+
+        // --- Candidate hygiene -------------------------------------------
+        //
+        // Left alone, ICE gathers on every interface iOS reports: Wi-Fi (one
+        // address per IPv4/IPv6/ULA), the AWDL link-local `en2`, both cellular
+        // PDP contexts, and any VPN tunnel. With four TURN URIs that is dozens of
+        // relay allocations and a candidate matrix to match, most of it hopeless.
+        // Every useless pair still has to be tried before ICE gives up, so this
+        // is not merely wasteful — it is latency a returning Viewer waits through.
+
+        // Link-local (169.254/AWDL) can never reach the peer or the TURN server;
+        // it produces nothing but EHOSTUNREACH. This is the single biggest source
+        // of noise in the device logs.
+        configuration.disableLinkLocalNetworks = true
+
+        // One IPv6 network is enough. A phone routinely has three (link-local,
+        // ULA, global), and each multiplies the pairs to check.
+        configuration.maxIPv6Networks = 1
+
+        // Pre-gather a small pool so the first offer already carries candidates
+        // rather than waiting for trickle to catch up.
+        configuration.iceCandidatePoolSize = 1
+
+        // Deliberately *not* set: `candidateNetworkPolicy = .lowCost` would drop
+        // cellular, which is exactly the interface a Viewer away from home needs.
         // Certificates are per-connection, and the fingerprint of this one is
         // what the sealed blob binds (`security.md` §4).
         return configuration

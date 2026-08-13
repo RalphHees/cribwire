@@ -70,7 +70,11 @@ cache in Redis).
   (`K_sig`); the server routes on the envelope only and enforces a 16 KiB message cap.
 - Server emits presence events (`peer-online`, `peer-offline`) so the Camera knows
   when to create an offer.
-- Heartbeat ping/pong every 30 s; idle connections closed after 5 min.
+- Heartbeat ping/pong every 30 s. A peer that misses a heartbeat is terminated.
+- Idle close after 5 min counts **a pong as activity**, so a connection that is
+  merely quiet is kept. CribWire's steady state is a socket held open for hours
+  with nothing to say — media is peer-to-peer, so signalling falls silent as soon
+  as a stream is up — and reaping those was reaping the healthy case.
 
 ### Push notifications
 

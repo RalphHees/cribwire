@@ -1,61 +1,73 @@
 {
-  "sourceLanguage": "en",
-  "version": "1.0",
-  "strings": {
-    "CFBundleDisplayName": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire"
           }
         }
       }
     },
-    "NSCameraUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire gebruikt de camera om de kamer van je kind naar je gekoppelde apparaat te streamen en om de QR-koppelcode te scannen. Video verlaat je apparaten nooit onversleuteld."
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "CribWire"
           }
         }
       }
     },
-    "NSLocalNetworkUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire verbindt rechtstreeks met je gekoppelde apparaat via je lokale netwerk, zodat video waar mogelijk in huis blijft."
+    "NSCameraUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire gebruikt de camera om de kamer van je kind naar je gekoppelde apparaat te streamen en om de QR-koppelcode te scannen. Video verlaat je apparaten nooit onversleuteld."
           }
         }
       }
     },
-    "NSMicrophoneUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire gebruikt de microfoon om kamergeluid te streamen en om geluid op dit apparaat te detecteren. Audio is end-to-end versleuteld en gaat nooit onversleuteld naar een server."
+    "NSLocalNetworkUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire verbindt rechtstreeks met je gekoppelde apparaat via je lokale netwerk, zodat video waar mogelijk in huis blijft."
           }
         }
       }
     },
-    "NSPhotoLibraryAddUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire bewaart de momentopnamen die je van het livebeeld maakt in je fotobibliotheek. Bestaande foto's worden nooit gelezen."
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire gebruikt de microfoon om kamergeluid te streamen en om geluid op dit apparaat te detecteren. Audio is end-to-end versleuteld en gaat nooit onversleuteld naar een server."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire bewaart de momentopnamen die je van het livebeeld maakt in je fotobibliotheek. Bestaande foto's worden nooit gelezen."
           }
         }
       }
     }
-  }
+  },
+  "version" : "1.0"
 }

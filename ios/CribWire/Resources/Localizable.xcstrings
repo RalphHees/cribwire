@@ -1,1997 +1,2133 @@
 {
-  "sourceLanguage": "en",
-  "version": "1.0",
-  "strings": {
-    "%lld": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
           }
         }
       }
     },
-    "%lld min": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld min"
+    "%lld by %lld percent of the picture" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bij %lld procent van het beeld"
           }
         }
       }
     },
-    "%lld watching": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld kijken mee"
+    "%lld connecting…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld verbindt…"
           }
         }
       }
     },
-    "%lld%%": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld%%"
+    "%lld min" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
           }
         }
       }
     },
-    "A Camera can have at most five Viewers. Remove one on the Camera first.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Een camera kan hoogstens vijf kijkers hebben. Verwijder er eerst een op de camera."
+    "%lld watching" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld kijken mee"
           }
         }
       }
     },
-    "A Camera can have at most five Viewers. Revoke one first.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Een camera kan hoogstens vijf kijkers hebben. Trek er eerst een in."
+    "%lld%%" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld%%"
           }
         }
       }
     },
-    "Alerts": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meldingen"
+    "^[%lld paired camera](inflect: true). Tap Watch to see the live view." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld gekoppelde camera](inflect: true). Tik op Bekijk voor het livebeeld."
           }
         }
       }
     },
-    "Alerts are end-to-end encrypted — the server can't see what was detected, or when.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meldingen zijn end-to-end versleuteld — de server ziet niet wat er gedetecteerd is, of wanneer."
+    "^[%lld paired viewer](inflect: true). Tap Start the camera to go live." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld gekoppelde kijker](inflect: true). Tik op Start de camera om live te gaan."
           }
         }
       }
     },
-    "Alerts are end-to-end encrypted. Only this device can read what the Camera sends.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meldingen zijn end-to-end versleuteld. Alleen dit apparaat kan lezen wat de camera stuurt."
+    "A Camera can have at most five Viewers. Remove one on the Camera first." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een camera kan hoogstens vijf kijkers hebben. Verwijder er eerst een op de camera."
           }
         }
       }
     },
-    "Alerts are turned off": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Meldingen staan uit"
+    "A Camera can have at most five Viewers. Revoke one first." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Een camera kan hoogstens vijf kijkers hebben. Trek er eerst een in."
           }
         }
       }
     },
-    "Audio only": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alleen geluid"
+    "above threshold" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "boven drempel"
           }
         }
       }
     },
-    "Back": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terug"
+    "Alerts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meldingen"
           }
         }
       }
     },
-    "Battery is at %lld%% and not charging. A night of streaming needs mains power.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batterij staat op %lld%% en laadt niet op. Een nacht streamen vraagt om netstroom."
+    "Alerts are end-to-end encrypted — the server can't see what was detected, or when." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meldingen zijn end-to-end versleuteld — de server ziet niet wat er gedetecteerd is, of wanneer."
           }
         }
       }
     },
-    "Battery is at %lld%%. Plug the Camera in now — it will stop streaming when it dies.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batterij staat op %lld%%. Sluit de camera nu aan — hij stopt met streamen als hij leeg is."
+    "Alerts are end-to-end encrypted. Only this device can read what the Camera sends." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meldingen zijn end-to-end versleuteld. Alleen dit apparaat kan lezen wat de camera stuurt."
           }
         }
       }
     },
-    "Both devices should show\nthe same code:": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Beide apparaten horen\ndezelfde code te tonen:"
+    "Alerts are turned off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meldingen staan uit"
           }
         }
       }
     },
-    "Camera": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camera"
+    "Audio only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen geluid"
           }
         }
       }
     },
-    "Camera battery %lld percent": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camerabatterij %lld procent"
+    "Back" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terug"
           }
         }
       }
     },
-    "Camera battery %lld percent, charging": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camerabatterij %lld procent, wordt opgeladen"
+    "Battery is at %lld%% and not charging. A night of streaming needs mains power." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterij staat op %lld%% en laadt niet op. Een nacht streamen vraagt om netstroom."
           }
         }
       }
     },
-    "Camera idle": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camera inactief"
+    "Battery is at %lld%%. Plug the Camera in now — it will stop streaming when it dies." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Batterij staat op %lld%%. Sluit de camera nu aan — hij stopt met streamen als hij leeg is."
           }
         }
       }
     },
-    "Camera on": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camera aan"
+    "below threshold" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "onder drempel"
           }
         }
       }
     },
-    "Camera preview": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camerabeeld"
+    "Both devices should show\nthe same code:" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beide apparaten horen\ndezelfde code te tonen:"
           }
         }
       }
     },
-    "Cancel": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Annuleer"
+    "Camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera"
           }
         }
       }
     },
-    "Checking with the Camera. This takes a moment.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Controleren bij de camera. Dit duurt even."
+    "Camera battery %lld percent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camerabatterij %lld procent"
           }
         }
       }
     },
-    "Codes did not match": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Codes kwamen niet overeen"
+    "Camera battery %lld percent, charging" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camerabatterij %lld procent, wordt opgeladen"
           }
         }
       }
     },
-    "Codes match": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Codes komen overeen"
+    "Camera idle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera inactief"
           }
         }
       }
     },
-    "Codes match — Pair": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Codes komen overeen — koppel"
+    "Camera on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera aan"
           }
         }
       }
     },
-    "Connecting": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbinden"
+    "Camera preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camerabeeld"
           }
         }
       }
     },
-    "Connecting to %@…": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbinden met %@…"
+    "Cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuleer"
           }
         }
       }
     },
-    "Connection %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbinding %@"
+    "Checking with the Camera. This takes a moment." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controleren bij de camera. Dit duurt even."
           }
         }
       }
     },
-    "Connection not private": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbinding niet privé"
+    "Closed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesloten"
           }
         }
       }
     },
-    "Could not connect": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verbinden mislukt"
+    "Codes did not match" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codes kwamen niet overeen"
           }
         }
       }
     },
-    "Could not draw the pairing code.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kon de koppelcode niet tonen."
+    "Codes match" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codes komen overeen"
           }
         }
       }
     },
-    "Could not find the camera on this network.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kon de camera niet vinden op dit netwerk."
+    "Codes match — Pair" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codes komen overeen — koppel"
           }
         }
       }
     },
-    "Could not reach the server": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kon de server niet bereiken"
+    "Connecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden"
           }
         }
       }
     },
-    "Could not start a local pairing.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kon geen lokale koppeling starten."
+    "Connecting to %@…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden met %@…"
           }
         }
       }
     },
-    "CribWire": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire"
+    "Connecting to a viewer…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden met een kijker…"
           }
         }
       }
     },
-    "CribWire needs permission to save photos.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CribWire heeft toestemming nodig om foto's te bewaren."
+    "Connection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinding"
           }
         }
       }
     },
-    "Current room level": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Huidig kamerniveau"
+    "Connection %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinding %@"
           }
         }
       }
     },
-    "Dim the screen": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scherm dimmen"
+    "Connection not private" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinding niet privé"
           }
         }
       }
     },
-    "Done": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Klaar"
+    "Could not connect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden mislukt"
           }
         }
       }
     },
-    "Encryption": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Versleuteling"
+    "Could not draw the pairing code." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon de koppelcode niet tonen."
           }
         }
       }
     },
-    "End-to-end encrypted": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "End-to-end versleuteld"
+    "Could not find the camera on this network." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon de camera niet vinden op dit netwerk."
           }
         }
       }
     },
-    "Fair": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Redelijk"
+    "Could not reach the camera." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon de camera niet bereiken."
           }
         }
       }
     },
-    "Flip": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Draaien"
+    "Could not reach the server" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon de server niet bereiken"
           }
         }
       }
     },
-    "Good": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Goed"
+    "Could not start a local pairing." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kon geen lokale koppeling starten."
           }
         }
       }
     },
-    "Guided Access": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Begeleide toegang"
+    "CribWire" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire"
           }
         }
       }
     },
-    "Guided Access keeps this phone on CribWire until you enter a passcode — useful when the Camera is left in a room with a child.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Begeleide toegang houdt deze telefoon op CribWire tot je een toegangscode invoert — handig als de camera in een kamer bij een kind staat."
+    "CribWire needs permission to save photos." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire heeft toestemming nodig om foto's te bewaren."
           }
         }
       }
     },
-    "High": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hoog"
+    "Current room level" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huidig kamerniveau"
           }
         }
       }
     },
-    "Hold to talk": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Houd vast om te praten"
+    "Dim the screen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scherm dimmen"
           }
         }
       }
     },
-    "Hold to talk to the camera": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Houd vast om tegen de camera te praten"
+    "Done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klaar"
           }
         }
       }
     },
-    "Idle": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inactief"
+    "Encryption" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versleuteling"
           }
         }
       }
     },
-    "If the codes differ, someone may be\ninterfering — cancel and rescan.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verschillen de codes, dan grijpt mogelijk iemand in —\nannuleer en scan opnieuw."
+    "End-to-end encrypted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End-to-end versleuteld"
           }
         }
       }
     },
-    "Keep with you. Watch the live stream and receive alerts on your lock screen.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Houd bij je. Kijk live mee en ontvang meldingen op je toegangsscherm."
+    "Fair" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redelijk"
           }
         }
       }
     },
-    "LIVE": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "LIVE"
+    "Finding a route…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route zoeken…"
           }
         }
       }
     },
-    "Live": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live"
+    "Flip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draaien"
           }
         }
       }
     },
-    "Local network only": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Alleen lokaal netwerk"
+    "Good" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Goed"
           }
         }
       }
     },
-    "Lock this phone to CribWire": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vergrendel deze telefoon op CribWire"
+    "Guided Access" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Begeleide toegang"
           }
         }
       }
     },
-    "Low": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Laag"
+    "Guided Access keeps this phone on CribWire until you enter a passcode — useful when the Camera is left in a room with a child." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Begeleide toegang houdt deze telefoon op CribWire tot je een toegangscode invoert — handig als de camera in een kamer bij een kind staat."
           }
         }
       }
     },
-    "Medium": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gemiddeld"
+    "High" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hoog"
           }
         }
       }
     },
-    "Mic off": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Microfoon uit"
+    "Hold to talk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd vast om te praten"
           }
         }
       }
     },
-    "Mic on": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Microfoon aan"
+    "Hold to talk to the camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd vast om tegen de camera te praten"
           }
         }
       }
     },
-    "Microphone unavailable": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Microfoon niet beschikbaar"
+    "Idle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inactief"
           }
         }
       }
     },
-    "Mini view": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Miniweergave"
+    "If the codes differ, someone may be\ninterfering — cancel and rescan." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verschillen de codes, dan grijpt mogelijk iemand in —\nannuleer en scan opnieuw."
           }
         }
       }
     },
-    "Movement": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Beweging"
+    "Keep with you. Watch the live stream and receive alerts on your lock screen." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Houd bij je. Kijk live mee en ontvang meldingen op je toegangsscherm."
           }
         }
       }
     },
-    "Movement watch area": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bewakingsgebied beweging"
+    "Live" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live"
           }
         }
       }
     },
-    "Mute": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Demp"
+    "LIVE" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LIVE"
           }
         }
       }
     },
-    "New code in": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nieuwe code over"
+    "Local network only" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alleen lokaal netwerk"
           }
         }
       }
     },
-    "New code in %lld seconds": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nieuwe code over %lld seconden"
+    "Lock this phone to CribWire" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vergrendel deze telefoon op CribWire"
           }
         }
       }
     },
-    "No backend is configured in this build.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In deze build is geen server ingesteld."
+    "Low" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laag"
           }
         }
       }
     },
-    "No camera found on this network. Check both devices are on the same Wi-Fi.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geen camera gevonden op dit netwerk. Controleer of beide apparaten op dezelfde wifi zitten."
+    "Medium" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gemiddeld"
           }
         }
       }
     },
-    "No cameras yet": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nog geen camera's"
+    "Mic off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microfoon uit"
           }
         }
       }
     },
-    "No frame to save yet.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nog geen beeld om te bewaren."
+    "Mic on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microfoon aan"
           }
         }
       }
     },
-    "No paired devices yet": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nog geen gekoppelde apparaten"
+    "Microphone unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Microfoon niet beschikbaar"
           }
         }
       }
     },
-    "Noise": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geluid"
+    "Mini view" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miniweergave"
           }
         }
       }
     },
-    "Noise and movement": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geluid en beweging"
+    "Movement" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beweging"
           }
         }
       }
     },
-    "Noise sensitivity": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geluidsgevoeligheid"
+    "Movement watch area" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewakingsgebied beweging"
           }
         }
       }
     },
-    "None watching": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Niemand kijkt mee"
+    "Mute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demp"
           }
         }
       }
     },
-    "Not a CribWire code": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geen CribWire-code"
+    "New code in" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieuwe code over"
           }
         }
       }
     },
-    "Not paired yet": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nog niet gekoppeld"
+    "New code in %lld seconds" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieuwe code over %lld seconden"
           }
         }
       }
     },
-    "Nothing was saved on this device.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Er is niets op dit apparaat bewaard."
+    "No backend is configured in this build." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In deze build is geen server ingesteld."
           }
         }
       }
     },
-    "Nothing was saved.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Er is niets bewaard."
+    "No camera found on this network. Check both devices are on the same Wi-Fi." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen camera gevonden op dit netwerk. Controleer of beide apparaten op dezelfde wifi zitten."
           }
         }
       }
     },
-    "Nothing was saved. Different codes can mean someone is interfering with the pairing — start again with a fresh code, in the same room.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Er is niets bewaard. Verschillende codes kunnen betekenen dat iemand de koppeling verstoort — begin opnieuw met een nieuwe code, in dezelfde kamer."
+    "No cameras yet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog geen camera's"
           }
         }
       }
     },
-    "Off": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uit"
+    "No frame to save yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog geen beeld om te bewaren."
           }
         }
       }
     },
-    "Offline": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offline"
+    "No paired devices yet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog geen gekoppelde apparaten"
           }
         }
       }
     },
-    "Open CribWire on the other iPhone, choose **Viewer**, and scan this code.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open CribWire op de andere iPhone, kies **Kijker** en scan deze code."
+    "No route to the viewer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen route naar de kijker"
           }
         }
       }
     },
-    "Open Settings": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Instellingen"
+    "Noise" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geluid"
           }
         }
       }
     },
-    "Pair a Viewer": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppel een kijker"
+    "Noise and movement" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geluid en beweging"
           }
         }
       }
     },
-    "Pair a Viewer to start monitoring.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppel een kijker om te beginnen met meekijken."
+    "Noise sensitivity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geluidsgevoeligheid"
           }
         }
       }
     },
-    "Pair a device by showing its QR code on the Camera and scanning it with the Viewer.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppel een apparaat door de QR-code op de camera te tonen en die met de kijker te scannen."
+    "None watching" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Niemand kijkt mee"
           }
         }
       }
     },
-    "Pair and stream over Wi-Fi with no server at all. Nothing leaves your home — but alerts cannot reach a Viewer that is out of the house.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppel en stream via wifi zonder enige server. Niets verlaat je huis — maar meldingen bereiken geen kijker die buitenshuis is."
+    "Not a CribWire code" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geen CribWire-code"
           }
         }
       }
     },
-    "Pair another Viewer": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppel nog een kijker"
+    "Not paired yet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nog niet gekoppeld"
           }
         }
       }
     },
-    "Paired": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gekoppeld"
+    "Nothing was saved on this device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er is niets op dit apparaat bewaard."
           }
         }
       }
     },
-    "Paired %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gekoppeld %@"
+    "Nothing was saved." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er is niets bewaard."
           }
         }
       }
     },
-    "Paired devices": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gekoppelde apparaten"
+    "Nothing was saved. Different codes can mean someone is interfering with the pairing — start again with a fresh code, in the same room." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Er is niets bewaard. Verschillende codes kunnen betekenen dat iemand de koppeling verstoort — begin opnieuw met een nieuwe code, in dezelfde kamer."
           }
         }
       }
     },
-    "Pairing QR code": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QR-koppelcode"
+    "Off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uit"
           }
         }
       }
     },
-    "Pairing cancelled": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppelen geannuleerd"
+    "Offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline"
           }
         }
       }
     },
-    "Pairing codes are only valid for ten minutes. Show a new one and scan it with the Viewer.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppelcodes zijn maar tien minuten geldig. Toon een nieuwe en scan die met de kijker."
+    "Open CribWire on the other iPhone, choose **Viewer**, and scan this code." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open CribWire op de andere iPhone, kies **Kijker** en scan deze code."
           }
         }
       }
     },
-    "Pairing codes expire after ten minutes. Ask the Camera to show a fresh one.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppelcodes verlopen na tien minuten. Laat de camera een nieuwe tonen."
+    "Open Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Instellingen"
           }
         }
       }
     },
-    "Pairing…": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppelen…"
+    "Pair a device by showing its QR code on the Camera and scanning it with the Viewer." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppel een apparaat door de QR-code op de camera te tonen en die met de kijker te scannen."
           }
         }
       }
     },
-    "Paused for a call": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gepauzeerd voor een oproep"
+    "Pair a Viewer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppel een kijker"
           }
         }
       }
     },
-    "Place in the child's room. Streams video & audio and detects noise or movement.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Plaats in de kamer van je kind. Streamt beeld en geluid en detecteert geluid of beweging."
+    "Pair a Viewer to start monitoring." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppel een kijker om te beginnen met meekijken."
           }
         }
       }
     },
-    "Point this iPhone at the QR code shown on the Camera device.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Richt deze iPhone op de QR-code die op de camera staat."
+    "Pair and stream over Wi-Fi with no server at all. Nothing leaves your home — but alerts cannot reach a Viewer that is out of the house." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppel en stream via wifi zonder enige server. Niets verlaat je huis — maar meldingen bereiken geen kijker die buitenshuis is."
           }
         }
       }
     },
-    "Poor": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Slecht"
+    "Pair another Viewer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppel nog een kijker"
           }
         }
       }
     },
-    "Quality": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kwaliteit"
+    "Paired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppeld"
           }
         }
       }
     },
-    "Quiet period": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rustperiode"
+    "Paired %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppeld %@"
           }
         }
       }
     },
-    "Quiet period after an alert": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rustperiode na een melding"
+    "Paired devices" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gekoppelde apparaten"
           }
         }
       }
     },
-    "Ready": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Klaar voor gebruik"
+    "Pairing cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppelen geannuleerd"
           }
         }
       }
     },
-    "Reconnecting": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Opnieuw verbinden"
+    "Pairing codes are only valid for ten minutes. Show a new one and scan it with the Viewer." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppelcodes zijn maar tien minuten geldig. Toon een nieuwe en scan die met de kijker."
           }
         }
       }
     },
-    "Reconnecting…": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Opnieuw verbinden…"
+    "Pairing codes expire after ten minutes. Ask the Camera to show a fresh one." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppelcodes verlopen na tien minuten. Laat de camera een nieuwe tonen."
           }
         }
       }
     },
-    "Release to stop": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Laat los om te stoppen"
+    "Pairing QR code" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QR-koppelcode"
           }
         }
       }
     },
-    "Remove": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verwijder"
+    "Pairing…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppelen…"
           }
         }
       }
     },
-    "Remove pairing with %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Koppeling met %@ verwijderen"
+    "Paused for a call" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gepauzeerd voor een oproep"
           }
         }
       }
     },
-    "Remove this pairing?": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deze koppeling verwijderen?"
+    "Place in the child's room. Streams video & audio and detects noise or movement." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plaats in de kamer van je kind. Streamt beeld en geluid en detecteert geluid of beweging."
           }
         }
       }
     },
-    "Restarting audio": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Audio herstarten"
+    "Point this iPhone at the QR code shown on the Camera device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richt deze iPhone op de QR-code die op de camera staat."
           }
         }
       }
     },
-    "Room now": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kamer nu"
+    "Poor" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slecht"
           }
         }
       }
     },
-    "Saved to Photos": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bewaard in Foto's"
+    "Quality" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kwaliteit"
           }
         }
       }
     },
-    "Scan a Camera": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan een camera"
+    "Quiet period" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rustperiode"
           }
         }
       }
     },
-    "Scan again": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan opnieuw"
+    "Quiet period after an alert" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rustperiode na een melding"
           }
         }
       }
     },
-    "Scan another Camera": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan nog een camera"
+    "Ready" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klaar voor gebruik"
           }
         }
       }
     },
-    "Scan the Camera": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan de camera"
+    "Reconnecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opnieuw verbinden"
           }
         }
       }
     },
-    "Scan the code shown by CribWire on the Camera device.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan de code die CribWire op het camera-apparaat toont."
+    "Reconnecting…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opnieuw verbinden…"
           }
         }
       }
     },
-    "Scan the code shown on the Camera device to pair.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scan de code op het camera-apparaat om te koppelen."
+    "Release to stop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laat los om te stoppen"
           }
         }
       }
     },
-    "Scanning the code is what makes this device trusted. The key never travels through our servers — only through your camera.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Door de code te scannen wordt dit apparaat vertrouwd. De sleutel gaat nooit via onze servers — alleen via je camera."
+    "Remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verwijder"
           }
         }
       }
     },
-    "Screen dimmed. Double tap to wake.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Scherm gedimd. Dubbeltik om te wekken."
+    "Remove pairing with %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Koppeling met %@ verwijderen"
           }
         }
       }
     },
-    "Screen recording is on": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schermopname staat aan"
+    "Remove this pairing?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze koppeling verwijderen?"
           }
         }
       }
     },
-    "Secure babyphone next to your crib.\nEnd-to-end encrypted, no account needed.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Veilige babyfoon naast je wieg.\nEnd-to-end versleuteld, geen account nodig."
+    "Restarting audio" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio herstarten"
           }
         }
       }
     },
-    "Set up Guided Access so the app cannot be closed by accident.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stel begeleide toegang in zodat de app niet per ongeluk gesloten wordt."
+    "Room now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kamer nu"
           }
         }
       }
     },
-    "Show a new code": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toon een nieuwe code"
+    "Route found" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route gevonden"
           }
         }
       }
     },
-    "Show a new code and try again.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toon een nieuwe code en probeer opnieuw."
+    "Route lost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route verloren"
           }
         }
       }
     },
-    "Show video": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Toon video"
+    "Saved to Photos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewaard in Foto's"
           }
         }
       }
     },
-    "Snapshot": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Momentopname"
+    "Scan a Camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan een camera"
           }
         }
       }
     },
-    "Someone may be interfering with the pairing. Start again with a fresh code.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mogelijk verstoort iemand de koppeling. Begin opnieuw met een nieuwe code."
+    "Scan again" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan opnieuw"
           }
         }
       }
     },
-    "Start the camera": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Start de camera"
+    "Scan another Camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan nog een camera"
           }
         }
       }
     },
-    "Status": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Status"
+    "Scan the Camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan de camera"
           }
         }
       }
     },
-    "Step %lld of %lld": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stap %lld van %lld"
+    "Scan the code shown by CribWire on the Camera device." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan de code die CribWire op het camera-apparaat toont."
           }
         }
       }
     },
-    "Stop pairing": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stop koppelen"
+    "Scan the code shown on the Camera device to pair." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan de code op het camera-apparaat om te koppelen."
           }
         }
       }
     },
-    "Stopped": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gestopt"
+    "Scanning the code is what makes this device trusted. The key never travels through our servers — only through your camera." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Door de code te scannen wordt dit apparaat vertrouwd. De sleutel gaat nooit via onze servers — alleen via je camera."
           }
         }
       }
     },
-    "Streaming": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streamt"
+    "Screen dimmed. Double tap to wake." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scherm gedimd. Dubbeltik om te wekken."
           }
         }
       }
     },
-    "Tap to wake the screen": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tik om het scherm te wekken"
+    "Screen recording is on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schermopname staat aan"
           }
         }
       }
     },
-    "That camera is not paired": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die camera is niet gekoppeld"
+    "Secure babyphone next to your crib.\nEnd-to-end encrypted, no account needed." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veilige babyfoon naast je wieg.\nEnd-to-end versleuteld, geen account nodig."
           }
         }
       }
     },
-    "That code is no longer valid": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die code is niet meer geldig"
+    "Set up Guided Access so the app cannot be closed by accident." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stel begeleide toegang in zodat de app niet per ongeluk gesloten wordt."
           }
         }
       }
     },
-    "That code points at an address CribWire will not connect to.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die code wijst naar een adres waarmee CribWire geen verbinding maakt."
+    "Show a new code" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toon een nieuwe code"
           }
         }
       }
     },
-    "That code was made by a different version of CribWire. Update both devices.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die code komt van een andere versie van CribWire. Werk beide apparaten bij."
+    "Show a new code and try again." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toon een nieuwe code en probeer opnieuw."
           }
         }
       }
     },
-    "That code was not a CribWire code": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dat was geen CribWire-code"
+    "Show video" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toon video"
           }
         }
       }
     },
-    "That is not a CribWire pairing code.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dat is geen CribWire-koppelcode."
+    "Snapshot" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momentopname"
           }
         }
       }
     },
-    "That pairing code is damaged. Ask the Camera for a new one.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die koppelcode is beschadigd. Vraag de camera om een nieuwe."
+    "Someone may be interfering with the pairing. Start again with a fresh code." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mogelijk verstoort iemand de koppeling. Begin opnieuw met een nieuwe code."
           }
         }
       }
     },
-    "The alert came from a pairing this device no longer has. Scan the Camera again to watch it.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "De melding kwam van een koppeling die dit apparaat niet meer heeft. Scan de camera opnieuw om te kijken."
+    "Start the camera" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start de camera"
           }
         }
       }
     },
-    "The code expired": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "De code is verlopen"
+    "Status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
           }
         }
       }
     },
-    "The other device loses access immediately and the keys on this device are erased. Pairing again means scanning a new code.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Het andere apparaat verliest direct toegang en de sleutels op dit apparaat worden gewist. Opnieuw koppelen betekent een nieuwe code scannen."
+    "Step %lld of %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stap %lld van %lld"
           }
         }
       }
     },
-    "The pairing code is hidden while the screen is being recorded or mirrored. Stop the recording to continue.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "De koppelcode is verborgen zolang het scherm wordt opgenomen of gedeeld. Stop de opname om verder te gaan."
+    "Stop pairing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop koppelen"
           }
         }
       }
     },
-    "This Camera is full": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deze camera zit vol"
+    "Stopped" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestopt"
           }
         }
       }
     },
-    "This Camera is not charging. Streaming all night will drain the battery.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deze camera laadt niet op. De hele nacht streamen maakt de batterij leeg."
+    "Streaming" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streamt"
           }
         }
       }
     },
-    "This Viewer can now watch the stream and receive alerts.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deze kijker kan nu meekijken en meldingen ontvangen."
+    "Tap to wake the screen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tik om het scherm te wekken"
           }
         }
       }
     },
-    "This code contains your encryption key. Anyone who scans it can watch the stream — only show it to people in the room with you.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deze code bevat je versleutelingssleutel. Wie hem scant kan meekijken — toon hem alleen aan mensen die bij je in de kamer zijn."
+    "Testing the route…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route testen…"
           }
         }
       }
     },
-    "This device will not tell you when the Camera hears or sees something. You can still watch the live view.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dit apparaat waarschuwt je niet als de camera iets hoort of ziet. Live meekijken kan nog wel."
+    "That camera is not paired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die camera is niet gekoppeld"
           }
         }
       }
     },
-    "Try again": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Probeer opnieuw"
+    "That code is no longer valid" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die code is niet meer geldig"
           }
         }
       }
     },
-    "Turn alerts on in Settings": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zet meldingen aan in Instellingen"
+    "That code points at an address CribWire will not connect to." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die code wijst naar een adres waarmee CribWire geen verbinding maakt."
           }
         }
       }
     },
-    "USE THIS DEVICE AS": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GEBRUIK DIT APPARAAT ALS"
+    "That code was made by a different version of CribWire. Update both devices." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die code komt van een andere versie van CribWire. Werk beide apparaten bij."
           }
         }
       }
     },
-    "Unmute": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dempen op"
+    "That code was not a CribWire code" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dat was geen CribWire-code"
           }
         }
       }
     },
-    "Use this device as a Camera instead": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gebruik dit apparaat juist als camera"
+    "That is not a CribWire pairing code." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dat is geen CribWire-koppelcode."
           }
         }
       }
     },
-    "Use this device as a Viewer instead": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gebruik dit apparaat juist als kijker"
+    "That pairing code is damaged. Ask the Camera for a new one." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die koppelcode is beschadigd. Vraag de camera om een nieuwe."
           }
         }
       }
     },
-    "Verified end-to-end": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "End-to-end geverifieerd"
+    "The alert came from a pairing this device no longer has. Scan the Camera again to watch it." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De melding kwam van een koppeling die dit apparaat niet meer heeft. Scan de camera opnieuw om te kijken."
           }
         }
       }
     },
-    "Verifying the connection is private…": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Controleren of de verbinding privé is…"
+    "The camera did not answer." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De camera antwoordde niet."
           }
         }
       }
     },
-    "Verifying…": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verifiëren…"
+    "The code expired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De code is verlopen"
           }
         }
       }
     },
-    "Video is paused to save data and battery.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video is gepauzeerd om data en batterij te sparen."
+    "The other device loses access immediately and the keys on this device are erased. Pairing again means scanning a new code." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Het andere apparaat verliest direct toegang en de sleutels op dit apparaat worden gewist. Opnieuw koppelen betekent een nieuwe code scannen."
           }
         }
       }
     },
-    "Video, audio and alerts are encrypted on this device and can only be opened by the Viewers you paired in person.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video, geluid en meldingen worden op dit apparaat versleuteld en kunnen alleen geopend worden door kijkers die je persoonlijk hebt gekoppeld."
+    "The pairing code is hidden while the screen is being recorded or mirrored. Stop the recording to continue." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De koppelcode is verborgen zolang het scherm wordt opgenomen of gedeeld. Stop de opname om verder te gaan."
           }
         }
       }
     },
-    "Viewer": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kijker"
+    "The video connection stalled." : {
+      "comment" : "Reason for a video connection stall.",
+      "isCommentAutoGenerated" : true
+    },
+    "This Camera is full" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze camera zit vol"
+          }
+        }
+      }
+    },
+    "This Camera is not charging. Streaming all night will drain the battery." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze camera laadt niet op. De hele nacht streamen maakt de batterij leeg."
+          }
+        }
+      }
+    },
+    "This code contains your encryption key. Anyone who scans it can watch the stream — only show it to people in the room with you." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze code bevat je versleutelingssleutel. Wie hem scant kan meekijken — toon hem alleen aan mensen die bij je in de kamer zijn."
+          }
+        }
+      }
+    },
+    "This device will not tell you when the Camera hears or sees something. You can still watch the live view." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dit apparaat waarschuwt je niet als de camera iets hoort of ziet. Live meekijken kan nog wel."
+          }
+        }
+      }
+    },
+    "This Viewer can now watch the stream and receive alerts." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deze kijker kan nu meekijken en meldingen ontvangen."
+          }
+        }
+      }
+    },
+    "Try again" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probeer opnieuw"
+          }
+        }
+      }
+    },
+    "Turn alerts on in Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zet meldingen aan in Instellingen"
+          }
+        }
+      }
+    },
+    "Unmute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dempen op"
+          }
+        }
+      }
+    },
+    "USE THIS DEVICE AS" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GEBRUIK DIT APPARAAT ALS"
+          }
+        }
+      }
+    },
+    "Use this device as a Camera instead" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik dit apparaat juist als camera"
+          }
+        }
+      }
+    },
+    "Use this device as a Viewer instead" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gebruik dit apparaat juist als kijker"
+          }
+        }
+      }
+    },
+    "Verified end-to-end" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End-to-end geverifieerd"
+          }
+        }
+      }
+    },
+    "Verifying the connection is private…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controleren of de verbinding privé is…"
           }
         }
       }
     },
-    "Viewer limit reached": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maximum aantal kijkers bereikt"
+    "Verifying…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verifiëren…"
           }
         }
       }
     },
-    "Viewer paired": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kijker gekoppeld"
+    "Video is paused to save data and battery." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video is gepauzeerd om data en batterij te sparen."
           }
         }
       }
     },
-    "Viewers": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kijkers"
+    "Video, audio and alerts are encrypted on this device and can only be opened by the Viewers you paired in person." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video, geluid en meldingen worden op dit apparaat versleuteld en kunnen alleen geopend worden door kijkers die je persoonlijk hebt gekoppeld."
           }
         }
       }
     },
-    "Waiting for a viewer": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wacht op een kijker"
+    "Viewer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kijker"
           }
         }
       }
     },
-    "Waiting for the call to end": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wacht tot de oproep klaar is"
+    "Viewer limit reached" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum aantal kijkers bereikt"
           }
         }
       }
     },
-    "Watch %@": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bekijk %@"
+    "Viewer paired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kijker gekoppeld"
           }
         }
       }
     },
-    "Watch area": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bewakingsgebied"
+    "Viewers" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kijkers"
           }
         }
       }
     },
-    "Watching": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kijkt mee"
+    "Waiting for a viewer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wacht op een kijker"
           }
         }
       }
     },
-    "You can now watch this Camera and receive its alerts.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Je kunt nu meekijken met deze camera en meldingen ontvangen."
+    "Waiting for the call to end" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wacht tot de oproep klaar is"
           }
         }
       }
     },
-    "You can switch roles later in Settings.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Je kunt later van rol wisselen in Instellingen."
+    "Watch %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bekijk %@"
           }
         }
       }
     },
-    "^[%lld paired camera](inflect: true). Tap Watch to see the live view.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^[%lld gekoppelde camera](inflect: true). Tik op Bekijk voor het livebeeld."
+    "Watch area" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewakingsgebied"
           }
         }
       }
     },
-    "^[%lld paired viewer](inflect: true). Tap Start the camera to go live.": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "^[%lld gekoppelde kijker](inflect: true). Tik op Start de camera om live te gaan."
+    "Watching" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kijkt mee"
           }
         }
       }
     },
-    "above threshold": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "boven drempel"
+    "You can now watch this Camera and receive its alerts." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je kunt nu meekijken met deze camera en meldingen ontvangen."
           }
         }
       }
     },
-    "below threshold": {
-      "extractionState": "manual",
-      "localizations": {
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "onder drempel"
+    "You can switch roles later in Settings." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Je kunt later van rol wisselen in Instellingen."
           }
         }
       }
     }
-  }
+  },
+  "version" : "1.1"
 }

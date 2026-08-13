@@ -402,3 +402,61 @@ final class SignalingTests: XCTestCase {
         )
     }
 }
+
+/// The upgrade MAC is a pure function of the second, because every other input is
+/// constant for a given device. Two attempts in one second are therefore
+/// byte-identical and the second is refused as a replay — for two minutes, which
+/// is how a reconnect ladder gets stuck.
+final class RequestTimestampSequencerTests: XCTestCase {
+
+    private let base = Date(timeIntervalSince1970: 1_754_850_000)
+
+    func testPassesTheClockThroughWhenItIsMovingOn() {
+        var sequencer = RequestTimestampSequencer()
+        XCTAssertEqual(sequencer.next(after: base), base)
+        XCTAssertEqual(sequencer.next(after: base + 1), base + 1)
+        XCTAssertEqual(sequencer.next(after: base + 30), base + 30)
+    }
+
+    /// The case that breaks reconnects: two attempts inside one second.
+    func testNeverReturnsTheSameSecondTwice() {
+        var sequencer = RequestTimestampSequencer()
+        XCTAssertEqual(sequencer.next(after: base), base)
+        XCTAssertEqual(sequencer.next(after: base), base + 1)
+        XCTAssertEqual(sequencer.next(after: base), base + 2)
+    }
+
+    /// Sub-second instants collapse to the same whole second, so they collide too.
+    func testTreatsSubSecondInstantsAsTheSameSecond() {
+        var sequencer = RequestTimestampSequencer()
+        XCTAssertEqual(sequencer.next(after: base + 0.1), base)
+        XCTAssertEqual(sequencer.next(after: base + 0.9), base + 1)
+    }
+
+    /// A clock that steps backwards — NTP correcting, or a device waking — must
+    /// not hand back a second already spent.
+    func testDoesNotReuseASecondWhenTheClockGoesBackwards() {
+        var sequencer = RequestTimestampSequencer()
+        XCTAssertEqual(sequencer.next(after: base + 10), base + 10)
+        XCTAssertEqual(sequencer.next(after: base), base + 11)
+    }
+
+    /// Once the real clock catches up, the sequencer stops running ahead.
+    func testStopsDriftingOnceTheClockOvertakesIt() {
+        var sequencer = RequestTimestampSequencer()
+        for _ in 0..<5 { _ = sequencer.next(after: base) }
+        XCTAssertEqual(sequencer.drift(from: base), 4)
+
+        XCTAssertEqual(sequencer.next(after: base + 60), base + 60)
+        XCTAssertEqual(sequencer.drift(from: base + 60), 0)
+    }
+
+    /// Drift stays far inside the server's 60 s window even under the fastest
+    /// backoff the reconnect ladder ever uses.
+    func testDriftStaysWithinTheServersSkewWindow() {
+        var sequencer = RequestTimestampSequencer()
+        // Ten immediate retries is well beyond what `ReconnectPolicy` produces.
+        for _ in 0..<10 { _ = sequencer.next(after: base) }
+        XCTAssertLessThan(sequencer.drift(from: base), 60)
+    }
+}

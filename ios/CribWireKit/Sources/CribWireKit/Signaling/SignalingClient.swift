@@ -114,6 +114,10 @@ public actor SignalingClient {
     private var socket: (any SignalingSocket)?
     private var receiveTask: Task<Void, Never>?
     private var outboundSeq = 0
+    /// Keeps every upgrade this client signs on a distinct second. Without it a
+    /// reconnect landing in the same second as the attempt before it is refused
+    /// as a replay — see `RequestTimestampSequencer`.
+    private var timestamps = RequestTimestampSequencer()
     private var inbound = SequenceLedger()
 
     private let stream: AsyncStream<Event>
@@ -189,7 +193,7 @@ public actor SignalingClient {
             method: "GET",
             path: configuration.path,
             body: Data(),
-            date: now()
+            date: timestamps.next(after: now())
         )
 
         let socket = try factory.connect(

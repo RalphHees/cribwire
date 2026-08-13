@@ -262,3 +262,25 @@ struct KCInlineError: View {
         )
     }
 }
+
+// MARK: - Masking
+
+extension View {
+    /// Punches `mask` out of the receiver — the inverse of `.mask`.
+    ///
+    /// Used to dim everything *outside* the movement watch area, which is the
+    /// clearest way to show what is not being watched.
+    func reverseMask<Mask: View>(
+        alignment: Alignment = .topLeading,
+        @ViewBuilder _ mask: () -> Mask
+    ) -> some View {
+        self.mask(
+            ZStack(alignment: alignment) {
+                Rectangle()
+                mask()
+                    .blendMode(.destinationOut)
+            }
+            .compositingGroup()
+        )
+    }
+}

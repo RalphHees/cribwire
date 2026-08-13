@@ -30,8 +30,46 @@ final class AudioLevelMonitor {
         self.onLevel = onLevel
     }
 
+    /// Asks for the microphone, if it has not been asked before.
+    ///
+    /// `AVAudioEngine` does not prompt — it simply produces silence when the
+    /// permission is missing, which is indistinguishable from a quiet room. The
+    /// caller must ask first or the meter lies.
+    static func requestMicrophoneAccess() async {
+        if #available(iOS 17.0, *) {
+            guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
+            _ = await AVAudioApplication.requestRecordPermission()
+        } else {
+            guard AVAudioSession.sharedInstance().recordPermission == .undetermined else {
+                return
+            }
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                AVAudioSession.sharedInstance().requestRecordPermission { _ in
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    /// Whether the microphone has actually been granted.
+    static var isMicrophoneGranted: Bool {
+        if #available(iOS 17.0, *) {
+            return AVAudioApplication.shared.recordPermission == .granted
+        }
+        return AVAudioSession.sharedInstance().recordPermission == .granted
+    }
+
     func start() throws {
         guard !isRunning else { return }
+        // A denied microphone yields silence rather than an error, so it has to
+        // be checked rather than discovered.
+        guard Self.isMicrophoneGranted else { throw MonitorError.noInputAvailable }
+
+        // The meter is used on a screen that is not streaming, so nothing else
+        // has configured the session for recording.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playAndRecord, options: [.defaultToSpeaker, .mixWithOthers])
+        try? session.setActive(true)
 
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)

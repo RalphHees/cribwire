@@ -104,7 +104,14 @@ movement.
 - **Encryption**: DTLS-SRTP for transport, plus pairing-key authentication of the
   DTLS fingerprints exchanged over the encrypted signaling channel — the backend can
   never man-in-the-middle the stream. Details in `security.md` §4.
-- **Reconnect**: exponential backoff (1 s → 30 s cap) on network changes
+- **Reconnect**: exponential backoff (1 s → 30 s cap) on network changes.
+- **Recovery budget**: a Viewer returning to a paired Camera sees video within
+  **10 s** (`StreamingEngine.recoveryBudget`). Two things exist to hold that: the
+  Camera warms its capture pipeline when a Viewer *appears*, not after the
+  handshake verifies, so restarting `AVCaptureSession` runs in parallel with
+  negotiation rather than in series after it; and a Viewer that has signalling but
+  no offer re-announces itself at half the budget, restarting the backoff ladder
+  rather than waiting out a delay that has already grown past it.
   (`NWPathMonitor`), with ICE restart rather than full re-signaling where possible.
 - Target glass-to-glass latency: < 500 ms on LAN, < 1.5 s over the internet.
 

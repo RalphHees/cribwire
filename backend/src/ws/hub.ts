@@ -254,8 +254,21 @@ export class SignalingHub implements SignalingControl {
     });
   }
 
+  /**
+   * A pong counts as activity, not merely as proof of life.
+   *
+   * CribWire's steady state is a socket held open for hours with nothing to say:
+   * media is peer-to-peer, so signalling goes quiet as soon as a stream is up.
+   * Treating "sent no messages" as idle reaped exactly the healthy connections
+   * this product depends on, every five minutes, and each reap cost a Camera its
+   * presence — so a Viewer returning found nobody there.
+   *
+   * The idle sweep still reaps a peer that has stopped answering; that is what
+   * `awaitingPong` is for, and it acts a full heartbeat sooner.
+   */
   handlePong(connection: Connection): void {
     connection.awaitingPong = false;
+    connection.lastActivityMs = this.#deps.now().getTime();
   }
 
   /** Removes a closed socket and tells the pairing it went away. */

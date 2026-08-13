@@ -480,6 +480,28 @@ describe('lifecycle', () => {
     expect(closed.reason).toBe('idle_timeout');
   });
 
+  /**
+   * The steady state of this product: two peers with a live stream and nothing
+   * to say. Media is peer-to-peer, so signalling goes quiet the moment the call
+   * is up, and a connection answering every heartbeat is not idle in any sense
+   * that should get it reaped — but for five minutes of quiet it was.
+   */
+  it('keeps a heartbeat-answering connection that sends nothing', async () => {
+    const client = await connectCamera();
+    await client.next();
+
+    // Six minutes of a healthy, responsive, silent connection. `ws` answers the
+    // server's pings at the protocol level, exactly as a real client does.
+    for (let elapsed = 0; elapsed < 360; elapsed += 30) {
+      tick(30);
+      harness.signaling.hub.sweep();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+
+    expect(client.closeEvent).toBeNull();
+    expect(client.pings).toBeGreaterThan(0);
+  });
+
   it('drops live sockets when the pairing is revoked', async () => {
     const cameraClient = await connectCamera();
     await cameraClient.next();

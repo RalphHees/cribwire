@@ -55,11 +55,11 @@ run?"**, because that decides whether this is an emergency or a degradation:
 
 | Metric | Healthy | Investigate |
 |---|---|---|
-| `ws_connections_open` | Tracks paired-camera count, diurnal | Cliff = mass disconnect; flat zero = upgrades rejected |
+| `ws_connections_open` | Tracks paired-camera count, diurnal | Cliff = mass disconnect; flat zero = upgrades rejected; a **5-minute sawtooth** means the idle sweep is reaping healthy sockets (see `handlePong`) |
 | `ws_upgrade_rejected_total{reason}` | Near zero | `rate_limited` spikes = an IP loop; `auth` spikes = clock skew or a bad deploy |
 | `ws_messages_total{outcome}` | `routed` dominant | `seq_regression` / `malformed` = client bug or tampering |
 | `apns_send_total{status}` | `sent` dominant | `unregistered` is normal churn; `failed` spikes = cert/key problem |
-| `auth_rejected_total{code}` | Low, flat | `timestamp_outside_window` = **clock skew**, see §4.3 |
+| `auth_rejected_total{code}` | Low, flat | `timestamp_outside_window` = **clock skew**, see §4.3; `replayed_request` = a client reusing a signing second, see §4.7 |
 | `rate_limit_hit_total{bucket}` | Low | Sustained = an abusive client or a limit set too tight |
 
 ---
@@ -142,6 +142,19 @@ man-in-the-middle, or a client/protocol defect. There is no server-side fix and 
 setting to relax. Escalate to engineering with the app version and rough time;
 the server logs will show the pairing id and nothing else, which is the intended
 amount.
+
+### 4.7 `auth_rejected_total{code="replayed_request"}` climbing
+
+A client signing two requests in the same wall-clock second. The `CribWire-HMAC`
+MAC covers method, path, timestamp, principal and body hash — and for the
+signalling upgrade every one of those is constant except the timestamp, which has
+one-second granularity. Two upgrades in one second are byte-identical, so the
+second is refused, and the replay entry lives for twice the auth window (120 s).
+
+The app avoids this with `RequestTimestampSequencer`, which never offers the same
+second twice. A spike therefore means either an old client build or something
+retrying far harder than the backoff ladder should allow. It is **not** an attack
+signature on its own.
 
 ---
 

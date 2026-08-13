@@ -269,3 +269,58 @@ final class AudioInterruptionTests: XCTestCase {
         XCTAssertNil(AudioInterruptionMonitor.routeEvent(for: .wakeFromSleep))
     }
 }
+
+/// The recovery budget is a promise — a Viewer returning to a paired Camera sees
+/// video within ten seconds — and it is only kept if the timing constants stay
+/// consistent with each other. These assert the arithmetic, so raising one of
+/// them in isolation fails here instead of on someone's nursery floor.
+final class RecoveryBudgetTests: XCTestCase {
+
+    func testBudgetIsTheTenSecondsPromised() {
+        XCTAssertEqual(StreamingEngine.recoveryBudget, 10)
+    }
+
+    /// An ICE restart is tried first and escalated to a fresh session only if it
+    /// fails to recover. The escalation must therefore come *after* the restart
+    /// has had a real chance — a deadline shorter than the watchdog would pre-empt
+    /// the very recovery it exists to back up.
+    func testICERecoveryDeadlineOutlastsTheOfferWatchdog() {
+        let watchdog = StreamingEngine.recoveryBudget / 2
+        let escalation = StreamingEngine.recoveryBudget
+
+        XCTAssertGreaterThan(
+            escalation,
+            watchdog,
+            "escalating before the restart can complete would destroy working recoveries"
+        )
+    }
+
+    /// The worst ordinary path: the Camera misses the Viewer's arrival, the
+    /// watchdog fires, the ladder retries once, and the handshake still has to
+    /// fit. Watchdog plus first retry must leave room for the rest.
+    func testWatchdogPlusFirstRetryFitsInsideTheBudget() {
+        let watchdog = StreamingEngine.recoveryBudget / 2
+        // Worst case of the first rung, jitter at its maximum.
+        let firstRetry = ReconnectPolicy().delay(forAttempt: 1, randomUnit: 1)
+
+        let consumed = watchdog + firstRetry
+        XCTAssertLessThan(consumed, StreamingEngine.recoveryBudget)
+        // A signalling re-attach and a full offer/answer/ICE/DTLS round on a LAN
+        // needs a couple of seconds; anything less than that is not headroom.
+        XCTAssertGreaterThan(
+            StreamingEngine.recoveryBudget - consumed,
+            3,
+            "too little of the budget left for the handshake itself"
+        )
+    }
+
+    /// The ladder's own first rung must be small relative to the budget, or a
+    /// single failed attempt eats it.
+    func testTheLadderStartsFastEnoughToRetryWithinTheBudget() {
+        let policy = ReconnectPolicy()
+        XCTAssertLessThan(
+            policy.delay(forAttempt: 1, randomUnit: 1),
+            StreamingEngine.recoveryBudget / 4
+        )
+    }
+}

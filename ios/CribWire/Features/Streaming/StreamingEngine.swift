@@ -43,6 +43,13 @@ final class StreamingEngine: ObservableObject {
         }
     }
 
+    /// How long a Viewer returning to a paired Camera may wait for video.
+    ///
+    /// Every timing constant in this file is derived from it rather than picked
+    /// independently, so the budget cannot be blown by one of them drifting.
+    /// A returning parent staring at a spinner is the failure this bounds.
+    static let recoveryBudget: TimeInterval = 10
+
     /// How good the link looks, for the Viewer's indicator.
     enum LinkQuality: Equatable {
         case unknown
@@ -59,8 +66,25 @@ final class StreamingEngine: ObservableObject {
     @Published private(set) var linkQuality: LinkQuality = .unknown
     /// The Viewer's inbound video track, once it arrives.
     @Published private(set) var remoteVideoTrack: RTCVideoTrack?
-    /// Number of viewers currently negotiated with. Camera-side.
+    /// Viewers with a **verified** connection. Drives the LIVE badge, so it must
+    /// never count a peer whose certificate has not been checked.
     @Published private(set) var connectedPeerCount = 0
+    /// Viewers the Camera is mid-negotiation with — offered to, but not yet
+    /// verified.
+    ///
+    /// Separate from `connectedPeerCount` on purpose. Without it the Camera
+    /// reported "Waiting for a viewer" throughout the entire handshake, which is
+    /// actively misleading: it is the difference between "nobody has arrived" and
+    /// "someone arrived and we cannot finish", and those have completely
+    /// different causes.
+    @Published private(set) var negotiatingPeerCount = 0
+    /// The most recent ICE state seen from any peer.
+    ///
+    /// Exposed because "connecting" covers three very different situations —
+    /// gathering, checking candidate pairs, and having exhausted them — and only
+    /// the last is a fault. Without it a stuck Camera and a slow one look
+    /// identical on screen.
+    @Published private(set) var linkState: PeerLinkState = .new
     /// What the engine is currently doing about a problem, for the status line.
     @Published private(set) var statusDetail: String?
     /// Viewer-side: audio muted locally. The Camera keeps sending, so unmuting
@@ -115,7 +139,9 @@ final class StreamingEngine: ObservableObject {
         // Disabled until the button is pressed. A reconnect rebuilds the session,
         // so this is re-asserted rather than assumed.
         track.isEnabled = isTalking
-        session.addTrack(track, streamID: WebRTCStack.streamID)
+        // Fitted to the offer's existing audio transceiver — never added as a new
+        // one. See `PeerSession.attachTalkback`.
+        session.attachTalkback(track)
     }
 
     // MARK: - Dependencies
@@ -162,6 +188,24 @@ final class StreamingEngine: ObservableObject {
     private var keys: PairingKeys?
     private var turn: API.TurnCredentialsResponse?
     private var isStopping = false
+    /// The in-flight `connect()`.
+    ///
+    /// Tracked rather than fire-and-forget because connecting is slow — a
+    /// Keychain read and a TURN fetch — and a Viewer can easily navigate away
+    /// before it finishes. An untracked one completes *after* `stop()`, assigns
+    /// `client`, and then races the next `connect()`: the server allows one socket
+    /// per device and closes the older on attach, so a late arrival gets the
+    /// *newer* socket closed and the Viewer waits for an offer that can never be
+    /// delivered.
+    private var connectTask: Task<Void, Never>?
+    /// Viewer-side watchdog for "signalling is up but no offer ever came".
+    private var offerWatchdog: Task<Void, Never>?
+    /// Per-peer deadlines for an ICE restart to actually recover.
+    private var iceRecoveryDeadlines: [SignalingRecipient: Task<Void, Never>] = [:]
+    /// Whether `start()` has run without a matching `stop()`. Separate from
+    /// `state`, which is a description for the UI and can legitimately be any
+    /// value while the engine is live.
+    private var isRunning = false
 
     init(record: PairingRecord, services: AppServices) {
         self.record = record
@@ -188,7 +232,8 @@ final class StreamingEngine: ObservableObject {
     // MARK: - Lifecycle
 
     func start() {
-        guard case .idle = state else { return }
+        guard !isRunning else { return }
+        isRunning = true
         isStopping = false
         state = .connecting
         WebRTCStack.configureAudioSession(mode: .active)
@@ -211,7 +256,12 @@ final class StreamingEngine: ObservableObject {
         // point of it running detection itself.
         applyDetectionSettings(services.detectionSettings)
 
-        Task { await self.connect() }
+        connectTask = Task { [weak self] in
+            guard let self else { return }
+            let connected = await self.connect()
+            guard !connected, !self.isStopping, !Task.isCancelled else { return }
+            self.scheduleReconnect(reason: String(localized: "Could not reach the camera."))
+        }
     }
 
     /// Starts or stops each detector to match the alerts screen, and tells the
@@ -235,6 +285,15 @@ final class StreamingEngine: ObservableObject {
         Task { await self.broadcastStatus() }
     }
 
+    /// Recomputes the peer counts from the session table.
+    ///
+    /// Called wherever `sessions` changes, so the two can never drift apart —
+    /// they did, and the Camera spent every handshake claiming nobody was there.
+    private func refreshPeerCounts() {
+        negotiatingPeerCount = sessions.count
+        connectedPeerCount = sessions.values.filter(\.isVerified).count
+    }
+
     /// Sends the last battery reading to every connected Viewer.
     private func broadcastStatus(to peer: SignalingRecipient? = nil) async {
         guard let client, let battery = lastBattery else { return }
@@ -248,7 +307,11 @@ final class StreamingEngine: ObservableObject {
     }
 
     func stop() {
+        guard isRunning else { return }
+        isRunning = false
         isStopping = true
+        connectTask?.cancel(); connectTask = nil
+        offerWatchdog?.cancel(); offerWatchdog = nil
         eventTask?.cancel(); eventTask = nil
         reconnectTask?.cancel(); reconnectTask = nil
         qualityTask?.cancel(); qualityTask = nil
@@ -266,7 +329,7 @@ final class StreamingEngine: ObservableObject {
             session.close()
         }
         sessions.removeAll()
-        connectedPeerCount = 0
+        refreshPeerCounts()
         remoteVideoTrack = nil
         isVerified = false
         peerBatteryLevel = nil
@@ -286,13 +349,25 @@ final class StreamingEngine: ObservableObject {
 
     // MARK: - Connection
 
-    private func connect() async {
+    /// Brings signalling up.
+    ///
+    /// - Returns: whether a live signalling client is attached. **Reported rather
+    ///   than acted on**: the retry loop is the only thing that decides to try
+    ///   again, and it needs a truthful answer. Reading success off `state` is
+    ///   what broke this before — `rebuild()` sets `.connecting` before dialling,
+    ///   so a failed attempt still *looked* like a connection in progress and the
+    ///   loop exited believing it had succeeded, leaving the engine with no
+    ///   client and no pending retry.
+    @discardableResult
+    private func connect() async -> Bool {
         guard let identity = try? await services.secrets.loadDeviceIdentity(for: record.id),
               let keys = try? await services.secrets.loadKeys(for: record.id)
         else {
             fail("This pairing is missing its keys on this device. Pair again.")
-            return
+            return false
         }
+        // Loading the keys awaited the Keychain; the screen may be gone by now.
+        guard !isStopping, !Task.isCancelled else { return false }
         self.identity = identity
         self.keys = keys
 
@@ -301,13 +376,16 @@ final class StreamingEngine: ObservableObject {
         // checks, role AAD, this whole engine — is identical; only the transport
         // differs, which is what `SignalingSocket` exists for.
         guard let apiBaseURL = record.apiBaseURL else {
-            await connectLocally(identity: identity, keys: keys)
-            return
+            return await connectLocally(identity: identity, keys: keys)
         }
 
         // TURN before signaling: a relay candidate that arrives after the offer
         // is already gathered is a candidate the peer never sees.
         self.turn = await fetchTURNCredentials()
+
+        // The TURN fetch is a network round trip, and the commonest moment to
+        // navigate away is while it is outstanding.
+        guard !isStopping, !Task.isCancelled else { return false }
 
         let client = SignalingClient(
             configuration: .init(
@@ -325,8 +403,17 @@ final class StreamingEngine: ObservableObject {
         do {
             try await client.connect()
         } catch {
-            scheduleReconnect(reason: "Could not reach the signaling server.")
-            return
+            self.client = nil
+            return false
+        }
+
+        // Connected, but possibly to a socket nobody wants any more. Hand it back
+        // rather than leaving it attached: the server would otherwise keep it as
+        // this device's live connection and close the next one.
+        guard !isStopping, !Task.isCancelled else {
+            self.client = nil
+            await client.disconnect()
+            return false
         }
 
         startEventLoop()
@@ -335,6 +422,7 @@ final class StreamingEngine: ObservableObject {
             await capture?.start(quality: quality)
             startQualityLoop()
         }
+        return true
     }
 
     /// Connects over the local network: the Camera advertises and waits, the
@@ -346,7 +434,7 @@ final class StreamingEngine: ObservableObject {
     private func connectLocally(
         identity: PairingSecretsStore.DeviceIdentity,
         keys: PairingKeys
-    ) async {
+    ) async -> Bool {
         switch role {
         case .camera:
             let host = LocalPairingHost(
@@ -366,6 +454,9 @@ final class StreamingEngine: ObservableObject {
             host.start()
             await capture?.start(quality: quality)
             startQualityLoop()
+            // The Camera is now advertising; a Viewer arriving is what completes
+            // it, and that is not something to fail on.
+            return true
 
         case .viewer:
             let guest = LocalPairingGuest()
@@ -377,17 +468,61 @@ final class StreamingEngine: ObservableObject {
                     deviceID: identity.deviceID,
                     deviceKey: identity.deviceKey
                 )
+                guard !isStopping, !Task.isCancelled else {
+                    await client.disconnect()
+                    return false
+                }
                 self.client = client
                 startEventLoop()
+                return true
             } catch {
-                scheduleReconnect(reason: String(localized: "Could not find the camera on this network."))
+                statusDetail = String(localized: "Could not find the camera on this network.")
+                return false
             }
+        }
+    }
+
+    /// Guards the one state the Viewer cannot escape on its own: **no offer ever
+    /// arrived**.
+    ///
+    /// The Camera is always the offerer, so a Viewer with a healthy socket and no
+    /// offer has nothing to do but wait — and if the Camera missed its
+    /// `peer-online` it would wait for ever. Re-attaching makes the Camera see a
+    /// fresh arrival and offer again.
+    ///
+    /// It fires **only** when no session exists. An offer that has arrived and is
+    /// mid-handshake must be left alone: DTLS retransmits on a schedule of its
+    /// own and can easily need longer than this deadline, and tearing the socket
+    /// down then does not rescue the connection — it destroys one that was about
+    /// to succeed, and the next attempt starts the same race again. That loop is
+    /// far worse than the stall this is meant to catch.
+    private func startOfferWatchdog() {
+        offerWatchdog?.cancel()
+        guard role == .viewer else { return }
+        // Half the budget: a re-attach plus a fresh offer has to fit in what is
+        // left. At the old twelve seconds the watchdog could not save a recovery
+        // it was supposed to be the backstop for.
+        let deadline = Self.recoveryBudget / 2
+        offerWatchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(deadline * 1_000_000_000))
+            guard let self, !Task.isCancelled, self.isRunning, !self.isStopping else { return }
+            guard !self.isVerified else { return }
+            // A session means an offer arrived and negotiation is under way.
+            // Waiting is the correct thing to do; interrupting is not.
+            guard self.sessions.isEmpty else { return }
+            // Forced: a ladder that has already backed off to tens of seconds
+            // would otherwise swallow this and blow the budget entirely.
+            self.scheduleReconnect(
+                reason: String(localized: "The camera did not answer."),
+                restartingLadder: true
+            )
         }
     }
 
     /// Drains the signalling client's events. Shared by both transports.
     private func startEventLoop() {
         eventTask?.cancel()
+        startOfferWatchdog()
         eventTask = Task { [weak self] in
             guard let events = await self?.client?.events else { return }
             for await event in events {
@@ -441,13 +576,28 @@ final class StreamingEngine: ObservableObject {
             // to do.
             return
         }
+        // Warm the capture pipeline *now*, not after the handshake verifies.
+        //
+        // With no Viewer the Camera stops capturing to save battery, and
+        // restarting an `AVCaptureSession` takes on the order of a second. Doing
+        // it after DTLS put that second on the critical path, in series with
+        // negotiation, for no reason: a track with no frames yet still negotiates
+        // normally, and the frames start flowing into the same source the moment
+        // capture is up.
+        warmCaptureForReturningViewer()
         await offer(to: peer)
+    }
+
+    /// Starts capture without blocking negotiation on it.
+    private func warmCaptureForReturningViewer() {
+        guard role == .camera, let capture, !capture.isCapturing else { return }
+        Task { await capture.start(quality: quality) }
     }
 
     private func handlePeerOffline(_ presence: SignalingPresence) {
         guard let peer = address(of: presence) else { return }
         sessions.removeValue(forKey: peer)?.close()
-        connectedPeerCount = sessions.count
+        refreshPeerCounts()
         if role == .viewer {
             remoteVideoTrack = nil
             isVerified = false
@@ -477,6 +627,18 @@ final class StreamingEngine: ObservableObject {
     private func offer(to peer: SignalingRecipient, iceRestart: Bool = false) async {
         guard let client else { return }
 
+        // A genuine reconnect arrives as peer-offline *then* peer-online, and the
+        // offline half already removed the session — so an existing session here
+        // means a duplicate presence event, not a new Viewer. Re-offering would
+        // discard a peer connection that is mid-DTLS, together with its ICE
+        // credentials and certificate, leaving the Viewer handshaking against
+        // something that no longer exists.
+        if !iceRestart,
+           let existing = sessions[peer],
+           existing.linkState.isNegotiatingOrUp {
+            return
+        }
+
         let session: PeerSession
         if iceRestart, let existing = sessions[peer] {
             session = existing
@@ -494,6 +656,8 @@ final class StreamingEngine: ObservableObject {
             }
             sessions[peer] = fresh
             session = fresh
+            // The moment a session exists the Camera is negotiating, not waiting.
+            refreshPeerCounts()
         }
 
         do {
@@ -547,7 +711,7 @@ final class StreamingEngine: ObservableObject {
 
         case .bye:
             sessions.removeValue(forKey: sender)?.close()
-            connectedPeerCount = sessions.count
+            refreshPeerCounts()
             if role == .viewer {
                 remoteVideoTrack = nil
                 isVerified = false
@@ -665,25 +829,39 @@ final class StreamingEngine: ObservableObject {
     }
 
     private func handleLink(_ link: PeerLinkState, from peer: SignalingRecipient) async {
+        linkState = link
+        sessions[peer]?.linkState = link
         switch link {
         case .connected:
+            iceRecoveryDeadlines.removeValue(forKey: peer)?.cancel()
             await confirmSecurity(of: peer)
 
         case .failed:
             // ICE gave up entirely: rebuild rather than restart.
+            iceRecoveryDeadlines.removeValue(forKey: peer)?.cancel()
             sessions.removeValue(forKey: peer)?.close()
-            connectedPeerCount = sessions.count
+            refreshPeerCounts()
             scheduleReconnect(reason: "The video connection failed.")
 
         case .disconnected:
-            // Usually transient. An ICE restart is the cheap fix and keeps the
-            // verified DTLS session.
+            // Usually transient, and an ICE restart is the cheap fix — *provided*
+            // the DTLS transport underneath is still alive. It is not always: a
+            // peer that tore its own peer connection down closes DTLS, and this
+            // side sees only "disconnected". Re-offering on that connection can
+            // never succeed, because DTLS will not hand shake a second time; the
+            // session sits in have-local-offer for ever while the peer sends
+            // ClientHellos nobody will answer.
+            //
+            // So the restart is attempted, but on a deadline. Nothing is torn
+            // down while there is still a chance of recovery.
             if case .connected = state { state = .reconnecting }
             restartICE()
+            startICERecoveryDeadline(for: peer)
 
         case .closed:
+            iceRecoveryDeadlines.removeValue(forKey: peer)?.cancel()
             sessions.removeValue(forKey: peer)
-            connectedPeerCount = sessions.count
+            refreshPeerCounts()
 
         case .new, .checking:
             break
@@ -701,9 +879,10 @@ final class StreamingEngine: ObservableObject {
         }
 
         isVerified = true
+        offerWatchdog?.cancel(); offerWatchdog = nil
         statusDetail = nil
         state = .connected
-        connectedPeerCount = sessions.count
+        refreshPeerCounts()
         attachRemoteTrack(from: peer)
         // A reconnect builds a fresh track, so mute has to be re-applied or it
         // silently lapses.
@@ -837,6 +1016,45 @@ final class StreamingEngine: ObservableObject {
 
     /// Asks every session to re-gather. Cheaper than a rebuild, and it preserves
     /// the DTLS session whose certificate this pairing already verified.
+    /// Escalates a stalled ICE restart into a completely fresh session.
+    ///
+    /// An ICE restart reuses the peer connection, and therefore its certificate
+    /// and its DTLS transport. That is the whole point when the transport is
+    /// healthy — and exactly why it cannot rescue one the peer has closed. Only a
+    /// new peer connection gets a new DTLS handshake.
+    ///
+    /// The deadline is the full recovery budget rather than half of it: this runs
+    /// *after* a restart has already been attempted, so it is the last resort,
+    /// not the first response.
+    private func startICERecoveryDeadline(for peer: SignalingRecipient) {
+        iceRecoveryDeadlines[peer]?.cancel()
+        iceRecoveryDeadlines[peer] = Task { [weak self] in
+            try? await Task.sleep(
+                nanoseconds: UInt64(Self.recoveryBudget * 1_000_000_000)
+            )
+            guard let self, !Task.isCancelled, self.isRunning, !self.isStopping else { return }
+            self.iceRecoveryDeadlines.removeValue(forKey: peer)
+            // Recovered on its own, or already replaced: nothing owed.
+            guard let session = self.sessions[peer], !session.linkState.isUsable else {
+                return
+            }
+            self.sessions.removeValue(forKey: peer)?.close()
+            self.refreshPeerCounts()
+            if self.role == .camera {
+                // A fresh peer connection, and with it a DTLS handshake that can
+                // actually complete.
+                Task { await self.offer(to: peer) }
+            } else {
+                self.remoteVideoTrack = nil
+                self.isVerified = false
+                self.scheduleReconnect(
+                    reason: String(localized: "The video connection stalled."),
+                    restartingLadder: true
+                )
+            }
+        }
+    }
+
     private func restartICE() {
         guard role == .camera, !isStopping else { return }
         Task {
@@ -846,8 +1064,16 @@ final class StreamingEngine: ObservableObject {
         }
     }
 
-    private func scheduleReconnect(reason: String) {
+    /// - Parameter restartingLadder: drop any in-flight backoff and retry from
+    ///   the top. Used when something has *changed* — a Viewer is now waiting —
+    ///   so continuing to wait out a long delay would be answering the wrong
+    ///   question.
+    private func scheduleReconnect(reason: String, restartingLadder: Bool = false) {
         guard !isStopping, !state.isSecurityFailure else { return }
+        if restartingLadder {
+            reconnectTask?.cancel()
+            reconnectTask = nil
+        }
         guard reconnectTask == nil else { return }
         statusDetail = reason
         state = .reconnecting
@@ -865,8 +1091,10 @@ final class StreamingEngine: ObservableObject {
                 guard let self, !Task.isCancelled, !self.isStopping else { return }
                 guard !self.state.isSecurityFailure else { return }
 
-                await self.rebuild()
-                if case .connecting = self.state {
+                // Only a genuine reconnection ends the ladder. Anything else and
+                // the loop keeps backing off, which is the difference between a
+                // Viewer that recovers and one that says "Connecting" for ever.
+                if await self.rebuild() {
                     self.reconnectTask = nil
                     return
                 }
@@ -874,11 +1102,13 @@ final class StreamingEngine: ObservableObject {
         }
     }
 
-    private func rebuild() async {
+    @discardableResult
+    private func rebuild() async -> Bool {
+        guard isRunning, !isStopping else { return false }
         eventTask?.cancel(); eventTask = nil
         for session in sessions.values { session.close() }
         sessions.removeAll()
-        connectedPeerCount = 0
+        refreshPeerCounts()
         remoteVideoTrack = nil
         isVerified = false
 
@@ -887,7 +1117,7 @@ final class StreamingEngine: ObservableObject {
         await previous?.disconnect()
 
         state = .connecting
-        await connect()
+        return await connect()
     }
 
     private func fail(_ reason: String) {
@@ -900,7 +1130,7 @@ final class StreamingEngine: ObservableObject {
         remoteVideoTrack = nil
         for session in sessions.values { session.close() }
         sessions.removeAll()
-        connectedPeerCount = 0
+        refreshPeerCounts()
         state = .failed(
             reason: "CribWire could not verify it is talking to your paired device. "
                 + "Someone may be interfering with the connection. Pair again.",

@@ -114,6 +114,13 @@ struct CameraStatusView: View {
                     track: engine.capture?.localVideoTrack,
                     contentMode: .scaleAspectFill
                 )
+                // Show what the movement detector is actually watching. A region
+                // set on the alerts screen is invisible here otherwise, and a
+                // camera that has been nudged since is watching the wrong corner
+                // with nothing to say about it.
+                if movementRegion != nil {
+                    WatchAreaOverlay(region: movementRegion ?? .full)
+                }
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "video.slash.fill")
@@ -146,11 +153,17 @@ struct CameraStatusView: View {
                 )
                 row(
                     label: "Viewers",
-                    value: engine.connectedPeerCount == 0
-                        ? String(localized: "None watching")
-                        : String(localized: "\(engine.connectedPeerCount) watching")
+                    value: viewersSummary,
+                    tint: engine.negotiatingPeerCount > engine.connectedPeerCount
+                        ? Theme.Palette.warning
+                        : nil
                 )
                 row(label: "Quality", value: engine.quality.description)
+                if engine.negotiatingPeerCount > 0, !engine.isVerified {
+                    // Only while a handshake is in flight: once video is running
+                    // this is noise, but until then it is the whole diagnosis.
+                    row(label: "Connection", value: linkStateText, tint: linkStateTint)
+                }
                 row(label: "Alerts", value: alertsSummary, tint: alertsTint)
                 if engine.connectedPeerCount > 0 {
                     row(
@@ -182,13 +195,60 @@ struct CameraStatusView: View {
         switch engine.state {
         case .idle: return String(localized: "Stopped")
         case .connecting:
-            return engine.connectedPeerCount > 0
-                ? String(localized: "Connecting")
+            // A Viewer that has arrived but not finished is the interesting case,
+            // and it used to be indistinguishable from an empty room.
+            return engine.negotiatingPeerCount > 0
+                ? String(localized: "Connecting to a viewer…")
                 : String(localized: "Waiting for a viewer")
         case .connected: return String(localized: "Streaming")
         case .reconnecting: return String(localized: "Reconnecting")
         case .failed(let reason, _): return reason
         }
+    }
+
+    /// The movement watch area, when movement detection is on and it is not the
+    /// whole frame (in which case there is nothing to point out).
+    private var movementRegion: DetectionRegion? {
+        let movement = services.detectionSettings.movement
+        guard movement.isEnabled, !movement.regionOfInterest.isFullFrame else { return nil }
+        return movement.regionOfInterest
+    }
+
+    /// Where the handshake has got to.
+    private var linkStateText: String {
+        switch engine.linkState {
+        case .new: return String(localized: "Finding a route…")
+        case .checking: return String(localized: "Testing the route…")
+        case .connected: return String(localized: "Route found")
+        case .disconnected: return String(localized: "Route lost")
+        case .failed: return String(localized: "No route to the viewer")
+        case .closed: return String(localized: "Closed")
+        }
+    }
+
+    private var linkStateTint: Color? {
+        switch engine.linkState {
+        case .failed, .disconnected: return Theme.Palette.danger
+        case .connected: return Theme.Palette.live
+        default: return Theme.Palette.warning
+        }
+    }
+
+    /// Viewers, distinguishing watching from still-connecting.
+    ///
+    /// A Camera stuck with one connecting viewer and none watching is the
+    /// signature of a handshake that cannot complete — usually a network that
+    /// will not let the two devices reach each other — and it should look
+    /// different from an idle Camera.
+    private var viewersSummary: String {
+        let connecting = engine.negotiatingPeerCount - engine.connectedPeerCount
+        if engine.connectedPeerCount > 0 {
+            return String(localized: "\(engine.connectedPeerCount) watching")
+        }
+        if connecting > 0 {
+            return String(localized: "\(connecting) connecting…")
+        }
+        return String(localized: "None watching")
     }
 
     /// What the two detectors are doing, in one line.
