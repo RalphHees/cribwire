@@ -83,7 +83,7 @@ struct CameraHomeView: View {
             Text(
                 services.pairings.isEmpty
                     ? "Pair a Viewer to start monitoring."
-                    : "\(services.pairings.count) paired viewer\(services.pairings.count == 1 ? "" : "s"). Live streaming arrives in the next release."
+                    : "^[\(services.pairings.count) paired viewer](inflect: true). Tap Start the camera to go live."
             )
             .font(Theme.Typography.body)
             .foregroundStyle(Theme.Palette.textMuted)
@@ -285,7 +285,7 @@ struct ViewerHomeView: View {
             Text(
                 services.pairings.isEmpty
                     ? "Scan the code shown on the Camera device to pair."
-                    : "\(services.pairings.count) paired camera\(services.pairings.count == 1 ? "" : "s"). Live viewing arrives in the next release."
+                    : "^[\(services.pairings.count) paired camera](inflect: true). Tap Watch to see the live view."
             )
             .font(Theme.Typography.body)
             .foregroundStyle(Theme.Palette.textMuted)

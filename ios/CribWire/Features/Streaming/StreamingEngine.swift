@@ -66,6 +66,15 @@ final class StreamingEngine: ObservableObject {
     /// Viewer-side: audio muted locally. The Camera keeps sending, so unmuting
     /// is instant.
     @Published private(set) var isMuted = false
+    /// Viewer-side: push-to-talk is live. Never latches — releasing the button is
+    /// what stops it, because a nursery microphone left open by accident is the
+    /// one failure this feature must not have.
+    @Published private(set) var isTalking = false
+    /// Viewer-side: the Camera's last reported battery, `0...1`, or `nil` until it
+    /// says. Arrives sealed over signaling — the server never sees it.
+    @Published private(set) var peerBatteryLevel: Double?
+    /// Viewer-side: whether the Camera is charging.
+    @Published private(set) var isPeerCharging = false
 
     // MARK: - Controls
 
@@ -86,6 +95,29 @@ final class StreamingEngine: ObservableObject {
         Task { await capture?.flip() }
     }
 
+    /// Viewer-side push-to-talk. `true` while the button is held.
+    func setTalking(_ talking: Bool) {
+        guard role == .viewer else { return }
+        isTalking = talking
+        talkbackTrack?.isEnabled = talking
+    }
+
+    /// Builds the talk-back track on first use and hands it to `session`.
+    private func attachTalkbackTrack(to session: PeerSession) {
+        let track: RTCAudioTrack
+        if let existing = talkbackTrack {
+            track = existing
+        } else {
+            let source = WebRTCStack.factory.audioSource(with: WebRTCStack.defaultConstraints())
+            track = WebRTCStack.factory.audioTrack(with: source, trackId: "cribwire-talkback")
+            talkbackTrack = track
+        }
+        // Disabled until the button is pressed. A reconnect rebuilds the session,
+        // so this is re-asserted rather than assumed.
+        track.isEnabled = isTalking
+        session.addTrack(track, streamID: WebRTCStack.streamID)
+    }
+
     // MARK: - Dependencies
 
     private let record: PairingRecord
@@ -103,6 +135,22 @@ final class StreamingEngine: ObservableObject {
     private var reconnectTask: Task<Void, Never>?
     private var qualityTask: Task<Void, Never>?
     private var pathMonitor: NetworkPathMonitor?
+    private var audioMonitor: AudioInterruptionMonitor?
+    /// Local-network transport, one side or the other. Nil on the server path.
+    private var localHost: LocalPairingHost?
+    private var localGuest: LocalPairingGuest?
+    /// Set while a call or Siri holds the audio session, so the recovery path
+    /// knows it is resuming rather than starting.
+    private var isAudioInterrupted = false
+    /// Viewer-side push-to-talk track. Built once and kept **disabled**: the
+    /// track stays in the SDP so pressing the button is instant and needs no
+    /// renegotiation, but it produces nothing until it is explicitly enabled.
+    private var talkbackTrack: RTCAudioTrack?
+
+    /// Camera-side: the last battery reading, resent to every viewer that joins.
+    /// Without it a Viewer shows "unknown" until the level next changes, which on
+    /// a charging Camera can be hours.
+    private var lastBattery: (level: Double, isCharging: Bool)?
 
     /// One session per peer. The Camera can hold several — a pairing accepts up
     /// to five Viewers — so this is keyed by address rather than being a single
@@ -153,6 +201,11 @@ final class StreamingEngine: ObservableObject {
         }
         pathMonitor?.start()
 
+        audioMonitor = AudioInterruptionMonitor { [weak self] event in
+            self?.handle(audio: event)
+        }
+        audioMonitor?.start()
+
         // Detection is independent of whether anyone is watching: the Camera
         // alerts on a quiet nursery with no Viewer connected, which is the whole
         // point of it running detection itself.
@@ -169,9 +222,29 @@ final class StreamingEngine: ObservableObject {
         Task { await self.updateCaptureForViewerCount() }
     }
 
-    /// Battery readings from the Camera screen, for the low-battery event.
+    /// Battery readings from the Camera screen.
+    ///
+    /// Two consumers, deliberately separate: the detector decides whether this is
+    /// worth a push (`LowBatteryMonitor`, once per discharge), while every reading
+    /// is mirrored to connected Viewers so their gauge is live.
     func ingest(batteryLevel: Double, isCharging: Bool) {
         detection?.ingest(batteryLevel: batteryLevel, isCharging: isCharging)
+
+        guard role == .camera else { return }
+        lastBattery = (batteryLevel, isCharging)
+        Task { await self.broadcastStatus() }
+    }
+
+    /// Sends the last battery reading to every connected Viewer.
+    private func broadcastStatus(to peer: SignalingRecipient? = nil) async {
+        guard let client, let battery = lastBattery else { return }
+        let payload = SignalingPayload.status(
+            batteryLevel: battery.level,
+            isCharging: battery.isCharging
+        )
+        for target in peer.map({ [$0] }) ?? Array(sessions.keys) {
+            _ = try? await client.send(payload, to: target)
+        }
     }
 
     func stop() {
@@ -180,6 +253,10 @@ final class StreamingEngine: ObservableObject {
         reconnectTask?.cancel(); reconnectTask = nil
         qualityTask?.cancel(); qualityTask = nil
         pathMonitor?.stop(); pathMonitor = nil
+        audioMonitor?.stop(); audioMonitor = nil
+        localHost?.stop(); localHost = nil
+        localGuest?.stop(); localGuest = nil
+        isAudioInterrupted = false
         detection?.stop()
 
         // Captured before teardown: the peers are told before the socket goes,
@@ -192,6 +269,9 @@ final class StreamingEngine: ObservableObject {
         connectedPeerCount = 0
         remoteVideoTrack = nil
         isVerified = false
+        peerBatteryLevel = nil
+        isTalking = false
+        talkbackTrack?.isEnabled = false
 
         let client = self.client
         self.client = nil
@@ -216,13 +296,22 @@ final class StreamingEngine: ObservableObject {
         self.identity = identity
         self.keys = keys
 
+        // A local-network pairing reaches its peer over Bonjour instead of the
+        // server's WebSocket. Everything above the socket — sealing, sequence
+        // checks, role AAD, this whole engine — is identical; only the transport
+        // differs, which is what `SignalingSocket` exists for.
+        guard let apiBaseURL = record.apiBaseURL else {
+            await connectLocally(identity: identity, keys: keys)
+            return
+        }
+
         // TURN before signaling: a relay candidate that arrives after the offer
         // is already gathered is a candidate the peer never sees.
         self.turn = await fetchTURNCredentials()
 
         let client = SignalingClient(
             configuration: .init(
-                baseURL: record.apiBaseURL,
+                baseURL: apiBaseURL,
                 pairingID: record.id,
                 role: role,
                 deviceID: identity.deviceID
@@ -240,17 +329,71 @@ final class StreamingEngine: ObservableObject {
             return
         }
 
+        startEventLoop()
+
+        if role == .camera {
+            await capture?.start(quality: quality)
+            startQualityLoop()
+        }
+    }
+
+    /// Connects over the local network: the Camera advertises and waits, the
+    /// Viewer browses and dials.
+    ///
+    /// No TURN and no STUN are fetched. Both exist to traverse the internet, and
+    /// there is no internet on this path — the peers are on one link, so the host
+    /// candidates ICE gathers locally are all it needs.
+    private func connectLocally(
+        identity: PairingSecretsStore.DeviceIdentity,
+        keys: PairingKeys
+    ) async {
+        switch role {
+        case .camera:
+            let host = LocalPairingHost(
+                pairingID: record.id,
+                keys: keys,
+                deviceID: identity.deviceID,
+                deviceKey: identity.deviceKey
+            ) { [weak self] claim in
+                guard let self else { return }
+                self.client = claim.client
+                self.startEventLoop()
+                // A Viewer that connects locally has, by connecting, announced
+                // itself — there is no presence event to wait for.
+                Task { await self.offer(to: .viewer(deviceID: claim.viewerDeviceID)) }
+            }
+            localHost = host
+            host.start()
+            await capture?.start(quality: quality)
+            startQualityLoop()
+
+        case .viewer:
+            let guest = LocalPairingGuest()
+            localGuest = guest
+            do {
+                let (_, client) = try await guest.claim(
+                    pairingID: record.id,
+                    keys: keys,
+                    deviceID: identity.deviceID,
+                    deviceKey: identity.deviceKey
+                )
+                self.client = client
+                startEventLoop()
+            } catch {
+                scheduleReconnect(reason: String(localized: "Could not find the camera on this network."))
+            }
+        }
+    }
+
+    /// Drains the signalling client's events. Shared by both transports.
+    private func startEventLoop() {
+        eventTask?.cancel()
         eventTask = Task { [weak self] in
             guard let events = await self?.client?.events else { return }
             for await event in events {
                 guard let self else { return }
                 await self.handle(event)
             }
-        }
-
-        if role == .camera {
-            await capture?.start(quality: quality)
-            startQualityLoop()
         }
     }
 
@@ -389,6 +532,19 @@ final class StreamingEngine: ObservableObject {
                 mLineIndex: Int32(payload.mline ?? 0)
             )
 
+        case .hello:
+            // The introduction already did its job during pairing; a repeat on an
+            // established link is harmless and carries nothing to act on.
+            break
+
+        case .status:
+            // Camera-sent, Viewer-consumed. A Camera receiving one would mean a
+            // Viewer is impersonating a Camera, so it is ignored rather than
+            // trusted.
+            guard role == .viewer else { return }
+            peerBatteryLevel = payload.batt
+            isPeerCharging = payload.chg ?? false
+
         case .bye:
             sessions.removeValue(forKey: sender)?.close()
             connectedPeerCount = sessions.count
@@ -423,6 +579,12 @@ final class StreamingEngine: ObservableObject {
 
         await apply(sdp: sdp, type: .offer, fingerprint: payload.fp, to: session)
         guard !state.isSecurityFailure else { return }
+
+        // Added after the remote offer is applied and before the answer is built.
+        // In Unified Plan this reuses the receive-only audio transceiver the offer
+        // created rather than adding a second m-line, so the answer comes back
+        // `sendrecv` and talk-back needs no follow-up renegotiation.
+        attachTalkbackTrack(to: session)
 
         do {
             let answer = try await session.makeAnswer()
@@ -546,6 +708,11 @@ final class StreamingEngine: ObservableObject {
         // A reconnect builds a fresh track, so mute has to be re-applied or it
         // silently lapses.
         session.setRemoteAudioEnabled(!isMuted)
+        // Tell the new peer the battery now, rather than leaving its gauge blank
+        // until the level happens to change.
+        if role == .camera {
+            await broadcastStatus(to: peer)
+        }
         if role == .camera {
             await updateCaptureForViewerCount()
         }
@@ -608,6 +775,62 @@ final class StreamingEngine: ObservableObject {
         } else if !capture.isCapturing {
             await capture.start(quality: quality)
         }
+    }
+
+    // MARK: - Audio interruptions
+
+    /// A call, Siri, an alarm, a headphone unplugged, or the audio stack dying.
+    ///
+    /// The Camera has more to do than the Viewer here: it loses the microphone
+    /// feeding both the stream and the noise detector, so both have to be put
+    /// back. Video is untouched by all of this — a peer connection survives an
+    /// audio interruption — which is why none of these paths tear the session
+    /// down.
+    private func handle(audio event: AudioInterruptionMonitor.Event) {
+        switch event {
+        case .interrupted:
+            isAudioInterrupted = true
+            statusDetail = String(localized: "Paused for a call")
+            // The mic is gone, so the detector would read silence and could
+            // never fire. Stopping it is honest; leaving it running is not.
+            detection?.stop()
+
+        case .resumable:
+            isAudioInterrupted = false
+            statusDetail = nil
+            WebRTCStack.configureAudioSession(mode: .active)
+            applyDetectionSettings(services.detectionSettings)
+
+        case .endedWithoutResume:
+            // Something else still owns the audio session. Reactivating now
+            // would fail, so the state is left set for the next `.resumable` or
+            // for the scene becoming active again.
+            statusDetail = String(localized: "Waiting for the call to end")
+
+        case .routeChanged(let deviceDisconnected):
+            // The session is intact; only where the sound goes has changed. The
+            // category is re-asserted because a disconnect can drop the app back
+            // to the receiver, which on a Camera on a shelf is inaudible.
+            if deviceDisconnected {
+                WebRTCStack.configureAudioSession(mode: .active)
+            }
+
+        case .mediaServicesWereReset:
+            // Every audio object in the process is now invalid, including the
+            // ones inside WebRTC. A full rebuild is the only recovery.
+            statusDetail = String(localized: "Restarting audio")
+            WebRTCStack.configureAudioSession(mode: .active)
+            detection?.stop()
+            applyDetectionSettings(services.detectionSettings)
+            scheduleReconnect(reason: "The audio system restarted.")
+        }
+    }
+
+    /// Called when the scene comes back to the foreground: an interruption that
+    /// ended while the app was away never delivered its `.resumable`.
+    func recoverFromInterruptionIfNeeded() {
+        guard isAudioInterrupted else { return }
+        handle(audio: .resumable)
     }
 
     // MARK: - Recovery

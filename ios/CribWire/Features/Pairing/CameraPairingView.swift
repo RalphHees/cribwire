@@ -82,6 +82,9 @@ struct CameraPairingView: View {
 
             countdown
 
+            localOnlyToggle
+                .padding(.top, 18)
+
             if let errorMessage = model.errorMessage {
                 KCInlineError(message: errorMessage)
                     .padding(.top, 16)
@@ -93,6 +96,42 @@ struct CameraPairingView: View {
                 text: "This code contains your encryption key. Anyone who scans it can watch the stream — only show it to people in the room with you."
             )
         }
+    }
+
+    /// Offered before a code is claimed, and only then: the choice changes what
+    /// the QR contains, so switching afterwards would invalidate it.
+    @ViewBuilder
+    private var localOnlyToggle: some View {
+        if model.isDisplayingQRCode {
+            KCCard {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle(isOn: localOnlyBinding) {
+                        Text("Local network only")
+                            .font(Theme.Typography.callout.weight(.semibold))
+                    }
+                    .tint(Theme.Palette.coral)
+
+                    Text("Pair and stream over Wi-Fi with no server at all. Nothing leaves your home — but alerts cannot reach a Viewer that is out of the house.")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    /// Flipping the switch restarts pairing, because the mode is baked into the
+    /// code on screen.
+    private var localOnlyBinding: Binding<Bool> {
+        Binding(
+            get: { model.isLocalOnly },
+            set: { newValue in
+                guard newValue != model.isLocalOnly else { return }
+                model.stop()
+                model.isLocalOnly = newValue
+                model.start()
+            }
+        )
     }
 
     @ViewBuilder
@@ -152,7 +191,7 @@ struct CameraPairingView: View {
                 .padding(22)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: Theme.Metrics.largeCardRadius))
         } else {
-            KCInlineError(message: "Could not draw the pairing code.")
+            KCInlineError(message: String(localized: "Could not draw the pairing code."))
         }
     }
 
@@ -221,27 +260,27 @@ struct CameraPairingView: View {
 
     private func title(for failure: PairingFailure) -> String {
         switch failure {
-        case .expired: return "The code expired"
-        case .cancelled: return "Pairing cancelled"
-        case .viewerLimitReached: return "Viewer limit reached"
-        case .sasMismatch: return "Codes did not match"
-        case .invalidQRCode: return "That code was not a CribWire code"
-        case .backend: return "Could not reach the server"
+        case .expired: return String(localized: "The code expired")
+        case .cancelled: return String(localized: "Pairing cancelled")
+        case .viewerLimitReached: return String(localized: "Viewer limit reached")
+        case .sasMismatch: return String(localized: "Codes did not match")
+        case .invalidQRCode: return String(localized: "That code was not a CribWire code")
+        case .backend: return String(localized: "Could not reach the server")
         }
     }
 
     private func explanation(for failure: PairingFailure) -> String {
         switch failure {
         case .expired:
-            return "Pairing codes are only valid for ten minutes. Show a new one and scan it with the Viewer."
+            return String(localized: "Pairing codes are only valid for ten minutes. Show a new one and scan it with the Viewer.")
         case .cancelled:
-            return "Nothing was saved."
+            return String(localized: "Nothing was saved.")
         case .viewerLimitReached:
-            return "A Camera can have at most five Viewers. Revoke one first."
+            return String(localized: "A Camera can have at most five Viewers. Revoke one first.")
         case .sasMismatch:
-            return "Someone may be interfering with the pairing. Start again with a fresh code."
+            return String(localized: "Someone may be interfering with the pairing. Start again with a fresh code.")
         case .invalidQRCode:
-            return "Show a new code and try again."
+            return String(localized: "Show a new code and try again.")
         case .backend(let message):
             return message
         }

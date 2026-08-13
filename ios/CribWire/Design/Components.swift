@@ -4,6 +4,11 @@ import SwiftUI
 // MARK: - Screen scaffold
 
 /// Every CribWire screen sits on the same night background with the same padding.
+///
+/// On a wide screen the content is centred inside `Theme.Metrics.readableWidth`
+/// rather than stretched edge to edge. A full-width iPad column turns a
+/// two-sentence security note into one very long line, which is exactly the text
+/// a user most needs to actually read.
 struct KCScreen<Content: View>: View {
     var horizontalPadding: CGFloat = Theme.Metrics.screenPadding
     @ViewBuilder var content: () -> Content
@@ -13,6 +18,8 @@ struct KCScreen<Content: View>: View {
             Theme.Palette.background.ignoresSafeArea()
             content()
                 .padding(.horizontal, horizontalPadding)
+                .frame(maxWidth: Theme.Metrics.readableWidth)
+                .frame(maxWidth: .infinity)
         }
         .foregroundStyle(Theme.Palette.text)
     }
@@ -92,7 +99,7 @@ struct KCStepDots: View {
 // MARK: - Status pill
 
 struct KCPill: View {
-    let title: String
+    let title: LocalizedStringKey
     var tint: Color = Theme.Palette.live
     var showsDot = true
 
@@ -116,7 +123,7 @@ struct KCPill: View {
 /// The "trust made visible" card: a lock glyph plus a plain-words statement of
 /// the security property of the screen it sits on.
 struct KCSecurityNote: View {
-    let text: String
+    let text: LocalizedStringKey
     var symbol = "lock.fill"
     var tint: Color = Theme.Palette.live
 
@@ -183,8 +190,8 @@ struct KCSASDigits: View {
 /// The tappable Camera / Viewer card on the first-launch screen.
 struct KCRoleCard: View {
     let role: PairingRole
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     let symbol: String
     let action: () -> Void
 

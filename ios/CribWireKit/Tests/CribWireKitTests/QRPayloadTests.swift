@@ -40,7 +40,7 @@ final class QRPayloadTests: XCTestCase {
         let parsed = try QRPayload.parse(vectors.qrPayload.example)
 
         XCTAssertEqual(parsed.pairingID.kc_lowercasedString, "7d9f0d2e-3b8a-4c6e-9f1a-2b3c4d5e6f70")
-        XCTAssertEqual(parsed.apiBaseURL.absoluteString, "https://api.cribwire.example")
+        XCTAssertEqual(parsed.apiBaseURL?.absoluteString, "https://api.cribwire.example")
         XCTAssertEqual(
             parsed.rootSecret.rawBytesForKeychainStorage.kc_hexEncodedString,
             vectors.hkdf.rootSecretHex
@@ -161,5 +161,49 @@ final class QRPayloadTests: XCTestCase {
         XCTAssertThrowsError(try QRPayload.parse(string), file: file, line: line) { error in
             XCTAssertEqual(error as? QRPayload.ParseError, expected, file: file, line: line)
         }
+    }
+}
+
+/// Local-network-only pairings: the QR carries no backend at all
+/// (`docs/TASKS.md` Phase 5).
+extension QRPayloadTests {
+
+    func testOmitsTheAPIParameterForALocalOnlyPairing() throws {
+        let secret = try RootSecret.generate()
+        let payload = QRPayload(pairingID: UUID(), rootSecret: secret, apiBaseURL: nil)
+        let string = payload.urlString()
+
+        XCTAssertFalse(string.contains("api="))
+        XCTAssertTrue(payload.isLocalOnly)
+
+        let parsed = try QRPayload.parse(string)
+        XCTAssertNil(parsed.apiBaseURL)
+        XCTAssertTrue(parsed.isLocalOnly)
+        XCTAssertEqual(parsed.pairingID, payload.pairingID)
+    }
+
+    /// A code with a *damaged* `api` must not quietly become an offline pairing:
+    /// that would turn a corrupted scan into a different security posture without
+    /// anyone choosing it.
+    func testAMalformedAPIIsStillAnErrorRatherThanLocalOnly() throws {
+        let secret = try RootSecret.generate()
+        let base = QRPayload(pairingID: UUID(), rootSecret: secret, apiBaseURL: nil).urlString()
+
+        for bad in ["http://insecure.example", "https://", "not-a-url"] {
+            let string = base + "&api=" + QRPayload.percentEncoded(bad)
+            XCTAssertThrowsError(try QRPayload.parse(string), "accepted \(bad)") { error in
+                XCTAssertEqual(error as? QRPayload.ParseError, .invalidAPIBaseURL)
+            }
+        }
+    }
+
+    /// A backend-carrying code is unchanged by the optionality.
+    func testARemotePairingStillRoundTrips() throws {
+        let secret = try RootSecret.generate()
+        let url = try XCTUnwrap(URL(string: "https://api.cribwire.example"))
+        let payload = QRPayload(pairingID: UUID(), rootSecret: secret, apiBaseURL: url)
+        let parsed = try QRPayload.parse(payload.urlString())
+        XCTAssertEqual(parsed.apiBaseURL, url)
+        XCTAssertFalse(parsed.isLocalOnly)
     }
 }

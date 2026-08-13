@@ -20,6 +20,9 @@ options:
   deploymentTarget:
     iOS: "16.0"
   developmentLanguage: en
+  # EN/NL (`docs/TASKS.md` Phase 4). Dutch is not an afterthought here — the app
+  # is built and first used in the Netherlands.
+  knownRegions: [en, nl, Base]
   groupSortPosition: top
   minimumXcodeGenVersion: "2.38.0"
   xcodeVersion: "16.0"
@@ -42,6 +45,11 @@ settings:
     DEVELOPMENT_TEAM: "NRV7K64R87"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: targeted
+    # Extract localizable strings into the String Catalog at build time, so a new
+    # `Text("…")` shows up as an untranslated entry instead of silently shipping
+    # English to Dutch users.
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZED_STRING_SWIFTUI_SUPPORT: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
     CLANG_ENABLE_MODULES: YES
@@ -94,11 +102,16 @@ targets:
         product: CribWireKit
       - package: WebRTC
         product: WebRTC
+      - target: CribWireWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWire
         PRODUCT_NAME: CribWire
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone and iPad. An iPad is the natural Viewer — it sits on a
+        # counter all day — so the layouts adapt by size class rather than
+        # stretching a phone screen (`docs/TASKS.md` Phase 5).
+        TARGETED_DEVICE_FAMILY: "1,2"
         # App icon ships in CribWire/Assets.xcassets; `actool` picks the set up
         # by name, so the icon set must stay named AppIcon.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -120,6 +133,13 @@ targets:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        # iPad adds upside-down: a tablet propped in a stand is as likely to be
+        # rotated 180° as any other way.
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         # Night-first design language (docs/design/README.md).
         UIUserInterfaceStyle: Dark
 
@@ -135,11 +155,19 @@ targets:
         NSLocalNetworkUsageDescription: >-
           CribWire connects directly to your paired device over your local
           network, so video stays in your home whenever possible.
+        # Required since iOS 14: an undeclared Bonjour type is not merely
+        # blocked, it fails silently, which looks exactly like "no cameras
+        # found" (`docs/TASKS.md` Phase 5, local-network-only mode).
+        NSBonjourServices:
+          - _cribwire._tcp
         # Add-only: the Viewer's snapshot button writes one image and CribWire
         # never reads the library back.
         NSPhotoLibraryAddUsageDescription: >-
           CribWire saves the snapshots you take of the live view to your photo
           library. It never reads your existing photos.
+
+        # Live Activity support (`docs/TASKS.md` Phase 5).
+        NSSupportsLiveActivities: true
 
         # Audio only. `voip` would require CallKit, which CribWire does not use
         # (ios-app.md §4).
@@ -148,12 +176,45 @@ targets:
 
         # --- Runtime configuration ---------------------------------------
         CribWireAPIBaseURL: $(CRIBWIRE_API_BASE_URL)
+
     scheme:
       testTargets:
         - CribWireTests
       gatherCoverageData: true
       coverageTargets:
         - CribWire
+
+  # ---------------------------------------------------------------------------
+  # Live Activity widget extension.
+  #
+  # A second bundle id, reluctantly: ActivityKit renders in a separate process, so
+  # unlike the notification-decryption case there is no way to keep this in the
+  # app. It shares no Keychain group and holds no key — the payload it draws is
+  # already non-secret by construction (see CribWireActivityAttributes).
+  # ---------------------------------------------------------------------------
+  CribWireWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CribWireWidgets
+      # The attributes type is shared by reference, never copied: two copies that
+      # drift apart fail at runtime with no compiler warning.
+      - path: CribWire/Features/LiveActivity/CribWireActivityAttributes.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWire.Widgets
+        PRODUCT_NAME: CribWireWidgets
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: CribWire
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+    info:
+      path: CribWireWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: CribWire
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
   CribWireTests:
     type: bundle.unit-test

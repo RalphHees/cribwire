@@ -63,9 +63,9 @@ public protocol HTTPTransport: Sendable {
 #if canImport(Darwin)
 /// `URLSession`-backed transport for the app.
 ///
-/// Certificate pinning (SPKI, `security.md` §7) is a Phase 4 task and will be
-/// added here as a `URLSessionDelegate`; the transport boundary exists so that
-/// change touches nothing else.
+/// Certificate pinning was built here and then removed on purpose — it coupled
+/// every installed app to the backend's CA (`security.md` §7). The transport
+/// boundary stays, so reinstating it would touch nothing else.
 /// `@unchecked Sendable`: `URLSession` is thread-safe by contract but is not
 /// declared `Sendable` in every SDK version we build against.
 public struct URLSessionTransport: @unchecked Sendable, HTTPTransport {

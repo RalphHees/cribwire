@@ -67,6 +67,9 @@ struct CameraStatusView: View {
             if phase == .active {
                 UIApplication.shared.isIdleTimerDisabled = true
                 refreshBattery()
+                // An interruption that ended while the app was in the background
+                // never delivered its resume notification.
+                engine.recoverFromInterruptionIfNeeded()
                 // The alerts screen may have been visited since this one started,
                 // so the detectors are re-synced rather than left as they were.
                 engine.applyDetectionSettings(services.detectionSettings)
@@ -98,6 +101,8 @@ struct CameraStatusView: View {
             }
             .padding(.horizontal, Theme.Metrics.screenPadding)
             .padding(.vertical, 20)
+            .frame(maxWidth: Theme.Metrics.readableWidth)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -142,15 +147,17 @@ struct CameraStatusView: View {
                 row(
                     label: "Viewers",
                     value: engine.connectedPeerCount == 0
-                        ? "None watching"
-                        : "\(engine.connectedPeerCount) watching"
+                        ? String(localized: "None watching")
+                        : String(localized: "\(engine.connectedPeerCount) watching")
                 )
                 row(label: "Quality", value: engine.quality.description)
                 row(label: "Alerts", value: alertsSummary, tint: alertsTint)
                 if engine.connectedPeerCount > 0 {
                     row(
                         label: "Encryption",
-                        value: engine.isVerified ? "Verified end-to-end" : "Verifying…",
+                        value: engine.isVerified
+                            ? String(localized: "Verified end-to-end")
+                            : String(localized: "Verifying…"),
                         tint: engine.isVerified ? Theme.Palette.live : Theme.Palette.warning
                     )
                 }
@@ -158,7 +165,7 @@ struct CameraStatusView: View {
         }
     }
 
-    private func row(label: String, value: String, tint: Color? = nil) -> some View {
+    private func row(label: LocalizedStringKey, value: String, tint: Color? = nil) -> some View {
         HStack {
             Text(label)
                 .font(Theme.Typography.callout)
@@ -173,10 +180,13 @@ struct CameraStatusView: View {
 
     private var statusText: String {
         switch engine.state {
-        case .idle: return "Stopped"
-        case .connecting: return engine.connectedPeerCount > 0 ? "Connecting" : "Waiting for a viewer"
-        case .connected: return "Streaming"
-        case .reconnecting: return "Reconnecting"
+        case .idle: return String(localized: "Stopped")
+        case .connecting:
+            return engine.connectedPeerCount > 0
+                ? String(localized: "Connecting")
+                : String(localized: "Waiting for a viewer")
+        case .connected: return String(localized: "Streaming")
+        case .reconnecting: return String(localized: "Reconnecting")
         case .failed(let reason, _): return reason
         }
     }
@@ -188,14 +198,14 @@ struct CameraStatusView: View {
     /// never read the same.
     private var alertsSummary: String {
         if engine.detection?.isNoiseDetectionUnavailable == true {
-            return "Microphone unavailable"
+            return String(localized: "Microphone unavailable")
         }
         let settings = services.detectionSettings
         switch (settings.noise.isEnabled, settings.movement.isEnabled) {
-        case (true, true): return "Noise and movement"
-        case (true, false): return "Noise"
-        case (false, true): return "Movement"
-        case (false, false): return "Off"
+        case (true, true): return String(localized: "Noise and movement")
+        case (true, false): return String(localized: "Noise")
+        case (false, true): return String(localized: "Movement")
+        case (false, false): return String(localized: "Off")
         }
     }
 
@@ -211,12 +221,12 @@ struct CameraStatusView: View {
         guard batteryLevel >= 0 else { return nil }
         let percent = Int(batteryLevel * 100)
         if percent <= 20 {
-            return "Battery is at \(percent)%. Plug the Camera in now — it will stop streaming when it dies."
+            return String(localized: "Battery is at \(percent)%. Plug the Camera in now — it will stop streaming when it dies.")
         }
         if percent <= 50 {
-            return "Battery is at \(percent)% and not charging. A night of streaming needs mains power."
+            return String(localized: "Battery is at \(percent)% and not charging. A night of streaming needs mains power.")
         }
-        return "This Camera is not charging. Streaming all night will drain the battery."
+        return String(localized: "This Camera is not charging. Streaming all night will drain the battery.")
     }
 
     private func batteryCard(_ message: String) -> some View {

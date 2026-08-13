@@ -224,27 +224,27 @@ struct ViewerScanView: View {
 
     private func title(for failure: PairingFailure) -> String {
         switch failure {
-        case .expired: return "That code is no longer valid"
-        case .cancelled: return "Pairing cancelled"
-        case .viewerLimitReached: return "This Camera is full"
-        case .sasMismatch: return "Codes did not match"
-        case .invalidQRCode: return "Not a CribWire code"
-        case .backend: return "Could not reach the server"
+        case .expired: return String(localized: "That code is no longer valid")
+        case .cancelled: return String(localized: "Pairing cancelled")
+        case .viewerLimitReached: return String(localized: "This Camera is full")
+        case .sasMismatch: return String(localized: "Codes did not match")
+        case .invalidQRCode: return String(localized: "Not a CribWire code")
+        case .backend: return String(localized: "Could not reach the server")
         }
     }
 
     private func explanation(for failure: PairingFailure) -> String {
         switch failure {
         case .expired:
-            return "Pairing codes expire after ten minutes. Ask the Camera to show a fresh one."
+            return String(localized: "Pairing codes expire after ten minutes. Ask the Camera to show a fresh one.")
         case .cancelled:
-            return "Nothing was saved on this device."
+            return String(localized: "Nothing was saved on this device.")
         case .viewerLimitReached:
-            return "A Camera can have at most five Viewers. Remove one on the Camera first."
+            return String(localized: "A Camera can have at most five Viewers. Remove one on the Camera first.")
         case .sasMismatch:
-            return "Nothing was saved. Different codes can mean someone is interfering with the pairing — start again with a fresh code, in the same room."
+            return String(localized: "Nothing was saved. Different codes can mean someone is interfering with the pairing — start again with a fresh code, in the same room.")
         case .invalidQRCode:
-            return "Scan the code shown by CribWire on the Camera device."
+            return String(localized: "Scan the code shown by CribWire on the Camera device.")
         case .backend(let message):
             return message
         }

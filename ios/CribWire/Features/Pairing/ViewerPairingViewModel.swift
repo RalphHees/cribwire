@@ -38,6 +38,10 @@ final class ViewerPairingViewModel: ObservableObject {
     /// Camera on its own — connecting here is what makes it show the SAS — so it
     /// stays up for as long as the codes are being compared.
     private var link: PairingSignalingLink?
+    /// Local-network pairing only: the Bonjour browser and the live sealed link
+    /// to the Camera, held from the handshake until the SAS is confirmed.
+    private var guest: LocalPairingGuest?
+    private var localClient: SignalingClient?
 
     private let services: AppServices
     /// Set by tests; otherwise the token is read from the notification
@@ -125,13 +129,21 @@ final class ViewerPairingViewModel: ObservableObject {
         }
     }
 
-    private func claim(pairingID: UUID, apiBaseURL: URL) async {
+    private func claim(pairingID: UUID, apiBaseURL: URL?) async {
         guard let secret = pendingSecret else {
             dispatch(machine.apply(.claimFailed(.backend(message: "The scanned code was lost."))))
             return
         }
 
         let keys = secret.deriveKeys()
+
+        // A code with no backend in it is a local-network pairing: find the
+        // Camera on this Wi-Fi and shake hands directly. No server is contacted,
+        // which is the whole point — it works with the internet unplugged.
+        guard let apiBaseURL else {
+            await claimLocally(pairingID: pairingID, keys: keys)
+            return
+        }
         let client = APIClient(
             configuration: .init(baseURL: apiBaseURL, pairingID: pairingID),
             keys: keys,
@@ -176,14 +188,56 @@ final class ViewerPairingViewModel: ObservableObject {
         }
     }
 
+    /// Local-network claim: discover, connect, introduce, derive the SAS.
+    private func claimLocally(pairingID: UUID, keys: PairingKeys) async {
+        let guest = LocalPairingGuest()
+        self.guest = guest
+
+        // Minted here rather than issued by a server. Offline, a device id is an
+        // address; the sealed envelope is the credential.
+        let deviceID = UUID().uuidString.lowercased()
+        guard let deviceKey = try? DeviceKey.generate() else {
+            dispatch(machine.apply(.claimFailed(.backend(message: String(localized: "Could not start a local pairing.")))))
+            return
+        }
+
+        do {
+            let (_, client) = try await guest.claim(
+                pairingID: pairingID,
+                keys: keys,
+                deviceID: deviceID,
+                deviceKey: deviceKey
+            )
+            claimedDeviceID = deviceID
+            claimedDeviceKey = deviceKey
+            // Held open through the SAS comparison: dropping it would look to the
+            // Camera exactly like the Viewer walking away.
+            localClient = client
+            dispatch(machine.apply(.claimSucceeded(sasCode: keys.sasCode)))
+        } catch {
+            dispatch(
+                machine.apply(
+                    .claimFailed(
+                        .backend(
+                            message: String(
+                                localized: "No camera found on this network. Check both devices are on the same Wi-Fi."
+                            )
+                        )
+                    )
+                )
+            )
+        }
+    }
+
     private func persist(pairingID: UUID) async {
         guard let secret = pendingSecret, let payload = pendingPayload else { return }
         let record = PairingRecord(
             id: pairingID,
             localRole: .viewer,
+            // `nil` here is what marks the pairing local-only for good.
             apiBaseURL: payload.apiBaseURL,
             localDeviceID: claimedDeviceID,
-            displayName: "Camera"
+            displayName: String(localized: "Camera")
         )
         try? await services.savePairing(record, rootSecret: secret)
         // Only now, after the user confirmed both screens show the same digits,
@@ -200,6 +254,12 @@ final class ViewerPairingViewModel: ObservableObject {
     private func discardSecret() {
         link?.stop()
         link = nil
+        guest?.stop()
+        guest = nil
+        if let localClient {
+            self.localClient = nil
+            Task { await localClient.disconnect() }
+        }
         pendingSecret = nil
         pendingPayload = nil
         claimedDeviceID = nil
@@ -224,13 +284,13 @@ final class ViewerPairingViewModel: ObservableObject {
     private func hint(for error: QRPayload.ParseError) -> String {
         switch error {
         case .notAPairingURL:
-            return "That is not a CribWire pairing code."
+            return String(localized: "That is not a CribWire pairing code.")
         case .unsupportedVersion:
-            return "That code was made by a different version of CribWire. Update both devices."
+            return String(localized: "That code was made by a different version of CribWire. Update both devices.")
         case .invalidPairingID, .invalidRootSecret:
-            return "That pairing code is damaged. Ask the Camera for a new one."
+            return String(localized: "That pairing code is damaged. Ask the Camera for a new one.")
         case .invalidAPIBaseURL:
-            return "That code points at an address CribWire will not connect to."
+            return String(localized: "That code points at an address CribWire will not connect to.")
         }
     }
 }

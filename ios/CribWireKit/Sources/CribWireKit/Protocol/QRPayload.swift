@@ -13,6 +13,11 @@ import Foundation
 /// padding, and `api` is the percent-encoded base URL. Unknown query parameters
 /// are ignored; a `v` other than `1` is rejected.
 ///
+/// **`api` is omitted entirely for a local-network-only pairing** — the mode where
+/// the two devices never touch a backend at all (`docs/TASKS.md` Phase 5). Absent
+/// means "there is no server"; present but malformed is still an error, so a
+/// corrupted URL can never be silently downgraded into an offline pairing.
+///
 /// This value never goes to disk, the pasteboard, or a log line — it is built,
 /// rendered into a QR image, and dropped.
 public struct QRPayload: Sendable {
@@ -23,9 +28,13 @@ public struct QRPayload: Sendable {
 
     public let pairingID: UUID
     public let rootSecret: RootSecret
-    public let apiBaseURL: URL
+    /// `nil` for a local-network-only pairing.
+    public let apiBaseURL: URL?
 
-    public init(pairingID: UUID, rootSecret: RootSecret, apiBaseURL: URL) {
+    /// Whether this pairing runs entirely on the local network.
+    public var isLocalOnly: Bool { apiBaseURL == nil }
+
+    public init(pairingID: UUID, rootSecret: RootSecret, apiBaseURL: URL?) {
         self.pairingID = pairingID
         self.rootSecret = rootSecret
         self.apiBaseURL = apiBaseURL
@@ -54,11 +63,13 @@ public struct QRPayload: Sendable {
     /// the parameter order and the percent-encoding are byte-stable and match the
     /// vector in `shared/test-vectors/cribwire-v1.json` exactly.
     public func urlString() -> String {
-        let encodedAPI = Self.percentEncoded(apiBaseURL.absoluteString)
-        return "\(Self.scheme)://\(Self.host)?v=\(Self.version)"
+        var string = "\(Self.scheme)://\(Self.host)?v=\(Self.version)"
             + "&id=\(pairingID.kc_lowercasedString)"
             + "&s=\(rootSecret.base64URLEncoded)"
-            + "&api=\(encodedAPI)"
+        if let apiBaseURL {
+            string += "&api=\(Self.percentEncoded(apiBaseURL.absoluteString))"
+        }
+        return string
     }
 
     /// Percent-encodes everything outside the RFC 3986 unreserved set
@@ -111,12 +122,18 @@ public struct QRPayload: Sendable {
             throw ParseError.invalidRootSecret
         }
 
-        guard let rawAPI = parameters["api"],
-              let apiURL = URL(string: rawAPI),
-              apiURL.scheme?.lowercased() == "https",
-              let apiHost = apiURL.host, !apiHost.isEmpty
-        else {
-            throw ParseError.invalidAPIBaseURL
+        // No `api` at all is a local-only pairing. An `api` that is present but
+        // unusable is an error: degrading it to "offline" would turn a damaged
+        // code into a silently different security posture.
+        var apiURL: URL?
+        if let rawAPI = parameters["api"], !rawAPI.isEmpty {
+            guard let parsed = URL(string: rawAPI),
+                  parsed.scheme?.lowercased() == "https",
+                  let apiHost = parsed.host, !apiHost.isEmpty
+            else {
+                throw ParseError.invalidAPIBaseURL
+            }
+            apiURL = parsed
         }
 
         return QRPayload(pairingID: pairingID, rootSecret: rootSecret, apiBaseURL: apiURL)
@@ -127,7 +144,7 @@ extension QRPayload: CustomStringConvertible, CustomDebugStringConvertible {
     /// Never renders the secret — this type is one `print` away from leaking the
     /// whole pairing.
     public var description: String {
-        "QRPayload(pairingID: \(pairingID.kc_lowercasedString), api: \(apiBaseURL.absoluteString), s: <redacted>)"
+        "QRPayload(pairingID: \(pairingID.kc_lowercasedString), api: \(apiBaseURL?.absoluteString ?? "local-only"), s: <redacted>)"
     }
 
     public var debugDescription: String { description }

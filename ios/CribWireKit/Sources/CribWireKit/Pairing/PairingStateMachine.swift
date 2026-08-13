@@ -266,9 +266,10 @@ public struct ViewerPairingStateMachine: Equatable, Sendable {
 
     public struct ClaimingState: Equatable, Sendable {
         public let pairingID: UUID
-        public let apiBaseURL: URL
+        /// `nil` for a local-network-only pairing.
+        public let apiBaseURL: URL?
 
-        public init(pairingID: UUID, apiBaseURL: URL) {
+        public init(pairingID: UUID, apiBaseURL: URL?) {
             self.pairingID = pairingID
             self.apiBaseURL = apiBaseURL
         }
@@ -276,11 +277,12 @@ public struct ViewerPairingStateMachine: Equatable, Sendable {
 
     public struct ConfirmingState: Equatable, Sendable {
         public let pairingID: UUID
-        public let apiBaseURL: URL
+        /// `nil` for a local-network-only pairing.
+        public let apiBaseURL: URL?
         /// Derived locally from `K_sas` — never received from the network.
         public let sasCode: SASCode
 
-        public init(pairingID: UUID, apiBaseURL: URL, sasCode: SASCode) {
+        public init(pairingID: UUID, apiBaseURL: URL?, sasCode: SASCode) {
             self.pairingID = pairingID
             self.apiBaseURL = apiBaseURL
             self.sasCode = sasCode
@@ -310,7 +312,7 @@ public struct ViewerPairingStateMachine: Equatable, Sendable {
     public enum Event: Equatable, Sendable {
         case startScanning
         /// A QR was decoded and parsed successfully.
-        case scanned(pairingID: UUID, apiBaseURL: URL)
+        case scanned(pairingID: UUID, apiBaseURL: URL?)
         /// A QR was decoded but was not a valid v1 pairing payload.
         case scanRejected(QRPayload.ParseError)
         /// The claim succeeded; `sasCode` was derived locally from `K_sas`.
@@ -325,7 +327,7 @@ public struct ViewerPairingStateMachine: Equatable, Sendable {
 
     public enum Effect: Equatable, Sendable {
         /// Derive keys from the scanned secret and POST the claim.
-        case claimPairing(pairingID: UUID, apiBaseURL: URL)
+        case claimPairing(pairingID: UUID, apiBaseURL: URL?)
         case stopScanning
         /// Persist keys to the Keychain — only after the human confirmed the SAS.
         case persistPairing(pairingID: UUID)

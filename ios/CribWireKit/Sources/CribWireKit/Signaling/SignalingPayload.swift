@@ -33,6 +33,22 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         /// Graceful teardown, so the peer can stop instead of waiting for ICE
         /// to time out.
         case bye
+        /// First message on a local-network pairing link, in both directions.
+        ///
+        /// On the server path the backend issues device ids and announces a claim
+        /// with `peer-online`. Offline there is no backend to do either, so each
+        /// side mints its own id and introduces itself. The id is carried by
+        /// `from`, which `SignalingClient` stamps *inside* the seal — so a peer
+        /// that cannot open the envelope cannot introduce itself at all, and
+        /// possession of the QR secret is the whole of the authentication.
+        case hello
+        /// Camera → Viewer device status: battery, and whether it is charging.
+        ///
+        /// It travels sealed, like everything else on this channel, so the server
+        /// never learns the state of anyone's device. A Viewer showing "Camera at
+        /// 12 %" is answering the question behind most failed nights — the Camera
+        /// quietly went flat — which is worth a message type of its own.
+        case status
     }
 
     /// Message type.
@@ -52,6 +68,10 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
     public let mid: String?
     /// `sdpMLineIndex` of the candidate.
     public let mline: Int?
+    /// Battery level `0...1`, for `status`. Absent when unknown.
+    public let batt: Double?
+    /// Whether the sender is charging, for `status`.
+    public let chg: Bool?
 
     public init(
         t: Kind,
@@ -61,7 +81,9 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         fp: String? = nil,
         cand: String? = nil,
         mid: String? = nil,
-        mline: Int? = nil
+        mline: Int? = nil,
+        batt: Double? = nil,
+        chg: Bool? = nil
     ) {
         self.t = t
         self.seq = seq
@@ -71,6 +93,8 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         self.cand = cand
         self.mid = mid
         self.mline = mline
+        self.batt = batt
+        self.chg = chg
     }
 
     // MARK: - Factories
@@ -93,6 +117,21 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         SignalingPayload(t: .bye)
     }
 
+    /// Local-network introduction. The sender's device id rides in `from`,
+    /// stamped inside the seal by `SignalingClient`.
+    public static func hello() -> SignalingPayload {
+        SignalingPayload(t: .hello)
+    }
+
+    /// Camera → Viewer battery report.
+    ///
+    /// - Parameter level: `0...1`, or negative when iOS has not measured it yet.
+    ///   A negative reading is sent as `nil` rather than as a number, so the
+    ///   Viewer can show "unknown" instead of "0 %" and frighten someone.
+    public static func status(batteryLevel: Double, isCharging: Bool) -> SignalingPayload {
+        SignalingPayload(t: .status, batt: batteryLevel >= 0 ? batteryLevel : nil, chg: isCharging)
+    }
+
     // MARK: - Stamping
 
     /// Returns a copy stamped with the sequence number and sender identity that
@@ -107,7 +146,9 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
             fp: fp,
             cand: cand,
             mid: mid,
-            mline: mline
+            mline: mline,
+            batt: batt,
+            chg: chg
         )
     }
 }

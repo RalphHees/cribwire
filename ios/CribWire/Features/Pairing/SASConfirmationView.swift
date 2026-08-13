@@ -66,15 +66,15 @@ struct SASConfirmationView: View {
 
     private var confirmTitle: String {
         switch style {
-        case .viewerConfirmation: return "Codes match — Pair"
-        case .cameraAcknowledgement: return "Codes match"
+        case .viewerConfirmation: return String(localized: "Codes match — Pair")
+        case .cameraAcknowledgement: return String(localized: "Codes match")
         }
     }
 
     private var cancelTitle: String {
         switch style {
-        case .viewerConfirmation: return "Cancel"
-        case .cameraAcknowledgement: return "Stop pairing"
+        case .viewerConfirmation: return String(localized: "Cancel")
+        case .cameraAcknowledgement: return String(localized: "Stop pairing")
         }
     }
 }

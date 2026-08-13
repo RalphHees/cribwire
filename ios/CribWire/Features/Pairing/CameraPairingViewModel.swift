@@ -45,8 +45,24 @@ final class CameraPairingViewModel: ObservableObject {
     /// claimed.
     private struct Candidate {
         let rootSecret: RootSecret
-        let link: PairingSignalingLink
+        /// Server path: the socket that hears the claim. Nil offline.
+        let link: PairingSignalingLink?
+        /// Local path: the Bonjour advertiser waiting for a Viewer to dial in.
+        let host: LocalPairingHost?
+
+        @MainActor
+        func stop() {
+            link?.stop()
+            host?.stop()
+        }
     }
+
+    /// Pair without a backend, over the local network only.
+    ///
+    /// Off by default: the ordinary flow is the one most people want, and this
+    /// trades push alerts and remote viewing for working with the internet
+    /// unplugged (`docs/TASKS.md` Phase 5).
+    @Published var isLocalOnly = false
 
     private let services: AppServices
     private let apiBaseURL: URL?
@@ -77,8 +93,10 @@ final class CameraPairingViewModel: ObservableObject {
     // MARK: - Lifecycle
 
     func start() {
-        guard apiBaseURL != nil else {
-            errorMessage = "No backend is configured in this build."
+        // A local-only pairing needs no backend, so the missing-configuration
+        // check applies only to the ordinary path.
+        guard isLocalOnly || apiBaseURL != nil else {
+            errorMessage = String(localized: "No backend is configured in this build.")
             return
         }
         errorMessage = nil
@@ -169,7 +187,7 @@ final class CameraPairingViewModel: ObservableObject {
 
             case .discardCandidates(let pairingIDs):
                 for pairingID in pairingIDs {
-                    candidates.removeValue(forKey: pairingID)?.link.stop()
+                    candidates.removeValue(forKey: pairingID)?.stop()
                 }
 
             case .persistPairing(let pairingID, let viewerDeviceID):
@@ -179,6 +197,10 @@ final class CameraPairingViewModel: ObservableObject {
     }
 
     private func registerNewPairing() async {
+        if isLocalOnly {
+            await registerLocalPairing()
+            return
+        }
         guard let apiBaseURL else { return }
 
         do {
@@ -228,7 +250,7 @@ final class CameraPairingViewModel: ObservableObject {
                     self?.handlePeerOnline(presence, pairingID: pairingID)
                 }
             )
-            candidates[pairingID] = Candidate(rootSecret: rootSecret, link: link)
+            candidates[pairingID] = Candidate(rootSecret: rootSecret, link: link, host: nil)
             link.start()
 
             qrURLString = payload.urlString()
@@ -241,12 +263,60 @@ final class CameraPairingViewModel: ObservableObject {
         }
     }
 
+    /// Creates a pairing with no server involved.
+    ///
+    /// The same secret and the same QR, minus the round trip: there is nothing to
+    /// register with, so the Camera mints its own device id and starts
+    /// advertising. A Viewer dialling in over Bonjour is the claim.
+    private func registerLocalPairing() async {
+        let pairingID = UUID()
+        guard let rootSecret = try? RootSecret.generate(),
+              let deviceKey = try? DeviceKey.generate()
+        else {
+            let message = String(localized: "Could not start a local pairing.")
+            errorMessage = message
+            dispatch(machine.apply(.registrationFailed(message: message)))
+            return
+        }
+
+        let keys = rootSecret.deriveKeys()
+        let deviceID = UUID().uuidString.lowercased()
+        try? await services.secrets.storeDeviceIdentity(
+            .init(deviceID: deviceID, deviceKey: deviceKey),
+            for: pairingID
+        )
+
+        let host = LocalPairingHost(
+            pairingID: pairingID,
+            keys: keys,
+            deviceID: deviceID,
+            deviceKey: deviceKey
+        ) { [weak self] claim in
+            // Connecting *is* the claim offline; there is no presence event.
+            self?.handleViewerClaim(pairingID: pairingID, viewerDeviceID: claim.viewerDeviceID)
+        }
+        candidates[pairingID] = Candidate(rootSecret: rootSecret, link: nil, host: host)
+        host.start()
+
+        // No `api` in the payload — that absence is what tells the Viewer this is
+        // a local pairing.
+        qrURLString = QRPayload(
+            pairingID: pairingID,
+            rootSecret: rootSecret,
+            apiBaseURL: nil
+        ).urlString()
+        dispatch(machine.apply(.registered(pairingID: pairingID, at: Date())))
+    }
+
     private func persist(pairingID: UUID, viewerDeviceID: String) async {
-        guard let rootSecret = candidates[pairingID]?.rootSecret, let apiBaseURL else { return }
+        guard let rootSecret = candidates[pairingID]?.rootSecret else { return }
+        // `nil` for a local pairing: the record carries no backend because the
+        // pairing has none, now or later.
+        guard isLocalOnly || apiBaseURL != nil else { return }
         let record = PairingRecord(
             id: pairingID,
             localRole: .camera,
-            apiBaseURL: apiBaseURL,
+            apiBaseURL: isLocalOnly ? nil : apiBaseURL,
             peerDeviceID: viewerDeviceID
         )
         try? await services.savePairing(record, rootSecret: rootSecret)
@@ -255,7 +325,7 @@ final class CameraPairingViewModel: ObservableObject {
 
     private func discardAllSecrets() {
         for candidate in candidates.values {
-            candidate.link.stop()
+            candidate.stop()
         }
         candidates.removeAll()
         qrURLString = nil

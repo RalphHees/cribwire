@@ -222,3 +222,50 @@ final class LumaFrameExtractionTests: XCTestCase {
         )
     }
 }
+
+/// Interruption decoding. The subtle rule is `.shouldResume`: iOS distinguishes
+/// "the call ended, carry on" from "the interruption event is over but something
+/// else still owns the audio session", and resuming uninvited fails.
+final class AudioInterruptionTests: XCTestCase {
+
+    func testResumesOnlyWhenTheSystemSaysItMay() {
+        XCTAssertEqual(
+            AudioInterruptionMonitor.endEvent(from: [
+                AVAudioSessionInterruptionOptionKey:
+                    AVAudioSession.InterruptionOptions.shouldResume.rawValue
+            ]),
+            .resumable
+        )
+    }
+
+    func testDoesNotResumeWithoutTheShouldResumeOption() {
+        XCTAssertEqual(
+            AudioInterruptionMonitor.endEvent(from: [AVAudioSessionInterruptionOptionKey: UInt(0)]),
+            .endedWithoutResume
+        )
+        // A malformed notification must not be read as permission to resume.
+        XCTAssertEqual(AudioInterruptionMonitor.endEvent(from: nil), .endedWithoutResume)
+        XCTAssertEqual(AudioInterruptionMonitor.endEvent(from: [:]), .endedWithoutResume)
+    }
+
+    /// A disconnected device is called out separately: it is the case where the
+    /// audio may have moved somewhere the user cannot hear.
+    func testDistinguishesADisconnectedDeviceFromOtherRouteChanges() {
+        XCTAssertEqual(
+            AudioInterruptionMonitor.routeEvent(for: .oldDeviceUnavailable),
+            .routeChanged(deviceDisconnected: true)
+        )
+        XCTAssertEqual(
+            AudioInterruptionMonitor.routeEvent(for: .newDeviceAvailable),
+            .routeChanged(deviceDisconnected: false)
+        )
+    }
+
+    /// The app sets its own category, so reacting to a category change would be
+    /// reacting to itself — a loop that re-activates the session forever.
+    func testIgnoresRouteChangesTheAppCausedItself() {
+        XCTAssertNil(AudioInterruptionMonitor.routeEvent(for: .categoryChange))
+        XCTAssertNil(AudioInterruptionMonitor.routeEvent(for: .unknown))
+        XCTAssertNil(AudioInterruptionMonitor.routeEvent(for: .wakeFromSleep))
+    }
+}

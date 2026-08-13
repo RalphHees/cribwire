@@ -177,24 +177,127 @@ has been observed in APNs traffic, and the microphone tap has never run.*
 
 - [x] CI surfaces Swift compile diagnostics instead of burying them in the
       xcodebuild transcript
-- [ ] Certificate pinning (SPKI + backup pin) for API/WSS
+- [x] Certificate pinning — **implemented, then deliberately removed.** It pinned
+      the CA (a Let's Encrypt leaf key rotates every 60–90 days, so a leaf pin
+      would have bricked the fleet at the first renewal), but even at the CA it
+      coupled every installed app to the backend's certificate chain: a CA or
+      intermediate rotation would break every device and could only be repaired
+      through App Store review.
+      The accepted risk is bounded, because TLS is not what protects the product.
+      Media is end-to-end encrypted and events are sealed under `K_evt`, so an
+      attacker holding a mis-issued certificate sees ciphertext — they could
+      disrupt pairing setup and REST metadata, not watch a nursery. Reasoning
+      recorded in `docs/specs/security.md` §7; implementation is in git history.
 - [ ] Battery profiling of Camera mode (< 20 %/h target) + capture teardown checks
-- [ ] Interruption recovery: calls, Siri, route changes, backgrounding matrix
-- [ ] Picture-in-Picture on Viewer
-- [ ] Accessibility (VoiceOver, Dynamic Type) + EN/NL localization
-- [ ] Security review: sealed-signaling design review, dependency audit,
-      external pen test; fix findings
+      — **needs a physical device**; nothing here can measure it
+- [x] Interruption recovery: calls, Siri, route changes, backgrounding.
+      `AudioInterruptionMonitor` separates "resume permitted" from "interruption
+      over but someone else still owns the session", reacts to a disconnected
+      output device, and rebuilds on a media-services reset. An interruption that
+      ends while the app is backgrounded is recovered on the next foreground,
+      because the resume notification is never delivered in that case.
+- [x] Picture-in-Picture on Viewer. WebRTC renders into nothing AVKit understands,
+      so frames are converted to `CMSampleBuffer`s and enqueued on an
+      `AVSampleBufferDisplayLayer`. Backgrounding keeps the stream alive **only**
+      while PiP is active — otherwise the Viewer still tears down.
+- [x] Accessibility + EN/NL localization. **168 of 168 extracted strings
+      translated**, verified by diffing the compiler's `.stringsdata` against the
+      String Catalog rather than by eye. Permission prompts are localised too, via
+      `InfoPlist.xcstrings`.
+      `Theme.Typography` now declares faces against system text styles instead of
+      fixed point sizes, so the app responds to Dynamic Type at all — it did not
+      before. Default sizes shift a point or two as a result; scaling is worth
+      more than matching the mock at one text size. The SAS digits stay fixed on
+      purpose: six digits must not wrap.
+      Components taking `String` (`KCSecurityNote`, `KCPill`, `KCRoleCard`) now
+      take `LocalizedStringKey` — as `String` they silently skipped the catalog.
+- [~] Security review: dependency audit **clean** — `npm audit` reports 0
+      vulnerabilities with and without dev dependencies; the Swift graph is three
+      packages (`swift-crypto` 3.15.1, `swift-asn1` 1.7.1, `stasel/WebRTC`), all
+      first-party Apple or a binary distribution of libwebrtc. The
+      sealed-signaling design review and the external pen test are **not done**
+      and cannot be — both need people, not tooling.
 - [ ] Backend production deploy: EU region, TLS/HSTS, Prometheus + alerting,
       secrets manager, Terraform, load test (10 k WS / 1 k TURN targets)
-- [ ] Ops runbook + on-call alerts (APNs failures, TURN bandwidth, error rates)
-- [ ] App Store: privacy labels, screenshots, review notes (two-device testing
-      instructions), TestFlight beta with ≥ 10 external testers
+      — **not started**; needs cloud credentials this environment does not have
+- [x] Ops runbook + on-call alerts — `docs/ops/RUNBOOK.md`. Incident playbooks,
+      the metrics worth paging on, and the two failure modes that do not look like
+      outages: silent APNs failure (video fine, alerts dead) and a CA change
+      (breaks every installed app, unfixable server-side).
+- [~] App Store: privacy labels (`docs/appstore/PRIVACY-LABELS.md`) and review
+      notes (`docs/appstore/REVIEW-NOTES.md`) written, including the two-device
+      testing instructions and the likeliest-rejection response. Screenshots and
+      the TestFlight beta need a human with an Apple Developer account and two
+      physical devices.
 - [ ] Public 1.0 release
+
+## Phase 5 — Second-device experience
+
+Promoted from the v1.1 backlog. These five share a theme: the Viewer stops being a
+passive window and the pairing stops depending on the internet.
+
+- [x] **iPad interface** — `TARGETED_DEVICE_FAMILY: "1,2"`, plus upside-down
+      orientation, which a tablet in a stand needs and a phone does not. Layouts
+      cap at `Theme.Metrics.readableWidth` and centre rather than stretching: a
+      full-width iPad column turns a two-sentence security note into one very long
+      line, which is the text a user most needs to actually read. Video stays
+      full-bleed; only the controls are constrained.
+- [x] **Viewer sees the Camera's battery** — a `status` payload on the sealed
+      signalling channel, so the server never learns it. Sent on every reading and
+      again the moment a Viewer verifies, otherwise a newly-joined Viewer shows
+      "unknown" until the level next changes — hours, on a charging Camera. Shown
+      as nothing rather than as "unknown": an empty gauge on a baby monitor reads
+      as bad news. Only an *uncharging* Camera is coloured.
+- [x] **Talk-back (Viewer → Camera push-to-talk)** — the Viewer's audio track is
+      attached after the offer is applied and before the answer is built, so in
+      Unified Plan it reuses the receive-only transceiver the offer created and
+      the answer comes back `sendrecv` with no follow-up renegotiation. The track
+      lives in the SDP permanently but **disabled**, so pressing is instant, and
+      the button is held rather than toggled — a nursery microphone left open by
+      accident is the one failure this feature must not have.
+- [x] **Live Activity showing connection/detection state** — `CribWireWidgets`,
+      a widget extension (ActivityKit renders out of process, so unlike the
+      notification-decryption case it cannot live in the app). It reports that
+      monitoring is running, the link state and the Camera's battery, and
+      deliberately **never what was detected**: this is drawn on a locked screen
+      anyone in the room can see, and "Noise detected at 03:14" is a statement
+      about someone's child. "Watching" means verified, not merely connected.
+- [x] **Local-network-only mode (Bonjour, fully offline)** — pairing *and*
+      streaming with no backend reachable at all. A toggle on the Camera's pairing
+      screen emits a QR with **no `api` parameter**, and that absence is what marks
+      the pairing local for good; a *malformed* `api` stays an error, so a damaged
+      scan can never silently become a different security posture.
+      The two things the server used to provide are replaced rather than emulated:
+      device ids are minted locally (offline an id is an address, not a
+      credential), and a Viewer dialling in over Bonjour *is* the claim, so no
+      presence event is needed. Each side introduces itself with a sealed `hello`
+      whose sender id rides **inside** the seal.
+      `LocalPeerSocket` implements `SignalingSocket`, so `SignalingClient` and the
+      whole of `StreamingEngine` run unchanged over the direct link — sealing,
+      sequence checks and role AAD binding all still apply. There is no
+      `CribWire-HMAC` because there is no server to authenticate to; possession of
+      the QR secret is the entire authentication, which is strictly stronger than
+      the transport auth it replaces. A device on the same Wi-Fi that never scanned
+      the code cannot produce one readable message. No STUN or TURN is fetched:
+      both exist to cross the internet, and there is none on this path.
+      Tested: `LocalFraming` reassembly (11 tests over the chunk boundaries a real
+      network produces, including byte-at-a-time delivery and oversized announced
+      lengths) and the QR's local-only encoding.
+      **The trade, stated plainly**: no APNs, so a Viewer that leaves the house
+      gets no alerts. The toggle says so.
+
+**Milestone M5**: an iPad Viewer on the same Wi-Fi as an iPhone Camera pairs with
+the backend switched off, shows the Camera's battery, talks back, and keeps a Live
+Activity current on the Lock Screen.
+→ *All five code-complete; Kit (189) and app (30) suites green, app builds for
+iPhone and iPad. **Unverified on hardware**, for the same reason as M2 and M3:
+battery reporting, talk-back audio, the Live Activity and Bonjour discovery are all
+two-device behaviours, and no simulator can exercise them. What tests assert is the
+framing layer, the QR encoding and the payload schema.*
 
 ## v1.1 backlog (not scheduled)
 
-- [ ] Talk-back (Viewer → Camera push-to-talk)
-- [ ] Automatic session-key rotation (X25519 ratchet in sealed signaling)
+- [ ] Viewer can control the played audio at the camera. volume up, down, play pause, previous and next.
+- [ ] Option to cancel out the played audio to don't hear that.
 - [ ] Apple Watch companion for notifications + audio level
-- [ ] Live Activity showing connection/detection state
-- [ ] Local-network-only mode (Bonjour discovery, works fully offline)
+- [ ] Automatic session-key rotation (X25519 ratchet in sealed signaling)

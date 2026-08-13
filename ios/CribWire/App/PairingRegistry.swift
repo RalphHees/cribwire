@@ -12,7 +12,10 @@ struct PairingRecord: Codable, Identifiable, Equatable, Sendable {
     var localRole: PairingRole
     /// Backend base URL for this pairing (from the QR code on the Viewer, from
     /// configuration on the Camera).
-    var apiBaseURL: URL
+    ///
+    /// `nil` for a local-network-only pairing: those never touch a server, so
+    /// there is no URL to remember (`docs/TASKS.md` Phase 5).
+    var apiBaseURL: URL?
     /// The peer's device ID as assigned by the backend — needed to revoke one
     /// viewer specifically.
     var peerDeviceID: String?
@@ -22,10 +25,13 @@ struct PairingRecord: Codable, Identifiable, Equatable, Sendable {
     var displayName: String
     var pairedAt: Date
 
+    /// Whether this pairing runs entirely on the local network.
+    var isLocalOnly: Bool { apiBaseURL == nil }
+
     init(
         id: UUID,
         localRole: PairingRole,
-        apiBaseURL: URL,
+        apiBaseURL: URL?,
         peerDeviceID: String? = nil,
         localDeviceID: String? = nil,
         displayName: String? = nil,

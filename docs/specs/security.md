@@ -129,8 +129,20 @@ property comes from binding DTLS to the QR-derived keys.
 - Constant-time comparison for all MAC/SAS checks (`ContiguousBytes` comparison via
   CryptoKit, not `==` on arrays where timing matters server-side; Node:
   `crypto.timingSafeEqual`).
-- Certificate pinning (SPKI) for the backend API/WSS connections; pins shipped with
-  a backup pin and remote-update path via app release.
+- **Certificate pinning: deliberately not implemented.** Earlier revisions of this
+  spec required SPKI pinning for the API/WSS connections. It was built, then
+  removed: the operational cost is a hard coupling between the server's CA and
+  every installed app, where a CA or intermediate rotation bricks the fleet and can
+  only be repaired through App Store review — a multi-week path for a device
+  families rely on nightly.
+  The risk this accepts is bounded by the rest of this document. Media is
+  end-to-end encrypted (§4) and event payloads are sealed under `K_evt` (§5), so an
+  attacker holding a mis-issued certificate for the backend host sees ciphertext,
+  not streams or alerts. They could disrupt pairing setup and the REST metadata
+  path; they could not watch a nursery or read an alert. Standard TLS with system
+  trust is judged sufficient for that surface.
+  Revisit if the backend moves to a CA with a stable, self-controlled leaf key,
+  which removes the rotation hazard that motivated the removal.
 - No secrets in logs, crash reports, analytics, screenshots (screen-capture
   protection on the QR view via `UITextField.isSecureTextEntry` layer trick or
   `preventsCapture`), or the iOS app switcher snapshot.

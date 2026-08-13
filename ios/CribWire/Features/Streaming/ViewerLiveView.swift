@@ -17,10 +17,13 @@ struct ViewerLiveView: View {
     @StateObject private var engine: StreamingEngine
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var notifications: PushNotificationCoordinator
 
     @State private var grabber = VideoFrameGrabber()
+    @StateObject private var pip = PictureInPictureController()
     @State private var isAudioOnly = false
     @State private var toast: String?
+    @State private var liveActivity = LiveActivityController()
 
     private let record: PairingRecord
 
@@ -42,7 +45,10 @@ struct ViewerLiveView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                statusPill
+                HStack(spacing: 10) {
+                    cameraBatteryPill
+                    statusPill
+                }
             }
         }
         .overlay(alignment: .top) {
@@ -60,14 +66,61 @@ struct ViewerLiveView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .task { engine.start() }
-        .onDisappear { engine.stop() }
+        .task {
+            engine.start()
+            liveActivity.start(cameraName: record.displayName, state: activityState)
+        }
+        .onDisappear {
+            liveActivity.end()
+            pip.teardown()
+            engine.stop()
+        }
+        // Connection changes are worth showing at once; the throttle inside the
+        // controller keeps the routine battery ticks from burning the budget.
+        .onChange(of: engine.state) { _ in
+            liveActivity.update(activityState, force: true)
+        }
+        .onChange(of: engine.peerBatteryLevel) { _ in
+            liveActivity.update(activityState)
+        }
+        .onChange(of: notifications.latestEvent?.event.ts) { _ in
+            liveActivity.update(activityState, force: true)
+        }
+        // The PiP converter has to follow the track across reconnects, which
+        // produce a brand-new track object.
+        .onChange(of: engine.remoteVideoTrack) { track in
+            pip.attach(track: track)
+        }
         .onChange(of: scenePhase) { phase in
             // Backgrounding tears the stream down rather than holding a camera
-            // and a relay open behind a locked screen. Alerts still arrive by
-            // push, which is the point of the Camera doing detection itself.
-            if phase == .background { engine.stop() }
+            // and a relay open behind a locked screen — unless PiP is running,
+            // which is precisely a request to keep watching while doing something
+            // else. Alerts still arrive by push either way, which is the point of
+            // the Camera doing detection itself.
+            if phase == .background && !pip.isActive { engine.stop() }
+            // A call that ended while the app was away never delivered its
+            // resume notification, so the audio would stay silent.
+            if phase == .active { engine.recoverFromInterruptionIfNeeded() }
         }
+    }
+
+    /// The Lock Screen's view of what this screen is doing.
+    private var activityState: CribWireActivityAttributes.ContentState {
+        let connection: CribWireActivityAttributes.ContentState.Connection
+        switch engine.state {
+        // "Watching" means verified, not merely connected: an unverified stream
+        // is not something to reassure anyone about.
+        case .connected: connection = engine.isVerified ? .watching : .connecting
+        case .connecting: connection = .connecting
+        case .reconnecting: connection = .reconnecting
+        case .idle, .failed: connection = .stopped
+        }
+        return .init(
+            connection: connection,
+            batteryLevel: engine.peerBatteryLevel,
+            isCharging: engine.isPeerCharging,
+            lastAlertAt: notifications.latestEvent?.event.date
+        )
     }
 
     // MARK: - Video
@@ -81,6 +134,11 @@ struct ViewerLiveView: View {
                 failure(reason: reason, isSecurity: isSecurity)
             } else if engine.isVerified && !isAudioOnly {
                 VideoRenderView(track: engine.remoteVideoTrack, grabber: grabber)
+                // Required by AVKit: PiP cannot start from a layer that is not in
+                // the hierarchy. Invisible, and never what the user is looking at.
+                PictureInPictureLayerHost(controller: pip)
+                    .frame(width: 1, height: 1)
+                    .allowsHitTesting(false)
             } else if engine.isVerified && isAudioOnly {
                 audioOnlyPlaceholder
             } else {
@@ -107,13 +165,13 @@ struct ViewerLiveView: View {
     private var connectingCaption: String {
         switch engine.state {
         case .reconnecting:
-            return engine.statusDetail ?? "Reconnecting…"
+            return engine.statusDetail ?? String(localized: "Reconnecting…")
         case .connected:
             // Connected but not yet verified: the fingerprint check is the last
             // step before any pixel is shown.
-            return "Verifying the connection is private…"
+            return String(localized: "Verifying the connection is private…")
         default:
-            return "Connecting to \(record.displayName)…"
+            return String(localized: "Connecting to \(record.displayName)…")
         }
     }
 
@@ -159,6 +217,47 @@ struct ViewerLiveView: View {
     // MARK: - Controls
 
     private var controls: some View {
+        VStack(spacing: 12) {
+            talkButton
+            controlRow
+        }
+        .padding(.horizontal, Theme.Metrics.screenPadding)
+        .padding(.vertical, 18)
+        // Video fills the screen on an iPad; the controls do not need to be a
+        // metre apart to be reachable.
+        .frame(maxWidth: Theme.Metrics.readableWidth)
+        .frame(maxWidth: .infinity)
+        .background(Theme.Palette.background)
+    }
+
+    /// Push-to-talk. Held, never toggled — see `StreamingEngine.isTalking`.
+    private var talkButton: some View {
+        let isEnabled = engine.isVerified
+        return Text(engine.isTalking ? "Release to stop" : "Hold to talk")
+            .font(Theme.Typography.button)
+            .foregroundStyle(engine.isTalking ? Theme.Palette.onCoral : Theme.Palette.text)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                engine.isTalking ? Theme.Palette.coral : Theme.Palette.surface,
+                in: RoundedRectangle(cornerRadius: Theme.Metrics.controlRadius)
+            )
+            .contentShape(Rectangle())
+            .opacity(isEnabled ? 1 : 0.5)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard isEnabled, !engine.isTalking else { return }
+                        engine.setTalking(true)
+                    }
+                    .onEnded { _ in engine.setTalking(false) }
+            )
+            .disabled(!isEnabled)
+            .accessibilityLabel(Text("Hold to talk to the camera"))
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var controlRow: some View {
         HStack(spacing: 12) {
             controlButton(
                 systemName: engine.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
@@ -184,15 +283,23 @@ struct ViewerLiveView: View {
             ) {
                 saveSnapshot()
             }
+
+            if PictureInPictureController.isSupported {
+                controlButton(
+                    systemName: "pip.enter",
+                    label: "Mini view",
+                    isActive: pip.isActive,
+                    isEnabled: pip.isPossible && engine.isVerified && !isAudioOnly
+                ) {
+                    pip.isActive ? pip.stop() : pip.start()
+                }
+            }
         }
-        .padding(.horizontal, Theme.Metrics.screenPadding)
-        .padding(.vertical, 18)
-        .background(Theme.Palette.background)
     }
 
     private func controlButton(
         systemName: String,
-        label: String,
+        label: LocalizedStringKey,
         isActive: Bool,
         isEnabled: Bool = true,
         action: @escaping () -> Void
@@ -214,10 +321,56 @@ struct ViewerLiveView: View {
         .buttonStyle(.plain)
         .foregroundStyle(isEnabled ? Theme.Palette.text : Theme.Palette.textFaint)
         .disabled(!isEnabled)
-        .accessibilityLabel(label)
+        .accessibilityLabel(Text(label))
     }
 
     // MARK: - Status
+
+    /// The Camera's battery, once it has reported one.
+    ///
+    /// Hidden entirely rather than shown as "unknown" while nothing has arrived:
+    /// an empty gauge on a baby monitor reads as bad news, and silence here means
+    /// "not told yet", not "flat".
+    @ViewBuilder
+    private var cameraBatteryPill: some View {
+        if let level = engine.peerBatteryLevel {
+            let percent = Int((level * 100).rounded())
+            HStack(spacing: 4) {
+                Image(systemName: batterySymbol(for: level))
+                    .font(.system(size: 12, weight: .medium))
+                Text("\(percent)%")
+                    .font(Theme.Typography.caption)
+            }
+            .foregroundStyle(batteryTint(for: level))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                engine.isPeerCharging
+                    ? Text("Camera battery \(percent) percent, charging")
+                    : Text("Camera battery \(percent) percent")
+            )
+        }
+    }
+
+    private func batterySymbol(for level: Double) -> String {
+        if engine.isPeerCharging { return "battery.100.bolt" }
+        switch level {
+        case ..<0.15: return "battery.0"
+        case ..<0.40: return "battery.25"
+        case ..<0.80: return "battery.75"
+        default: return "battery.100"
+        }
+    }
+
+    /// Only an uncharging Camera is worth colouring: plugged in at 8 % is fine,
+    /// unplugged at 8 % is the night about to end.
+    private func batteryTint(for level: Double) -> Color {
+        guard !engine.isPeerCharging else { return Theme.Palette.live }
+        switch level {
+        case ..<0.15: return Theme.Palette.danger
+        case ..<0.30: return Theme.Palette.warning
+        default: return Theme.Palette.textMuted
+        }
+    }
 
     private var statusPill: some View {
         HStack(spacing: 6) {
@@ -250,15 +403,15 @@ struct ViewerLiveView: View {
         switch engine.state {
         case .connected:
             switch engine.linkQuality {
-            case .good: return "Good"
-            case .fair: return "Fair"
-            case .poor: return "Poor"
-            case .unknown: return "Live"
+            case .good: return String(localized: "Good")
+            case .fair: return String(localized: "Fair")
+            case .poor: return String(localized: "Poor")
+            case .unknown: return String(localized: "Live")
             }
-        case .connecting: return "Connecting"
-        case .reconnecting: return "Reconnecting"
-        case .failed: return "Offline"
-        case .idle: return "Idle"
+        case .connecting: return String(localized: "Connecting")
+        case .reconnecting: return String(localized: "Reconnecting")
+        case .failed: return String(localized: "Offline")
+        case .idle: return String(localized: "Idle")
         }
     }
 
@@ -270,17 +423,17 @@ struct ViewerLiveView: View {
     /// library, so it asks for `.addOnly` rather than full access.
     private func saveSnapshot() {
         guard let image = grabber.snapshot() else {
-            show("No frame to save yet.")
+            show(String(localized: "No frame to save yet."))
             return
         }
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             Task { @MainActor in
                 guard status == .authorized || status == .limited else {
-                    show("CribWire needs permission to save photos.")
+                    show(String(localized: "CribWire needs permission to save photos."))
                     return
                 }
                 UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                show("Saved to Photos")
+                show(String(localized: "Saved to Photos"))
             }
         }
     }

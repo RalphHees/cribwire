@@ -127,11 +127,16 @@ final class AppServices: ObservableObject {
     /// `nil` if this device has no stored identity — that means pairing never
     /// completed, and there is nothing it is entitled to call.
     func makeAPIClient(for record: PairingRecord) async throws -> APIClient? {
-        guard let identity = try await secrets.loadDeviceIdentity(for: record.id) else {
+        // A local-network pairing has no backend to call, by construction. Every
+        // caller already treats `nil` as "nothing this pairing is entitled to
+        // ask for", which is exactly right here too.
+        guard let baseURL = record.apiBaseURL,
+              let identity = try await secrets.loadDeviceIdentity(for: record.id)
+        else {
             return nil
         }
         return APIClient(
-            configuration: .init(baseURL: record.apiBaseURL, pairingID: record.id),
+            configuration: .init(baseURL: baseURL, pairingID: record.id),
             credentials: .device(deviceID: identity.deviceID, deviceKey: identity.deviceKey),
             transport: makeTransport()
         )

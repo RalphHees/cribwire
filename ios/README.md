@@ -132,8 +132,13 @@ is indistinguishable from the others.
   they decide with `K_evt` and posts it. Both detectors ship **disabled** and are
   independently toggleable, per `ios-app.md` §2.5. The microphone tap has never
   run on hardware — see the coexistence note in `docs/TASKS.md` Phase 3.
-- **Certificate pinning** — `URLSessionTransport` is the single place SPKI
-  pinning will be added (Phase 4).
+- **Certificate pinning** — built, then deliberately removed. It coupled every
+  installed app to the backend's CA, so a CA or intermediate rotation would brick
+  the fleet and could only be repaired through App Store review. Because media and
+  events are end-to-end encrypted, an attacker with a mis-issued certificate sees
+  ciphertext, so system TLS is judged sufficient. Reasoning in
+  `docs/specs/security.md` §7; the implementation is in git history if the
+  trade-off ever changes.
 - **Camera/Viewer home screens** — pairing, device list, live view, dimming,
   battery warnings and audio-only mode are all in. Picture-in-Picture is Phase 4.
 - **Localization** — strings are inline English. EN/NL localization is Phase 4.

@@ -16,9 +16,10 @@ struct DetectionSettingsView: View {
                     noiseCard
                     movementCard
                     cooldownCard
+                    // One literal, not a concatenation: `"a" + "b"` is a `String`
+                    // and would never reach the String Catalog.
                     KCSecurityNote(
-                        text: "Alerts are end-to-end encrypted — the server can't see "
-                            + "what was detected, or when."
+                        text: "Alerts are end-to-end encrypted — the server can't see what was detected, or when."
                     )
                 }
                 .padding(.vertical, 20)
