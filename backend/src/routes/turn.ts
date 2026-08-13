@@ -1,9 +1,11 @@
 /**
  * `POST /v1/pairings/:id/turn-credentials` — backend.md §4.
  *
- * Either role may ask; the credential is scoped to the pairing and expires on
- * its own. Nothing is stored: coturn recomputes the same HMAC from the shared
- * secret it already has.
+ * Either role may ask, and nothing is stored on this side. Against our own
+ * coturn the credential is scoped to the pairing and expires on its own, since
+ * coturn recomputes the same HMAC from the shared secret it already has;
+ * against a hosted relay it is the pair that relay issued, scoped however the
+ * provider scoped it. `issueTurnCredentials` covers both.
  */
 
 import type { FastifyInstance } from 'fastify';

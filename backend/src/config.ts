@@ -14,11 +14,26 @@ export interface RateLimitRule {
 }
 
 export interface TurnSettings {
-  /** coturn `use-auth-secret` shared secret; empty when TURN is unconfigured. */
+  /**
+   * coturn `use-auth-secret` shared secret. Set when we run the relay: coturn
+   * recomputes every credential we issue, so nothing is stored on either side.
+   * Empty when a hosted relay issues its own credentials instead.
+   */
   readonly sharedSecret: string;
+  /**
+   * Credential pair issued by a hosted relay (metered.ca and the like). Such a
+   * relay never shared a secret with us and so cannot recompute an HMAC; the
+   * pair it handed out is passed through to clients verbatim. Both empty when
+   * the relay is our own coturn.
+   */
+  readonly staticUsername: string;
+  readonly staticCredential: string;
   readonly ttlSeconds: number;
   readonly uris: readonly string[];
 }
+
+/** Which credential scheme the configured relay expects. */
+export type TurnScheme = 'hmac' | 'static' | 'none';
 
 export interface ApnsSettings {
   /** Contents of the `.p8` key. Empty when push is unconfigured. */
@@ -113,6 +128,41 @@ function listFromEnv(env: NodeJS.ProcessEnv, key: string): readonly string[] {
     .filter((entry) => entry.length > 0);
 }
 
+/**
+ * The two credential schemes are mutually exclusive. A shared secret means the
+ * relay derives the credential itself; a static pair means the relay issued it
+ * upstream and knows nothing of ours. Holding both says nothing about which
+ * relay is actually on the other end, so it fails here rather than letting the
+ * process pick one and hand out credentials the relay will reject.
+ */
+function turnFromEnv(env: NodeJS.ProcessEnv): TurnSettings {
+  const sharedSecret = env['TURN_SHARED_SECRET'] ?? '';
+  const staticUsername = env['TURN_STATIC_USERNAME'] ?? '';
+  const staticCredential = env['TURN_STATIC_CREDENTIAL'] ?? '';
+
+  if (
+    sharedSecret !== '' &&
+    (staticUsername !== '' || staticCredential !== '')
+  ) {
+    throw new Error(
+      'TURN_SHARED_SECRET and TURN_STATIC_USERNAME/TURN_STATIC_CREDENTIAL are mutually exclusive',
+    );
+  }
+  if ((staticUsername === '') !== (staticCredential === '')) {
+    throw new Error(
+      'TURN_STATIC_USERNAME and TURN_STATIC_CREDENTIAL must be set together',
+    );
+  }
+
+  return {
+    sharedSecret,
+    staticUsername,
+    staticCredential,
+    ttlSeconds: intFromEnv(env, 'TURN_TTL_SECONDS', 3600),
+    uris: listFromEnv(env, 'TURN_URIS'),
+  };
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = intFromEnv(env, 'PORT', 8080);
   const eventIntervalSeconds = intFromEnv(
@@ -143,11 +193,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     wsHeartbeatSeconds: intFromEnv(env, 'WS_HEARTBEAT_SECONDS', 30),
     wsIdleTimeoutSeconds: intFromEnv(env, 'WS_IDLE_TIMEOUT_SECONDS', 300),
     wsRosterTtlSeconds: intFromEnv(env, 'WS_ROSTER_TTL_SECONDS', 30),
-    turn: {
-      sharedSecret: env['TURN_SHARED_SECRET'] ?? '',
-      ttlSeconds: intFromEnv(env, 'TURN_TTL_SECONDS', 3600),
-      uris: listFromEnv(env, 'TURN_URIS'),
-    },
+    turn: turnFromEnv(env),
     apns: {
       privateKeyPem: env['APNS_KEY_P8'] ?? '',
       keyId: env['APNS_KEY_ID'] ?? '',
@@ -181,9 +227,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   };
 }
 
+/**
+ * Which scheme the relay behind `TURN_URIS` expects, or `none` when neither
+ * set of credentials is present. `turnFromEnv` has already rejected the
+ * ambiguous combinations, so the order of these checks never decides anything.
+ */
+export function turnScheme(turn: TurnSettings): TurnScheme {
+  if (turn.sharedSecret !== '') return 'hmac';
+  if (turn.staticUsername !== '' && turn.staticCredential !== '') {
+    return 'static';
+  }
+  return 'none';
+}
+
 /** True when TURN credentials can actually be issued. */
 export function turnConfigured(config: Config): boolean {
-  return config.turn.sharedSecret !== '' && config.turn.uris.length > 0;
+  return config.turn.uris.length > 0 && turnScheme(config.turn) !== 'none';
 }
 
 /** True when the APNs provider credentials are complete. */

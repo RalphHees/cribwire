@@ -86,13 +86,35 @@ cache in Redis).
 
 ## 4. TURN/STUN
 
+Two relay arrangements are supported, and the response body is identical under
+both — only where the credential comes from differs. They are mutually
+exclusive: the process refuses to start holding credentials for both.
+
+**Own coturn** (`use-auth-secret`), the arrangement the deployment targets:
+
 - coturn behind the same domain (`turn.cribwire.example`), UDP 3478 + TLS 5349
   (turns), relayed port range 49152–65535.
 - Ephemeral credentials: `username = <expiry-unix>:<pairingId>`, `password =
-  base64(HMAC-SHA1(turn_shared_secret, username))` (coturn `use-auth-secret` mode).
-  Issued only through the authenticated API endpoint.
+  base64(HMAC-SHA1(turn_shared_secret, username))`. coturn recomputes the same
+  HMAC, so nothing is stored, the credential is scoped to one pairing, and the
+  username's expiry bounds its life. Issued only through the authenticated API
+  endpoint.
 - Per-session bandwidth cap (target: 2 Mbps per allocation) and total-relay quota
-  alerts; TURN sees and forwards only SRTP ciphertext.
+  alerts.
+
+**Hosted relay** (metered.ca and the like), when running coturn is not worth it:
+
+- The provider issued a credential pair that the API forwards unchanged; it
+  shares no secret with us and could not verify an HMAC of ours. `ttlSeconds`
+  then only says how long a client may cache the answer — the pair itself is
+  scoped however the provider scoped it, not per pairing, and rotating it is a
+  redeploy that takes effect within one TTL.
+- Still issued only through the authenticated API endpoint, so the pair never
+  ships inside the app binary and swapping providers needs no app release.
+- Relay bandwidth and quota are the provider's to enforce; the alerts above do
+  not apply.
+
+Under either arrangement TURN sees and forwards only SRTP ciphertext.
 
 ## 5. Data model (Postgres)
 

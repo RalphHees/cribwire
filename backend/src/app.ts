@@ -9,7 +9,7 @@
 
 import { Redis } from 'ioredis';
 import type { Config } from './config.ts';
-import { apnsConfigured, turnConfigured } from './config.ts';
+import { apnsConfigured, turnConfigured, turnScheme } from './config.ts';
 import type { Logger } from './logger.ts';
 import { MemoryNonceStore, RedisNonceStore } from './auth/nonce-store.ts';
 import type { NonceStore } from './auth/nonce-store.ts';
@@ -96,10 +96,16 @@ export function createAppResources(
   if (!turnConfigured(config)) {
     if (config.nodeEnv === 'production') {
       throw new Error(
-        'TURN_SHARED_SECRET and TURN_URIS are required in production',
+        'TURN_URIS with either TURN_SHARED_SECRET (coturn) or ' +
+          'TURN_STATIC_USERNAME/TURN_STATIC_CREDENTIAL (hosted relay) are ' +
+          'required in production',
       );
     }
     logger.warn('TURN is not configured: turn-credentials answers 503');
+  } else {
+    // Which relay is on the other end decides whether a credential we issue
+    // can be verified at all, and it is invisible from the URIs alone.
+    logger.info('TURN configured', { scheme: turnScheme(config.turn) });
   }
 
   const ctx: AppContext = {

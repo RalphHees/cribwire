@@ -24,7 +24,10 @@ npm run dev                           # http://localhost:8080/v1/health
 Without Docker the service still starts: set `DATABASE_URL` to any reachable
 Postgres. `REDIS_URL` may be omitted in development (per-process nonce cache,
 rate limits, and signaling bus); production refuses to start without it, and
-also without `TURN_SHARED_SECRET`/`TURN_URIS` and the four `APNS_*` values.
+also without TURN and the four `APNS_*` values. TURN means `TURN_URIS` plus
+either `TURN_SHARED_SECRET` (our own coturn, `use-auth-secret`) or
+`TURN_STATIC_USERNAME`/`TURN_STATIC_CREDENTIAL` (a hosted relay that issued its
+own pair) — never both.
 
 ### Scripts
 
@@ -55,7 +58,7 @@ src/repositories/    Postgres and in-memory implementations of one port
 src/routes/          REST handlers
 src/ws/              signaling: upgrade, hub/router, Redis pub/sub bridge
 src/push/            APNs port, HTTP/2 sender, event fan-out
-src/turn/            ephemeral coturn credentials
+src/turn/            relay credentials: coturn HMAC or a hosted pair
 src/metrics/         Prometheus registry and exposition
 src/jobs/            daily purge job (+ CLI)
 test/contract/       shared test-vector conformance
