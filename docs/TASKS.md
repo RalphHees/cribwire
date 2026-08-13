@@ -125,31 +125,53 @@ has no camera, so the capture pipeline in particular has never executed.*
 
 **iOS (Camera)**
 - [x] Noise detector: A-weighted RMS, threshold presets + custom slider with live
-      level meter, ≥ 1 s trigger window — decision logic done and unit-tested;
-      the AVAudioEngine tap that feeds it is not wired yet
+      level meter, ≥ 1 s trigger window. Fed by `AudioLevelMonitor`, an
+      `AVAudioEngine` input tap that runs the A-weighting on the audio thread
 - [x] Movement detector: 160×120 luma diff, consecutive-frame trigger,
-      region-of-interest editor — same split: logic + editor done, capture feed not
+      region-of-interest editor. Fed by `CapturerFrameTap`, which sits between the
+      capturer and the WebRTC video source so detection sees the encoded frames
+      without a second camera client
 - [x] Detection settings: independent enable toggles (default off), sensitivity,
       cooldown (1–10 min); background-audio mode keeps noise detection alive
-- [ ] Event pipeline: seal with `K_evt` → `POST /v1/events`; low-battery event
-- [ ] Detector tuning against recorded fixture clips (crying, silence, pets,
-      curtain movement) with target false-positive/negative rates
+- [x] Event pipeline: `DetectionCoordinator` seals with `K_evt` and posts to
+      `/v1/events`; low-battery event driven from the Camera screen's battery
+      readings through `LowBatteryMonitor`
+- [~] Detector tuning: `DetectionScenarioTests` covers the named false-positive
+      cases (silence, transients, intermittent pet noise, background hum, dawn
+      light, auto-exposure jumps, a curtain inside and outside the region) with
+      **synthesised** signals. Tuning against *recorded* clips of a real baby, pet
+      and curtain — and a measured false-positive/negative rate — is still open and
+      needs media the repo does not have.
 
 **iOS (Viewer)**
-- [ ] Notification permission flow + settings deep-link when denied — permission is
-      requested from the pairing screens; the denied-state UI is still missing
+- [x] Notification permission flow + settings deep-link when denied. iOS shows the
+      prompt once, so a denial is surfaced on the Viewer's home screen with a link
+      into Settings, and the status is re-read on every return to the foreground
 - [x] In-app payload decryption (`PushNotificationCoordinator`): decrypt with
       `K_evt` from the Keychain, specific alert text, generic fallback on any
       decrypt failure. Replaces the Notification Service Extension
-- [ ] Notification tap → deep-link into that Camera's live view — the tap already
-      resolves to a pairing (`pendingPairingID`); the live view it should open is
-      Phase 2
+- [x] Notification tap → deep-link into that Camera's live view. `pendingPairingID`
+      now drives a navigation destination and is cleared on dismissal; an alert
+      naming a pairing this device no longer holds gets an explanation rather than
+      a blank screen
 
 **Milestone M3**: clapping near the Camera produces a push on the Viewer within 5 s;
 payload verified opaque in APNs traffic. With the Viewer app closed the alert reads
 "Activity detected" and resolves to "Noise detected" once the app is opened — with
 no Notification Service Extension nothing may rewrite a push before iOS displays it,
 and the server cannot read the event to describe it itself.
+→ *Code complete; all suites green. **Unverified**, and for the same reason as M2:
+every clause of that milestone is on-device behaviour. Nothing has clapped, no push
+has been observed in APNs traffic, and the microphone tap has never run.*
+
+> **The risk worth knowing about**: `AudioLevelMonitor` opens the microphone with
+> `AVAudioEngine` while WebRTC's `RTCAudioSession` also holds it for streaming.
+> Whether both can hold the input at once depends on the device and the route, and
+> it cannot be tested in a simulator. `start()` therefore reports failure instead
+> of assuming success, and the Camera status screen shows "Microphone unavailable"
+> rather than looking like a quiet room. If it turns out the two cannot coexist,
+> the fix is to feed the detector from WebRTC's audio device module instead — the
+> detector itself takes a level and does not care where it came from.
 
 ## Phase 4 — Hardening, polish, release
 

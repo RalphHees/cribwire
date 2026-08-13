@@ -42,16 +42,29 @@ final class CameraCaptureController {
 
     private let videoSource: RTCVideoSource
     private let capturer: RTCCameraVideoCapturer
+    /// Sits between the capturer and the source so movement detection sees the
+    /// frames that are actually encoded, without a second camera client.
+    private let frameTap: CapturerFrameTap
     private var position: Position = .back
 
-    init(factory: RTCPeerConnectionFactory = WebRTCStack.factory) {
+    init(
+        factory: RTCPeerConnectionFactory = WebRTCStack.factory,
+        onLumaFrame: @escaping @Sendable (LumaFrame) -> Void = { _ in }
+    ) {
         let source = factory.videoSource()
         self.videoSource = source
-        self.capturer = RTCCameraVideoCapturer(delegate: source)
+        let tap = CapturerFrameTap(source: source, onLumaFrame: onLumaFrame)
+        self.frameTap = tap
+        self.capturer = RTCCameraVideoCapturer(delegate: tap)
 
         self.videoTrack = factory.videoTrack(with: source, trackId: "cribwire-video")
         let audioSource = factory.audioSource(with: WebRTCStack.defaultConstraints())
         self.audioTrack = factory.audioTrack(with: audioSource, trackId: "cribwire-audio")
+    }
+
+    /// Turns luma extraction on and off as the movement detector is enabled.
+    func setMovementDetectionEnabled(_ enabled: Bool) {
+        frameTap.setExtracting(enabled)
     }
 
     /// The source the local preview renders from.

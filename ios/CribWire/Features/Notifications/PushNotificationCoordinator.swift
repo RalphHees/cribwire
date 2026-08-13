@@ -82,9 +82,9 @@ final class PushNotificationCoordinator: NSObject, ObservableObject {
     /// registered with the backend (pairing).
     ///
     /// Denial is not an error — CribWire works without pushes — so this reports
-    /// nothing and only updates `authorizationStatus`. The "you have denied
-    /// alerts, here is Settings" flow is still to come (`docs/TASKS.md` →
-    /// Phase 3, iOS Viewer).
+    /// nothing and only updates `authorizationStatus`. A Viewer that has denied
+    /// alerts is told so on its home screen, with a link into Settings, because
+    /// iOS will never show this prompt a second time.
     func requestAuthorization() async {
         await refreshAuthorizationStatus()
         if authorizationStatus == .notDetermined {

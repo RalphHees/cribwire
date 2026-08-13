@@ -21,6 +21,7 @@ import UIKit
 struct CameraStatusView: View {
 
     @StateObject private var engine: StreamingEngine
+    @EnvironmentObject private var services: AppServices
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
@@ -66,6 +67,9 @@ struct CameraStatusView: View {
             if phase == .active {
                 UIApplication.shared.isIdleTimerDisabled = true
                 refreshBattery()
+                // The alerts screen may have been visited since this one started,
+                // so the detectors are re-synced rather than left as they were.
+                engine.applyDetectionSettings(services.detectionSettings)
             }
         }
         .onReceive(
@@ -142,6 +146,7 @@ struct CameraStatusView: View {
                         : "\(engine.connectedPeerCount) watching"
                 )
                 row(label: "Quality", value: engine.quality.description)
+                row(label: "Alerts", value: alertsSummary, tint: alertsTint)
                 if engine.connectedPeerCount > 0 {
                     row(
                         label: "Encryption",
@@ -174,6 +179,28 @@ struct CameraStatusView: View {
         case .reconnecting: return "Reconnecting"
         case .failed(let reason, _): return reason
         }
+    }
+
+    /// What the two detectors are doing, in one line.
+    ///
+    /// A microphone that could not be opened is called out here rather than left
+    /// to look like silence: "noise alerts on" and "noise alerts on but deaf" must
+    /// never read the same.
+    private var alertsSummary: String {
+        if engine.detection?.isNoiseDetectionUnavailable == true {
+            return "Microphone unavailable"
+        }
+        let settings = services.detectionSettings
+        switch (settings.noise.isEnabled, settings.movement.isEnabled) {
+        case (true, true): return "Noise and movement"
+        case (true, false): return "Noise"
+        case (false, true): return "Movement"
+        case (false, false): return "Off"
+        }
+    }
+
+    private var alertsTint: Color? {
+        engine.detection?.isNoiseDetectionUnavailable == true ? Theme.Palette.warning : nil
     }
 
     // MARK: - Battery
@@ -209,6 +236,12 @@ struct CameraStatusView: View {
     private func refreshBattery() {
         batteryLevel = UIDevice.current.batteryLevel
         batteryState = UIDevice.current.batteryState
+        // Viewers are told at 15 %, once per discharge — `LowBatteryMonitor`
+        // owns that rule, so every reading is simply handed to it.
+        engine.ingest(
+            batteryLevel: Double(batteryLevel),
+            isCharging: batteryState == .charging || batteryState == .full
+        )
     }
 
     // MARK: - Controls

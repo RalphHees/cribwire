@@ -127,9 +127,11 @@ is indistinguishable from the others.
   and the token is registered with `POST /v1/pairings` / `.../claim`), but
   rotation through `PUT /v1/devices/token` is not wired yet, so a token that
   changes after pairing goes stale until the pairing is redone. Phase 3.
-- **Detection** — noise and movement detection, their settings and the event
-  pipeline are Phase 3. Both detectors ship **disabled** and are independently
-  toggleable, per `ios-app.md` §2.5.
+- **Detection** — wired end to end: `AudioLevelMonitor` feeds the noise detector,
+  `CapturerFrameTap` the movement detector, and `DetectionCoordinator` seals what
+  they decide with `K_evt` and posts it. Both detectors ship **disabled** and are
+  independently toggleable, per `ios-app.md` §2.5. The microphone tap has never
+  run on hardware — see the coexistence note in `docs/TASKS.md` Phase 3.
 - **Certificate pinning** — `URLSessionTransport` is the single place SPKI
   pinning will be added (Phase 4).
 - **Camera/Viewer home screens** — pairing, device list, live view, dimming,

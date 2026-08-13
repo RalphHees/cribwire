@@ -27,7 +27,12 @@ struct CribWireApp: App {
                 // `PushNotificationCoordinator`).
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
-                    Task { await services.notifications.upgradeDeliveredNotifications() }
+                    Task {
+                        await services.notifications.upgradeDeliveredNotifications()
+                        // The user may have just come back from Settings having
+                        // turned alerts on, which is the only way out of a denial.
+                        await services.notifications.refreshAuthorizationStatus()
+                    }
                 }
         }
     }

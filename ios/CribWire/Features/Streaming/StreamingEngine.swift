@@ -94,6 +94,9 @@ final class StreamingEngine: ObservableObject {
 
     /// Camera-side only.
     let capture: CameraCaptureController?
+    /// Camera-side only. Owned here because it consumes the capture feed: the
+    /// frames it needs are the ones this engine is already encoding.
+    let detection: DetectionCoordinator?
 
     private var client: SignalingClient?
     private var eventTask: Task<Void, Never>?
@@ -116,7 +119,22 @@ final class StreamingEngine: ObservableObject {
         self.record = record
         self.services = services
         self.role = record.localRole
-        self.capture = record.localRole == .camera ? CameraCaptureController() : nil
+
+        guard record.localRole == .camera else {
+            self.capture = nil
+            self.detection = nil
+            return
+        }
+
+        // The coordinator has to exist before the capture controller, because the
+        // capture controller's frame tap delivers straight into it.
+        let detection = DetectionCoordinator(record: record, services: services)
+        self.detection = detection
+        self.capture = CameraCaptureController { frame in
+            Task { @MainActor in
+                detection.ingest(frame)
+            }
+        }
     }
 
     // MARK: - Lifecycle
@@ -135,7 +153,25 @@ final class StreamingEngine: ObservableObject {
         }
         pathMonitor?.start()
 
+        // Detection is independent of whether anyone is watching: the Camera
+        // alerts on a quiet nursery with no Viewer connected, which is the whole
+        // point of it running detection itself.
+        applyDetectionSettings(services.detectionSettings)
+
         Task { await self.connect() }
+    }
+
+    /// Starts or stops each detector to match the alerts screen, and tells the
+    /// capture tap whether to extract luma.
+    func applyDetectionSettings(_ settings: DetectionSettings) {
+        detection?.apply(settings)
+        capture?.setMovementDetectionEnabled(settings.movement.isEnabled)
+        Task { await self.updateCaptureForViewerCount() }
+    }
+
+    /// Battery readings from the Camera screen, for the low-battery event.
+    func ingest(batteryLevel: Double, isCharging: Bool) {
+        detection?.ingest(batteryLevel: batteryLevel, isCharging: isCharging)
     }
 
     func stop() {
@@ -144,6 +180,7 @@ final class StreamingEngine: ObservableObject {
         reconnectTask?.cancel(); reconnectTask = nil
         qualityTask?.cancel(); qualityTask = nil
         pathMonitor?.stop(); pathMonitor = nil
+        detection?.stop()
 
         // Captured before teardown: the peers are told before the socket goes,
         // so they stop immediately rather than waiting for ICE to time out.

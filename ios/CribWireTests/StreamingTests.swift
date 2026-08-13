@@ -151,3 +151,74 @@ final class VideoFrameGrabberTests: XCTestCase {
         return try XCTUnwrap(buffer)
     }
 }
+
+/// The bridge between what the camera captures and what the movement detector
+/// compares. A wrong frame here shows up as phantom movement, so the failure
+/// modes matter as much as the happy path.
+final class LumaFrameExtractionTests: XCTestCase {
+
+    func testExtractsTheDetectorsFixedSizeFromALargerFrame() throws {
+        let frame = try makeFrame(width: 1280, height: 720, luma: 200)
+        let luma = try XCTUnwrap(CapturerFrameTap.lumaFrame(from: frame))
+
+        XCTAssertEqual(luma.width, MovementDetector.frameWidth)
+        XCTAssertEqual(luma.height, MovementDetector.frameHeight)
+        XCTAssertEqual(luma.pixels.count, MovementDetector.frameWidth * MovementDetector.frameHeight)
+        // A uniformly bright plane must survive downsampling unchanged; anything
+        // else means the stride or plane arithmetic is off.
+        XCTAssertTrue(luma.pixels.allSatisfy { $0 == 200 })
+    }
+
+    /// Point-sampling must read the Y plane, not the chroma plane that follows
+    /// it, and must respect the row stride rather than assuming width == stride.
+    func testReadsTheLumaPlaneAtTheCorrectStride() throws {
+        let frame = try makeFrame(width: 640, height: 480, luma: 17)
+        let luma = try XCTUnwrap(CapturerFrameTap.lumaFrame(from: frame))
+        XCTAssertTrue(luma.pixels.allSatisfy { $0 == 17 })
+    }
+
+    /// An unexpected pixel format yields nothing rather than a misread buffer.
+    func testRefusesANonPlanarFormat() throws {
+        var buffer: CVPixelBuffer?
+        XCTAssertEqual(
+            CVPixelBufferCreate(kCFAllocatorDefault, 64, 64, kCVPixelFormatType_32BGRA, nil, &buffer),
+            kCVReturnSuccess
+        )
+        let frame = RTCVideoFrame(
+            buffer: RTCCVPixelBuffer(pixelBuffer: try XCTUnwrap(buffer)),
+            rotation: ._0,
+            timeStampNs: 0
+        )
+        XCTAssertNil(CapturerFrameTap.lumaFrame(from: frame))
+    }
+
+    /// A bi-planar YUV frame with the Y plane filled to `luma`.
+    private func makeFrame(width: Int, height: Int, luma: UInt8) throws -> RTCVideoFrame {
+        var buffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary,
+            &buffer
+        )
+        XCTAssertEqual(status, kCVReturnSuccess)
+        let pixelBuffer = try XCTUnwrap(buffer)
+
+        CVPixelBufferLockBaseAddress(pixelBuffer, [])
+        let base = try XCTUnwrap(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0))
+        let stride = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0)
+        let plane = base.assumingMemoryBound(to: UInt8.self)
+        for row in 0..<CVPixelBufferGetHeightOfPlane(pixelBuffer, 0) {
+            memset(plane + row * stride, Int32(luma), CVPixelBufferGetWidthOfPlane(pixelBuffer, 0))
+        }
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, [])
+
+        return RTCVideoFrame(
+            buffer: RTCCVPixelBuffer(pixelBuffer: pixelBuffer),
+            rotation: ._0,
+            timeStampNs: 0
+        )
+    }
+}

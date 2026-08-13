@@ -1,5 +1,6 @@
 import CribWireKit
 import SwiftUI
+import UIKit
 
 /// Camera home: start streaming, pair a Viewer, manage pairings and alerts.
 ///
@@ -107,7 +108,7 @@ struct CameraHomeView: View {
     }
 }
 
-/// Viewer home. The live view, audio-only mode and PiP are Phase 2.
+/// Viewer home: watch a paired Camera, and act on the alerts it sends.
 struct ViewerHomeView: View {
     @EnvironmentObject private var services: AppServices
     @EnvironmentObject private var notifications: PushNotificationCoordinator
@@ -117,6 +118,10 @@ struct ViewerHomeView: View {
             KCScreen {
                 VStack(spacing: Theme.Metrics.stackSpacing) {
                     header
+
+                    if notificationsAreBlocked {
+                        notificationsBlockedCard
+                    }
 
                     if let latest = notifications.latestEvent {
                         latestAlert(latest)
@@ -176,6 +181,94 @@ struct ViewerHomeView: View {
             }
             .navigationTitle("Viewer")
             .navigationBarTitleDisplayMode(.large)
+            // A tapped alert should land on the Camera that raised it, not on a
+            // list. The coordinator resolves the push to a pairing id; this turns
+            // that into the live view, and clears it so the same tap cannot
+            // re-navigate later.
+            .navigationDestination(isPresented: alertDestination) {
+                if let record = alertedCamera {
+                    ViewerLiveView(record: record, services: services)
+                } else {
+                    unknownPairingView
+                }
+            }
+        }
+    }
+
+    /// Presented while a tapped alert is waiting to be opened. Setting it back to
+    /// `false` — swiping back, or dismissing — clears the pending id, so the same
+    /// tap cannot re-navigate later.
+    ///
+    /// `navigationDestination(item:)` would say this more directly but is iOS 17,
+    /// and CribWire targets 16.
+    private var alertDestination: Binding<Bool> {
+        Binding(
+            get: { notifications.pendingPairingID != nil },
+            set: { isPresented in
+                if !isPresented { notifications.pendingPairingID = nil }
+            }
+        )
+    }
+
+    private var alertedCamera: PairingRecord? {
+        guard let pairingID = notifications.pendingPairingID else { return nil }
+        return services.pairings.first {
+            $0.id == pairingID && $0.localRole == .viewer
+        }
+    }
+
+    /// The alert named a pairing this device no longer holds — revoked here, or
+    /// wiped and not re-paired. Better than a blank screen or a silent no-op.
+    private var unknownPairingView: some View {
+        KCScreen {
+            VStack(spacing: 14) {
+                Spacer()
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 44))
+                    .foregroundStyle(Theme.Palette.textFaint)
+                Text("That camera is not paired")
+                    .font(Theme.Typography.title)
+                Text("The alert came from a pairing this device no longer has. Scan the Camera again to watch it.")
+                    .font(Theme.Typography.body)
+                    .foregroundStyle(Theme.Palette.textMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+            }
+        }
+    }
+
+    // MARK: - Notification permission
+
+    /// iOS shows the permission prompt once. After a denial the only route back
+    /// is Settings, so the Viewer has to be told — a baby monitor whose alerts are
+    /// silently switched off is the worst failure this app has.
+    private var notificationsAreBlocked: Bool {
+        notifications.authorizationStatus == .denied
+    }
+
+    private var notificationsBlockedCard: some View {
+        KCCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "bell.slash.fill")
+                        .foregroundStyle(Theme.Palette.warning)
+                    Text("Alerts are turned off")
+                        .font(Theme.Typography.callout.weight(.semibold))
+                        .foregroundStyle(Theme.Palette.text)
+                }
+                Text("This device will not tell you when the Camera hears or sees something. You can still watch the live view.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Palette.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Turn alerts on in Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                .font(Theme.Typography.callout.weight(.semibold))
+                .foregroundStyle(Theme.Palette.periwinkle)
+            }
         }
     }
 
