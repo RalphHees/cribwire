@@ -99,7 +99,39 @@ final class SignalingTests: XCTestCase {
         XCTAssertNil(SignalingRecipient(wireValue: "server"))
     }
 
+    /// The shape the server actually sends: one `peer` address, in the same form
+    /// it routes on. The Camera reads the viewer's device id out of it — without
+    /// that it can hear a claim but not tell who made it.
+    func testPresenceEventsParseThePeerAddress() throws {
+        let online = SignalingInboundMessage.parse(
+            #"{"type":"peer-online","peer":"viewer:1E2C0C3E-0000-4000-8000-000000000001"}"#
+        )
+        XCTAssertEqual(
+            online,
+            .peerOnline(
+                SignalingPresence(
+                    role: .viewer,
+                    deviceID: "1E2C0C3E-0000-4000-8000-000000000001"
+                )
+            )
+        )
+
+        // A camera address carries no device id: a pairing has exactly one.
+        XCTAssertEqual(
+            SignalingInboundMessage.parse(#"{"type":"peer-online","peer":"camera"}"#),
+            .peerOnline(SignalingPresence(role: .camera, deviceID: nil))
+        )
+
+        XCTAssertEqual(
+            SignalingInboundMessage.parse(
+                #"{"type":"peer-offline","peer":"viewer:v-1"}"#
+            ),
+            .peerOffline(SignalingPresence(role: .viewer, deviceID: "v-1"))
+        )
+    }
+
     func testPresenceEventsParse() throws {
+        // Fallback shape: role and device id spelled out separately.
         let online = SignalingInboundMessage.parse(
             #"{"type":"peer-online","role":"viewer","deviceId":"v-1"}"#
         )

@@ -18,7 +18,7 @@ milestone.
       tests, Docker image build
 - [x] Backend scaffold: Node 22/TypeScript, Fastify + `ws`, Postgres + Redis via
       docker-compose, migrations tooling, `/v1/health` + `/v1/version`
-- [ ] Provisioning: Apple Developer setup, APNs `.p8` key, sandbox push working
+- [x] Provisioning: Apple Developer setup, APNs `.p8` key, sandbox push working
       against a hello-world payload — **blocked: needs a human with an Apple
       Developer account** (see `.github/workflows/release-testflight.yml` preflight)
 
@@ -54,10 +54,21 @@ milestone.
 - [x] Pin every REST request/response body (1.0 left them to prose and the two
       implementations diverged: `ttlSeconds` vs `expiresInSeconds`)
 
+- [x] Camera learns of a claim over its WebSocket (`security.md` §3.3 step 2).
+      The claim is a REST call the Camera never sees, so without this it sat on
+      the QR screen for ever and the SAS never appeared on it. The Camera now
+      holds a signaling socket per live candidate and treats a viewer's
+      `peer-online` as the claim; the Viewer connects right after claiming, which
+      is what raises that event.
+
 **Milestone M1**: two physical devices pair via QR, show matching SAS codes, and the
 pairing survives app restarts; revocation works. Crypto unit tests green on CI.
 → *Code complete and CI green. The two-device parts (matching SAS on two phones,
 Keychain survival across reboot) are inherently device-only and remain unverified.*
+
+> **Known gap:** `PUT /v1/devices/token` exists on the backend and in `APIClient`,
+> but nothing in the app calls it, so a rotated APNs token never reaches the
+> server. Scheduled with the Phase 3 event pipeline.
 
 ## Phase 2 — Live streaming
 
@@ -72,25 +83,38 @@ Keychain survival across reboot) are inherently device-only and remain unverifie
 - [x] Sealed signaling layer: ChaCha20-Poly1305 blobs under `K_sig`, seq/replay
       protection, role AAD binding (unit-tested against fixture transcripts)
 - [x] `StreamingEngine`: peer connection setup, Camera-as-offerer flow, ICE with
-      STUN + TURN fallback — `PeerSession` + TURN fetch
+      STUN + TURN fallback. Owns the `RTCPeerConnectionFactory`, drives
+      offer/answer/ICE through the sealed channel, and holds one `PeerSession` per
+      viewer
 - [x] DTLS fingerprint binding: carry `a=fingerprint` in sealed blobs, verify peer
-      cert post-handshake, hard-fail on mismatch (tested with a tampering fake server)
-- [ ] Camera capture pipeline: AVCaptureSession + audio, H.264/Opus config,
-      adaptive resolution, low-light boost, capture-only mode when no viewer
-- [ ] Viewer live view: video rendering, mute, snapshot, connection-quality
-      indicator; audio-only mode
-- [x] Reconnect logic: backoff/ICE-restart policy in `CribWireKit` (`ReconnectPolicy`);
-      `NWPathMonitor` wiring still to do
-- [ ] Camera status screen: dimming, idle-timer disable, battery warnings,
+      cert post-handshake, hard-fail on mismatch. Both halves are now enforced by
+      the engine: a mismatched SDP is refused before DTLS starts, and the
+      negotiated certificate is re-checked before any frame is shown
+- [x] Camera capture pipeline: `RTCCameraVideoCapturer` + audio track, hardware
+      H.264, adaptive resolution driven by `AdaptiveQualityController`, low-light
+      boost, capture-only mode when no viewer and a detector needs the frames
+- [x] Viewer live view: Metal video rendering, mute, snapshot to Photos,
+      connection-quality indicator, audio-only mode. Video stays covered until the
+      fingerprint check passes
+- [x] Reconnect logic: backoff/ICE-restart policy in `CribWireKit`
+      (`ReconnectPolicy`), now wired to `NWPathMonitor` — a path change triggers an
+      ICE restart, a dead socket a full rebuild, and a fingerprint mismatch neither
+- [x] Camera status screen: dimming, idle-timer disable, battery warnings,
       Guided Access setup instructions
-
-> **Remaining for Phase 2** is app-layer AVFoundation and UI only — the capture
-> pipeline, the viewer live view and the camera status screen. The protocol,
-> signaling, fingerprint-binding and quality/reconnect logic are done and tested.
 
 **Milestone M2**: live video+audio Camera→Viewer on LAN and across networks (TURN),
 < 1.5 s latency, surviving a Wi-Fi→cellular switch. Verified MITM resistance test:
 a modified signaling server cannot complete a handshake.
+→ *Code complete; app, Kit and backend suites green. Everything in the milestone
+statement itself is two-device, on-hardware behaviour and is **unverified**: no
+video has been observed flowing, no latency measured, no network switch survived,
+and the MITM test needs a modified server run against real devices. The simulator
+has no camera, so the capture pipeline in particular has never executed.*
+
+> **What is actually asserted by tests**: the sealed-signaling protocol, the
+> fingerprint value type, the quality ladder, the reconnect ladder, the presence
+> parsing, the link-quality mapping and the snapshot frame tap. The AVFoundation
+> and WebRTC glue compiles and is exercised by nothing.
 
 ## Phase 3 — Detection & push notifications
 

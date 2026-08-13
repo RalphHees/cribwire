@@ -135,6 +135,11 @@ targets:
         NSLocalNetworkUsageDescription: >-
           CribWire connects directly to your paired device over your local
           network, so video stays in your home whenever possible.
+        # Add-only: the Viewer's snapshot button writes one image and CribWire
+        # never reads the library back.
+        NSPhotoLibraryAddUsageDescription: >-
+          CribWire saves the snapshots you take of the live view to your photo
+          library. It never reads your existing photos.
 
         # Audio only. `voip` would require CallKit, which CribWire does not use
         # (ios-app.md §4).

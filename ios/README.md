@@ -118,17 +118,11 @@ is indistinguishable from the others.
 
 ## What is stubbed for Phase 2 (and later)
 
-- **WebRTC** — `stasel/WebRTC` is wired into the app target's dependency graph so
-  resolution and linking are proven, but **no source file imports it yet**. The
-  `StreamingEngine`, the Camera-as-offerer flow, ICE/TURN and DTLS fingerprint
-  binding are all Phase 2.
-- **Signaling WebSocket** — the Camera currently has no way to learn that a
-  Viewer claimed the pairing; `security.md` §3.3 step 2 delivers that over the
-  authenticated socket, which is Phase 2 backend work. Until then
-  `CameraPairingViewModel.handleViewerClaim(pairingID:viewerDeviceID:)` is the
-  seam that event will drive.
-- **Sealed signaling** — `SealedEnvelope` is complete and vector-tested, but the
-  `seq`/replay layer around it (`security.md` §4) is Phase 2.
+- **WebRTC** — wired end to end as of Phase 2: `StreamingEngine` owns the
+  factory, `CameraCaptureController` the capture pipeline, and `PeerSession` one
+  peer connection each. None of it has ever run — the simulator has no camera —
+  so treat every line of the AVFoundation and WebRTC glue as compiled but
+  unexercised until it has been on two devices.
 - **APNs tokens** — registration happens (the pairing screens ask for permission
   and the token is registered with `POST /v1/pairings` / `.../claim`), but
   rotation through `PUT /v1/devices/token` is not wired yet, so a token that
@@ -138,9 +132,8 @@ is indistinguishable from the others.
   toggleable, per `ios-app.md` §2.5.
 - **Certificate pinning** — `URLSessionTransport` is the single place SPKI
   pinning will be added (Phase 4).
-- **Camera/Viewer home screens** — Phase 1 versions cover pairing and the device
-  list. The monitoring pulse, dimming, battery warnings, live view, PiP and
-  audio-only mode are Phase 2.
+- **Camera/Viewer home screens** — pairing, device list, live view, dimming,
+  battery warnings and audio-only mode are all in. Picture-in-Picture is Phase 4.
 - **Localization** — strings are inline English. EN/NL localization is Phase 4.
 
 ## Needs a physical device to verify

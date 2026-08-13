@@ -1,9 +1,10 @@
 import CribWireKit
 import SwiftUI
 
-/// Camera home. Phase 1 covers pairing and the paired-device list; the live
-/// status view with the pulse, dimming and battery warnings is Phase 2
-/// (`docs/TASKS.md` → "Camera status screen").
+/// Camera home: start streaming, pair a Viewer, manage pairings and alerts.
+///
+/// "Start the camera" is the primary action but only appears once a Viewer has
+/// been paired — a Camera with nobody to stream to has nothing to start.
 struct CameraHomeView: View {
     @EnvironmentObject private var services: AppServices
     /// Owned here so the detectors' settings survive navigation in and out of
@@ -16,12 +17,28 @@ struct CameraHomeView: View {
                 VStack(spacing: Theme.Metrics.stackSpacing) {
                     header
 
-                    NavigationLink {
-                        CameraPairingView(services: services)
-                    } label: {
-                        Text("Pair a Viewer")
+                    if let record = services.pairings.first(where: { $0.localRole == .camera }) {
+                        NavigationLink {
+                            CameraStatusView(record: record, services: services)
+                        } label: {
+                            Text("Start the camera")
+                        }
+                        .buttonStyle(KCPrimaryButtonStyle())
+
+                        NavigationLink {
+                            CameraPairingView(services: services)
+                        } label: {
+                            Text("Pair another Viewer")
+                        }
+                        .buttonStyle(KCGhostButtonStyle())
+                    } else {
+                        NavigationLink {
+                            CameraPairingView(services: services)
+                        } label: {
+                            Text("Pair a Viewer")
+                        }
+                        .buttonStyle(KCPrimaryButtonStyle())
                     }
-                    .buttonStyle(KCPrimaryButtonStyle())
 
                     NavigationLink {
                         PairedDevicesView()
@@ -105,17 +122,38 @@ struct ViewerHomeView: View {
                         latestAlert(latest)
                     }
 
-                    NavigationLink {
-                        ViewerScanView(services: services)
-                    } label: {
-                        Text("Scan a Camera")
-                    }
-                    .buttonStyle(
-                        KCPrimaryButtonStyle(
-                            tint: Theme.Palette.periwinkle,
-                            foreground: Theme.onAccent(for: .viewer)
+                    if let record = services.pairings.first(where: { $0.localRole == .viewer }) {
+                        NavigationLink {
+                            ViewerLiveView(record: record, services: services)
+                        } label: {
+                            Text("Watch \(record.displayName)")
+                        }
+                        .buttonStyle(
+                            KCPrimaryButtonStyle(
+                                tint: Theme.Palette.periwinkle,
+                                foreground: Theme.onAccent(for: .viewer)
+                            )
                         )
-                    )
+
+                        NavigationLink {
+                            ViewerScanView(services: services)
+                        } label: {
+                            Text("Scan another Camera")
+                        }
+                        .buttonStyle(KCGhostButtonStyle())
+                    } else {
+                        NavigationLink {
+                            ViewerScanView(services: services)
+                        } label: {
+                            Text("Scan a Camera")
+                        }
+                        .buttonStyle(
+                            KCPrimaryButtonStyle(
+                                tint: Theme.Palette.periwinkle,
+                                foreground: Theme.onAccent(for: .viewer)
+                            )
+                        )
+                    }
 
                     NavigationLink {
                         PairedDevicesView()

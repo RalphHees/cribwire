@@ -33,6 +33,11 @@ final class ViewerPairingViewModel: ObservableObject {
     private var claimedDeviceID: String?
     /// This device's own auth key, held until the user confirms the SAS.
     private var claimedDeviceKey: DeviceKey?
+    /// The socket that tells the Camera this viewer claimed the pairing
+    /// (`security.md` §3.3 step 2). Claiming over REST is invisible to the
+    /// Camera on its own — connecting here is what makes it show the SAS — so it
+    /// stays up for as long as the codes are being compared.
+    private var link: PairingSignalingLink?
 
     private let services: AppServices
     /// Set by tests; otherwise the token is read from the notification
@@ -145,6 +150,24 @@ final class ViewerPairingViewModel: ObservableObject {
             )
             claimedDeviceID = response.deviceId
             claimedDeviceKey = deviceKey
+
+            // Announce the claim before showing the code, so both screens light
+            // up together rather than the Camera trailing behind.
+            link?.stop()
+            let link = PairingSignalingLink(
+                identity: .init(
+                    pairingID: pairingID,
+                    apiBaseURL: apiBaseURL,
+                    role: .viewer,
+                    deviceID: response.deviceId,
+                    deviceKey: deviceKey,
+                    signalingKey: keys.signaling
+                ),
+                factory: services.makeSignalingSocketFactory()
+            )
+            self.link = link
+            link.start()
+
             // The SAS is derived here, on this device, from the scanned secret —
             // it is never received from the network.
             dispatch(machine.apply(.claimSucceeded(sasCode: keys.sasCode)))
@@ -175,6 +198,8 @@ final class ViewerPairingViewModel: ObservableObject {
     }
 
     private func discardSecret() {
+        link?.stop()
+        link = nil
         pendingSecret = nil
         pendingPayload = nil
         claimedDeviceID = nil

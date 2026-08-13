@@ -131,6 +131,31 @@ final class PeerSession {
         connection.add(track, streamIds: [streamID])
     }
 
+    /// The peer's inbound video track, once the connection has negotiated one.
+    ///
+    /// Read from the receivers rather than cached from a delegate callback: on a
+    /// renegotiation the track can be replaced, and the receiver list is the one
+    /// place that always reflects what is actually arriving.
+    func remoteVideoTrack() -> RTCVideoTrack? {
+        for receiver in connection.receivers {
+            if let track = receiver.track as? RTCVideoTrack { return track }
+        }
+        return nil
+    }
+
+    func remoteAudioTrack() -> RTCAudioTrack? {
+        for receiver in connection.receivers {
+            if let track = receiver.track as? RTCAudioTrack { return track }
+        }
+        return nil
+    }
+
+    /// Viewer-side mute. Disables playback locally; the Camera keeps sending, so
+    /// unmuting is instant and needs no renegotiation.
+    func setRemoteAudioEnabled(_ enabled: Bool) {
+        remoteAudioTrack()?.isEnabled = enabled
+    }
+
     /// Caps the encoder, so the ladder in `VideoQuality` actually bites.
     func applyBitrateCap(kbps: Int) {
         for sender in connection.senders where sender.track?.kind == "video" {

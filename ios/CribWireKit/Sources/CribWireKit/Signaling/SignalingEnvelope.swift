@@ -73,6 +73,10 @@ public struct SignalingEnvelope: Codable, Equatable, Sendable {
 /// (`backend.md` §WebSocket) — and it is also how the Camera first learns that a
 /// Viewer claimed the pairing, which is the event `security.md` §3.3 step 2 needs.
 ///
+/// The server names the peer with the same address form it routes on — `peer:
+/// "camera"` or `peer: "viewer:<deviceId>"` (`backend.md` §WebSocket) — so the
+/// role and the device id are read out of that one field.
+///
 /// Only the two event names are pinned; the fields alongside them are not, so
 /// every one of them is optional here and nothing security-relevant is derived
 /// from them. Presence is a *hint to act*, never an authorisation: whatever the
@@ -84,6 +88,17 @@ public struct SignalingPresence: Equatable, Sendable {
     public init(role: PairingRole?, deviceID: String?) {
         self.role = role
         self.deviceID = deviceID
+    }
+
+    /// Presence from the address the server announced. `camera` carries no
+    /// device id — a pairing has exactly one camera, so its address needs none.
+    public init(address: SignalingRecipient) {
+        switch address {
+        case .camera:
+            self.init(role: .camera, deviceID: nil)
+        case .viewer(let deviceID):
+            self.init(role: .viewer, deviceID: deviceID)
+        }
     }
 }
 
@@ -122,10 +137,19 @@ public enum SignalingInboundMessage: Equatable, Sendable {
         // an alias so a small naming difference on the server cannot silently
         // cost us presence (see the contract note in ios/README.md).
         let type = (object["type"] as? String) ?? (object["event"] as? String)
-        let presence = SignalingPresence(
-            role: (object["role"] as? String).flatMap(PairingRole.init(rawValue:)),
-            deviceID: object["deviceId"] as? String
-        )
+        // `peer` is what the server actually sends. The split `role`/`deviceId`
+        // pair is read as a fallback so a server that spells presence out that
+        // way still works.
+        let presence: SignalingPresence
+        if let peer = object["peer"] as? String,
+           let address = SignalingRecipient(wireValue: peer) {
+            presence = SignalingPresence(address: address)
+        } else {
+            presence = SignalingPresence(
+                role: (object["role"] as? String).flatMap(PairingRole.init(rawValue:)),
+                deviceID: object["deviceId"] as? String
+            )
+        }
 
         switch type {
         case peerOnlineType:

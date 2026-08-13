@@ -17,6 +17,10 @@ final class AppServices: ObservableObject {
     let notifications: PushNotificationCoordinator
     /// Overridable so tests can drive the network without URLSession.
     let makeTransport: @Sendable () -> any HTTPTransport
+    /// The same seam for WebSockets. Pairing needs one before any pairing exists
+    /// (`security.md` §3.3 step 2), so it lives here rather than in the
+    /// streaming engine that will also use it.
+    let makeSignalingSocketFactory: @Sendable () -> any SignalingSocketFactory
 
     /// The device's role. Not a secret, so `UserDefaults` is fine — and nothing
     /// else in this app is allowed in there.
@@ -35,7 +39,8 @@ final class AppServices: ObservableObject {
         defaults: UserDefaults = .standard,
         keychain: KeychainStore? = nil,
         registry: PairingRegistry? = nil,
-        makeTransport: (@Sendable () -> any HTTPTransport)? = nil
+        makeTransport: (@Sendable () -> any HTTPTransport)? = nil,
+        makeSignalingSocketFactory: (@Sendable () -> any SignalingSocketFactory)? = nil
     ) {
         self.configuration = configuration
         self.defaults = defaults
@@ -57,6 +62,8 @@ final class AppServices: ObservableObject {
                 ))
 
         self.makeTransport = makeTransport ?? { URLSessionTransport() }
+        self.makeSignalingSocketFactory = makeSignalingSocketFactory
+            ?? { URLSessionSignalingSocketFactory() }
 
         self.role = defaults.string(forKey: Self.roleKey).flatMap(PairingRole.init(rawValue:))
     }
@@ -101,6 +108,12 @@ final class AppServices: ObservableObject {
         try? await secrets.wipe(pairingID: pairingID)
         try? await registry.remove(pairingID: pairingID)
         await reloadPairings()
+    }
+
+    /// The Camera's alert settings. Read by the streaming engine, which must not
+    /// stop capture while a detector is still consuming frames.
+    var detectionSettings: DetectionSettings {
+        DetectionSettingsStore(defaults: defaults).load()
     }
 
     // MARK: - API access

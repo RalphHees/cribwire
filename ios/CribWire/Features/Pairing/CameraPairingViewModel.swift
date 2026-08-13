@@ -32,10 +32,21 @@ final class CameraPairingViewModel: ObservableObject {
     }
 
     private var machine = CameraPairingStateMachine()
-    /// Root secrets for pairings that are still claimable. Cleared aggressively:
-    /// a secret that is no longer claimable is a liability.
-    private var secretsByPairing: [UUID: RootSecret] = [:]
+    /// Pairings that are still claimable. Cleared aggressively: a secret that is
+    /// no longer claimable is a liability.
+    ///
+    /// One entry per candidate, each with its own socket — the camera rotates the
+    /// QR every two minutes but honours a claim on any code still inside its
+    /// ten-minute TTL, so it has to be listening on all of them at once.
+    private var candidates: [UUID: Candidate] = [:]
     private var tickTask: Task<Void, Never>?
+
+    /// A registered-but-unclaimed pairing, and the socket waiting to hear it
+    /// claimed.
+    private struct Candidate {
+        let rootSecret: RootSecret
+        let link: PairingSignalingLink
+    }
 
     private let services: AppServices
     private let apiBaseURL: URL?
@@ -88,19 +99,32 @@ final class CameraPairingViewModel: ObservableObject {
         dispatch(machine.apply(.viewerConfirmed))
     }
 
-    /// Test/preview seam: normally driven by the backend WebSocket
-    /// (`security.md` §3.3 step 2), which is Phase 2 work.
+    /// A viewer claimed `pairingID` and connected to its signaling socket
+    /// (`security.md` §3.3 step 2).
+    ///
+    /// The SAS is derived here, from the secret this device generated — the
+    /// server's announcement supplies only the viewer's id, and is a prompt to
+    /// show the code, never a source of it.
     func handleViewerClaim(pairingID: UUID, viewerDeviceID: String) {
-        guard let secret = secretsByPairing[pairingID] else { return }
+        guard let candidate = candidates[pairingID] else { return }
         dispatch(
             machine.apply(
                 .viewerClaimed(
                     pairingID: pairingID,
                     viewerDeviceID: viewerDeviceID,
-                    sasCode: secret.deriveKeys().sasCode
+                    sasCode: candidate.rootSecret.deriveKeys().sasCode
                 )
             )
         )
+    }
+
+    /// Presence on a candidate's socket. Only a viewer means a claim: the server
+    /// also announces the camera itself back to a socket that reconnected.
+    private func handlePeerOnline(_ presence: SignalingPresence, pairingID: UUID) {
+        guard presence.role == .viewer, let viewerDeviceID = presence.deviceID else {
+            return
+        }
+        handleViewerClaim(pairingID: pairingID, viewerDeviceID: viewerDeviceID)
     }
 
     // MARK: - Timer
@@ -145,7 +169,7 @@ final class CameraPairingViewModel: ObservableObject {
 
             case .discardCandidates(let pairingIDs):
                 for pairingID in pairingIDs {
-                    secretsByPairing.removeValue(forKey: pairingID)
+                    candidates.removeValue(forKey: pairingID)?.link.stop()
                 }
 
             case .persistPairing(let pairingID, let viewerDeviceID):
@@ -187,7 +211,26 @@ final class CameraPairingViewModel: ObservableObject {
                 rootSecret: rootSecret,
                 apiBaseURL: apiBaseURL
             )
-            secretsByPairing[pairingID] = rootSecret
+            // Listening starts before the code is on screen: a viewer can only
+            // claim what it has scanned, but the socket must already be up when
+            // it does, or the claim is announced to nobody.
+            let link = PairingSignalingLink(
+                identity: .init(
+                    pairingID: pairingID,
+                    apiBaseURL: apiBaseURL,
+                    role: .camera,
+                    deviceID: response.deviceId,
+                    deviceKey: deviceKey,
+                    signalingKey: keys.signaling
+                ),
+                factory: services.makeSignalingSocketFactory(),
+                onPeerOnline: { [weak self] presence in
+                    self?.handlePeerOnline(presence, pairingID: pairingID)
+                }
+            )
+            candidates[pairingID] = Candidate(rootSecret: rootSecret, link: link)
+            link.start()
+
             qrURLString = payload.urlString()
             dispatch(machine.apply(.registered(pairingID: pairingID, at: Date())))
         } catch {
@@ -199,7 +242,7 @@ final class CameraPairingViewModel: ObservableObject {
     }
 
     private func persist(pairingID: UUID, viewerDeviceID: String) async {
-        guard let rootSecret = secretsByPairing[pairingID], let apiBaseURL else { return }
+        guard let rootSecret = candidates[pairingID]?.rootSecret, let apiBaseURL else { return }
         let record = PairingRecord(
             id: pairingID,
             localRole: .camera,
@@ -211,7 +254,10 @@ final class CameraPairingViewModel: ObservableObject {
     }
 
     private func discardAllSecrets() {
-        secretsByPairing.removeAll()
+        for candidate in candidates.values {
+            candidate.link.stop()
+        }
+        candidates.removeAll()
         qrURLString = nil
     }
 }

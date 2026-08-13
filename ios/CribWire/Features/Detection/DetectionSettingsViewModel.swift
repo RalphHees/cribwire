@@ -20,20 +20,14 @@ final class DetectionSettingsViewModel: ObservableObject {
     @Published private(set) var currentLevel: Double = NoiseDetectionSettings.thresholdRange
         .lowerBound
 
-    private let defaults: UserDefaults
-    private static let settingsKey = "cribwire.detectionSettings"
+    private let store: DetectionSettingsStore
 
     var isAboveThreshold: Bool { currentLevel > settings.noise.thresholdDBFS }
 
     init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        if let data = defaults.data(forKey: Self.settingsKey),
-            let decoded = try? JSONDecoder().decode(DetectionSettings.self, from: data)
-        {
-            self.settings = decoded
-        } else {
-            self.settings = .default
-        }
+        let store = DetectionSettingsStore(defaults: defaults)
+        self.store = store
+        self.settings = store.load()
     }
 
     /// Feed from the audio tap while the settings screen is visible.
@@ -42,7 +36,6 @@ final class DetectionSettingsViewModel: ObservableObject {
     }
 
     private func persist() {
-        guard let data = try? JSONEncoder().encode(settings) else { return }
-        defaults.set(data, forKey: Self.settingsKey)
+        store.save(settings)
     }
 }

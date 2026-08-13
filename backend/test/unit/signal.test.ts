@@ -359,6 +359,63 @@ describe('presence', () => {
     });
   });
 
+  /**
+   * The pairing handshake itself (`security.md` §3.3 step 2): the camera is
+   * listening before anyone has claimed, and the viewer's arrival is the only
+   * thing that tells it to show the SAS. The claim is a REST call the camera
+   * never sees, so without this event it waits for ever.
+   */
+  it('tells a camera on an unclaimed pairing when a viewer claims and connects', async () => {
+    const pending = await bootstrapCamera(harness);
+    tick();
+
+    const cameraClient = await connectSignal(harness, {
+      pairingId: pending.pairingId,
+      deviceId: pending.deviceId,
+      deviceKey: pending.deviceKey,
+      timestampSeconds: secondsOf(harness.now()),
+    });
+    open.push(cameraClient);
+    expect(await cameraClient.next()).toMatchObject({ type: 'ready' });
+    tick();
+
+    const claimer = await bootstrapViewer(harness, pending, 'd'.repeat(64));
+    tick();
+    const claimerClient = await connectViewer(claimer);
+    await claimerClient.next();
+
+    expect(await cameraClient.next()).toEqual({
+      type: 'peer-online',
+      peer: `viewer:${claimer.deviceId}`,
+    });
+  });
+
+  /**
+   * A camera that only listens sends nothing, so it is closed as idle after five
+   * minutes while a pairing candidate stays claimable for ten. Its reconnect has
+   * to learn about a viewer that arrived in the meantime, or the claim is lost.
+   */
+  it('tells a reconnecting camera about a viewer that is already online', async () => {
+    const first = await connectCamera();
+    await first.next();
+    tick();
+
+    const viewerClient = await connectViewer();
+    await viewerClient.next();
+    expect(await first.next()).toMatchObject({ type: 'peer-online' });
+
+    first.close();
+    await first.waitForClose();
+    tick();
+
+    const reconnected = await connectCamera();
+    expect(await reconnected.next()).toMatchObject({ type: 'ready' });
+    expect(await reconnected.next()).toEqual({
+      type: 'peer-online',
+      peer: `viewer:${viewer.deviceId}`,
+    });
+  });
+
   it('does not leak presence across pairings', async () => {
     const cameraClient = await connectCamera();
     await cameraClient.next();
