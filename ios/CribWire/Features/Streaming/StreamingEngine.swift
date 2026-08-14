@@ -90,9 +90,13 @@ final class StreamingEngine: ObservableObject {
     /// Viewer-side: audio muted locally. The Camera keeps sending, so unmuting
     /// is instant.
     @Published private(set) var isMuted = false
-    /// Viewer-side: push-to-talk is live. Never latches — releasing the button is
-    /// what stops it, because a nursery microphone left open by accident is the
-    /// one failure this feature must not have.
+    /// Viewer-side: push-to-talk is live.
+    ///
+    /// Never latches — releasing the button is what stops it, because a nursery
+    /// microphone left open by accident is the one failure this feature must not
+    /// have. Two rules enforce that beyond the button itself: it cannot be turned
+    /// on at all until `isVerified`, and *any* loss of the peer turns it off, so a
+    /// held button never carries a live microphone into the next handshake.
     @Published private(set) var isTalking = false
     /// Viewer-side: the Camera's last reported battery, `0...1`, or `nil` until it
     /// says. Arrives sealed over signaling — the server never sees it.
@@ -137,10 +141,35 @@ final class StreamingEngine: ObservableObject {
     }
 
     /// Viewer-side push-to-talk. `true` while the button is held.
+    ///
+    /// Enabling is refused unless the connection is verified. The screen already
+    /// disables the button until then, but the rule belongs here rather than in a
+    /// view: this is the microphone of the person holding the phone, travelling to
+    /// a device whose identity has not been confirmed, and "the UI would not have
+    /// called it" is not the same guarantee as "it cannot happen".
+    ///
+    /// *Stopping* is never refused — see `stopTalking()`.
     func setTalking(_ talking: Bool) {
         guard role == .viewer else { return }
-        isTalking = talking
-        talkbackTrack?.isEnabled = talking
+        guard talking else {
+            stopTalking()
+            return
+        }
+        guard isVerified else { return }
+        isTalking = true
+        talkbackTrack?.isEnabled = true
+    }
+
+    /// Cuts the microphone, unconditionally.
+    ///
+    /// Called on every path that loses or invalidates a peer, not only on the
+    /// button being released. A held button must not survive a reconnect: the next
+    /// session is a fresh, unverified handshake, and re-arming a live microphone
+    /// into it — which is exactly what mirroring `isTalking` onto a rebuilt track
+    /// used to do — is the open-mic failure this feature is not allowed to have.
+    private func stopTalking() {
+        isTalking = false
+        talkbackTrack?.isEnabled = false
     }
 
     /// Viewer-side: ask the Camera to change the music or the light.
@@ -165,9 +194,12 @@ final class StreamingEngine: ObservableObject {
             track = WebRTCStack.factory.audioTrack(with: source, trackId: "cribwire-talkback")
             talkbackTrack = track
         }
-        // Disabled until the button is pressed. A reconnect rebuilds the session,
-        // so this is re-asserted rather than assumed.
-        track.isEnabled = isTalking
+        // **Always disabled here**, never mirrored from `isTalking`. This runs
+        // while answering an offer — before the negotiated certificate has been
+        // checked — so a track armed at this point would go live the instant DTLS
+        // completed, ahead of the verification that is meant to gate it. Only
+        // `confirmSecurity` may turn a microphone on, and only a fresh press.
+        track.isEnabled = false
         // Fitted to the offer's existing audio transceiver — never added as a new
         // one. See `PeerSession.attachTalkback`.
         session.attachTalkback(track)
@@ -398,8 +430,7 @@ final class StreamingEngine: ObservableObject {
         remoteVideoTrack = nil
         isVerified = false
         peerBatteryLevel = nil
-        isTalking = false
-        talkbackTrack?.isEnabled = false
+        stopTalking()
 
         let client = self.client
         self.client = nil
@@ -666,6 +697,7 @@ final class StreamingEngine: ObservableObject {
         if role == .viewer {
             remoteVideoTrack = nil
             isVerified = false
+            stopTalking()
             // The controls go with the video. Leaving them on screen would offer
             // a light switch for a room this device can no longer reach.
             nurseryState = nil
@@ -805,6 +837,7 @@ final class StreamingEngine: ObservableObject {
             if role == .viewer {
                 remoteVideoTrack = nil
                 isVerified = false
+                stopTalking()
                 nurseryState = nil
                 state = .connecting
             }
@@ -1147,6 +1180,7 @@ final class StreamingEngine: ObservableObject {
             } else {
                 self.remoteVideoTrack = nil
                 self.isVerified = false
+                self.stopTalking()
                 self.scheduleReconnect(
                     reason: String(localized: "The video connection stalled."),
                     restartingLadder: true
@@ -1211,6 +1245,7 @@ final class StreamingEngine: ObservableObject {
         refreshPeerCounts()
         remoteVideoTrack = nil
         isVerified = false
+        stopTalking()
         nurseryState = nil
 
         let previous = client
@@ -1229,6 +1264,7 @@ final class StreamingEngine: ObservableObject {
     private func failSecurity() {
         isVerified = false
         remoteVideoTrack = nil
+        stopTalking()
         nurseryState = nil
         for session in sessions.values { session.close() }
         sessions.removeAll()

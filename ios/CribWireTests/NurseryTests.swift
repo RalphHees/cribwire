@@ -89,6 +89,80 @@ final class TidalConfigurationTests: XCTestCase {
     }
 }
 
+/// Talk-back is the Viewer's live microphone travelling into a child's room, so
+/// what gates it is worth asserting rather than trusting to a disabled button.
+///
+/// The audio itself is SRTP under a DTLS session bound to the sealed fingerprint —
+/// libwebrtc offers no unencrypted path, so there is nothing to test there. What
+/// *is* testable, and what actually went wrong, is **when** the microphone is
+/// allowed to be live.
+@MainActor
+final class TalkbackGatingTests: XCTestCase {
+
+    private let suiteName = "cribwire.tests.talkback"
+
+    override func tearDown() {
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    private func makeEngine(role: PairingRole) throws -> StreamingEngine {
+        let services = AppServices(
+            defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)),
+            registry: PairingRegistry(
+                fileURL: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("cribwire-talkback-\(UUID().uuidString).json")
+            )
+        )
+        let record = PairingRecord(
+            id: UUID(),
+            localRole: role,
+            apiBaseURL: try XCTUnwrap(URL(string: "https://api.cribwire.example"))
+        )
+        return StreamingEngine(record: record, services: services)
+    }
+
+    /// The rule: no microphone to a peer whose certificate has not been checked.
+    /// A fresh engine has verified nothing, so pressing talk must do nothing.
+    func testTalkbackCannotBeArmedBeforeTheConnectionIsVerified() throws {
+        let engine = try makeEngine(role: .viewer)
+        XCTAssertFalse(engine.isVerified)
+
+        engine.setTalking(true)
+
+        XCTAssertFalse(
+            engine.isTalking,
+            "an unverified peer must never be sent the microphone, whatever the UI allows"
+        )
+    }
+
+    func testReleasingIsHonouredEvenWhenArmingWouldBeRefused() throws {
+        let engine = try makeEngine(role: .viewer)
+        engine.setTalking(true)
+        engine.setTalking(false)
+        XCTAssertFalse(engine.isTalking, "stopping is never refused")
+    }
+
+    /// Talk-back is a Viewer control. A Camera acting on it would mean this device
+    /// is streaming its own microphone back at itself.
+    func testACameraIgnoresTalkbackEntirely() throws {
+        let engine = try makeEngine(role: .camera)
+        engine.setTalking(true)
+        XCTAssertFalse(engine.isTalking)
+    }
+
+    /// Nursery commands ride the same rule: the Viewer will not send one until the
+    /// connection it would travel over has been verified.
+    func testNurseryCommandsAreNotSentBeforeVerification() throws {
+        let engine = try makeEngine(role: .viewer)
+        XCTAssertFalse(engine.isVerified)
+        // No client and not verified: the call must be a no-op rather than a
+        // crash or a queued send.
+        engine.send(.light(.setOn(true)))
+        engine.send(.music(.play))
+    }
+}
+
 /// The Camera's recents survive a round trip through `UserDefaults`, and an
 /// unreadable blob costs the shortlist rather than the music.
 final class MusicRecentsStoreTests: XCTestCase {

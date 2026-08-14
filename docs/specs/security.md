@@ -92,6 +92,41 @@ relays SRTP ciphertext only.
 Media therefore never needs a second application-layer encryption pass; the E2E
 property comes from binding DTLS to the QR-derived keys.
 
+### 4.1 Viewer → Camera specifically
+
+Everything the Viewer sends to the Camera travels over one of exactly two paths,
+and both are covered above:
+
+| What | Path | Protection |
+|---|---|---|
+| SDP answers, ICE candidates | Sealed signaling | ChaCha20-Poly1305 under `K_sig`, AAD `<pairingId>\|viewer` |
+| Nursery controls — music transport, volume, playlist, light | Sealed signaling | Same seal; additionally acted on only from a **verified** session |
+| Talk-back audio | WebRTC media | SRTP, keyed by the DTLS session whose certificate is bound to the sealed fingerprint |
+
+There is no third path. On the local-network-only mode the WebSocket is replaced by
+a direct TCP connection (`LocalPeerSocket`), which carries the *same* sealed
+envelopes — the transport changes, the seal does not, and a peer discovered over
+Bonjour is exactly as untrusted as the server is.
+
+**Encryption is not the whole of the guarantee for the microphone.** Talk-back is
+live audio from the parent's phone into a child's room, so *when* it may be armed
+matters as much as how it is protected in flight:
+
+- It cannot be enabled until `isVerified` — i.e. not merely until DTLS completes,
+  but until the negotiated certificate has been checked against the sealed
+  fingerprint. The rule is enforced in `StreamingEngine`, not only by a disabled
+  button.
+- Any loss of the peer — offline, `bye`, an ICE rebuild, a security failure —
+  disarms it. A held button therefore cannot carry a live microphone into the next
+  handshake, which is otherwise exactly what a reconnect mid-press would do: the
+  talk-back track is rebuilt with the session and is always attached **disabled**.
+
+The Camera's outbound media is not gated the same way — tracks are live from the
+moment DTLS completes, a moment before `verifyNegotiatedCertificate` returns. The
+SDP-level fingerprint check in `PeerSession.setRemote` already refuses a
+substituted peer before DTLS is attempted, so this is a narrower window than it
+looks, but it is an asymmetry worth closing deliberately rather than by accident.
+
 ## 5. Push notification payload encryption
 
 - Event payloads (`{type: noise|motion|low_battery, ts}`) are sealed with
