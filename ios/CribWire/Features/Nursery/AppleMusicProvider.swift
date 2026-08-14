@@ -117,11 +117,21 @@ final class AppleMusicProvider: MusicProvider {
         return response.items.map { summary(for: $0, isFavorite: true) }
     }
 
+    /// Apple Music's own recently played, filtered to playlists.
+    ///
+    /// The container request rather than `MusicRecentlyPlayedRequest<Playlist>`:
+    /// `Playlist` is not `MusicRecentlyPlayedRequestable`, so the only route to a
+    /// recently played playlist is the mixed container feed, sifted here.
     private func recentlyPlayedPlaylists() async -> [PlaylistSummary] {
-        var request = MusicRecentlyPlayedRequest<Playlist>()
-        request.limit = PlaylistShortlist.limit
+        var request = MusicRecentlyPlayedContainerRequest()
+        // Asked for wider than the shortlist because albums and stations share
+        // this feed, and after sifting them out only a handful may be playlists.
+        request.limit = PlaylistShortlist.limit * 2
         guard let response = try? await request.response() else { return [] }
-        return response.items.map { summary(for: $0, isFavorite: false) }
+        return response.items.compactMap { item in
+            guard case .playlist(let playlist) = item else { return nil }
+            return summary(for: playlist, isFavorite: false)
+        }
     }
 
     private func summary(for playlist: Playlist, isFavorite: Bool) -> PlaylistSummary {
