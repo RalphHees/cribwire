@@ -28,6 +28,8 @@ struct CameraStatusView: View {
     @State private var isDimmed = false
     @State private var isMicrophoneOn = true
     @State private var showGuidedAccessHelp = false
+    /// Set once asking for music access has been tried and left nothing changed.
+    @State private var musicPermissionNeedsSettings = false
     @State private var batteryLevel = UIDevice.current.batteryLevel
     @State private var batteryState = UIDevice.current.batteryState
     /// Restored when the screen goes away, so dimming never leaks into the rest
@@ -96,6 +98,7 @@ struct CameraStatusView: View {
                 preview
                 statusCard
                 if let warning = batteryWarning { batteryCard(warning) }
+                nurseryCard
                 controls
                 guidedAccessCard
             }
@@ -312,6 +315,91 @@ struct CameraStatusView: View {
             batteryLevel: Double(batteryLevel),
             isCharging: batteryState == .charging || batteryState == .full
         )
+    }
+
+    // MARK: - Music and light
+
+    /// What a Viewer can reach in this room, and the one thing only this phone can
+    /// do about it.
+    ///
+    /// Music permission is the reason this card exists. `MusicAuthorization` is a
+    /// system prompt, and a prompt raised by a tap on another device is a prompt
+    /// nobody is standing in front of — so no Viewer command can trigger it and it
+    /// has to be offered here, on the phone somebody is holding while they set the
+    /// camera up.
+    @ViewBuilder
+    private var nurseryCard: some View {
+        if let nursery = engine.nursery, let state = engine.nurseryState {
+            KCCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    row(label: "Music", value: musicSummary(state.music))
+                    row(label: "Light", value: lightSummary(state.light))
+
+                    if state.music.availability == .needsPermission {
+                        // iOS shows the music permission prompt exactly once. A
+                        // second tap on "Allow" after it has been refused does
+                        // nothing at all, so once asking has visibly failed the
+                        // button becomes the only thing that can still work.
+                        if musicPermissionNeedsSettings {
+                            Button {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            } label: {
+                                Label("Allow music in Settings", systemImage: "gear")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(KCGhostButtonStyle())
+                        } else {
+                            Button {
+                                Task {
+                                    let allowed = await nursery.requestMusicAuthorization()
+                                    musicPermissionNeedsSettings = !allowed
+                                }
+                            } label: {
+                                Label("Allow music access", systemImage: "music.note")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(KCGhostButtonStyle())
+                        }
+                    }
+
+                    Text("Whoever is watching can play music here and turn this phone's light on. Only your paired devices can — the controls travel encrypted, like the video.")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func musicSummary(_ music: MusicState) -> String {
+        switch music.availability {
+        case .ready:
+            if music.isPlaying {
+                return music.nowPlaying ?? String(localized: "Playing")
+            }
+            return String(localized: "Ready")
+        case .needsPermission: return String(localized: "Not allowed yet")
+        case .needsSubscription: return String(localized: "No subscription")
+        case .notConfigured: return String(localized: "Not set up")
+        case .unavailable: return String(localized: "Unavailable")
+        case .unknown: return String(localized: "Unknown")
+        }
+    }
+
+    private func lightSummary(_ light: LightState) -> String {
+        switch light.availability {
+        case .ready:
+            return light.isOn
+                ? String(localized: "On at \(Int((light.level * 100).rounded()))%")
+                : String(localized: "Off")
+        case .cameraIdle: return String(localized: "Available while streaming")
+        case .wrongCamera: return String(localized: "Back camera only")
+        case .noHardware: return String(localized: "No light on this phone")
+        case .unavailable: return String(localized: "Too warm to use")
+        case .unknown: return String(localized: "Unknown")
+        }
     }
 
     // MARK: - Controls

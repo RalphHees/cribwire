@@ -295,9 +295,61 @@ battery reporting, talk-back audio, the Live Activity and Bonjour discovery are 
 two-device behaviours, and no simulator can exercise them. What tests assert is the
 framing layer, the QR encoding and the payload schema.*
 
+## Phase 6 — Nursery controls (music and light)
+
+- [x] **Sealed control channel.** Two message types on the existing signaling
+      channel (`CribWireKit/Nursery`): `control` (Viewer → Camera) and `nursery`
+      (Camera → Viewer). Same seal, same sequence ledger, same role AAD as offers
+      and ICE, so the server routes ciphertext and never learns that a light was
+      switched on or which playlist was picked. `control` is the only message in
+      the protocol that *acts* on a device, so it carries two checks rather than
+      one: only a Camera acts on it, and only from a Viewer whose session has
+      passed the DTLS fingerprint check.
+      Every field is forward-tolerant — an action a Camera has never heard of
+      decodes as `.unknown` and costs that one command, not the message.
+- [x] **Viewer controls.** Play/pause, previous, next, volume, playlist picker and
+      a light switch with a brightness slider, behind one "Room" button on the live
+      screen. The Viewer holds **no** state of its own: every control draws the
+      Camera's last report, so a button can be slow but never wrong. Sliders report
+      at a fixed rate while dragged and exactly once on release.
+- [x] **Playlist shortlist** — the "recently used or favourites" rule. What
+      CribWire has played *on this Camera* first, then the service's recently
+      played, then library/favourites; deduplicated, merged, capped at 12. The cap
+      and the 60-character name cap are also what keep the state message inside the
+      16 KiB signaling frame, which is asserted rather than assumed.
+- [x] **Apple Music** through `ApplicationMusicPlayer` — not `SystemMusicPlayer`,
+      which would take over the Music app on the Camera's own account and leave a
+      Viewer's pause still paused in the morning. Authorisation is requested from
+      the Camera's own screen only: a system prompt raised by a tap on another
+      device is a prompt nobody is standing in front of.
+- [x] **Camera light** — the torch, driven by `CameraCaptureController` because it
+      owns the capture device. The Viewer's slider tops out at half hardware power
+      (full power is painful in a cot and iOS shuts it off thermally within
+      minutes), the reported on-state is read from `isTorchActive` rather than from
+      intent, the level is re-asserted after every quality-ladder restart, and it is
+      switched off — with the intent cleared — whenever capture stops.
+- [ ] **TIDAL** — control plane done, playback engine not. TIDAL permits
+      third-party playback only through its own SDK under partner credentials from
+      `developer.tidal.com`; everything above the playback call is already
+      provider-agnostic and works. `TidalMusicProvider.swift` documents exactly what
+      finishing it involves, and a build with no client id does not offer the
+      service rather than offering one that plays nothing.
+
+**Milestone M6**: a Viewer plays a lullaby on the Camera, skips a track, turns the
+volume down and switches the nursery light on, and both screens agree throughout.
+→ *Code-complete for Apple Music and the light; Kit and app suites cover the wire
+format, the shortlist rule, the recents history, the frame-size bound and the torch
+level mapping. **Unverified on hardware**: whether MusicKit plays at all through the
+WebRTC audio session and how loud the room gets, whether the torch holds at the
+mapped level for hours, and whether `MPVolumeView` still moves the system volume on
+current iOS. See "Needs a physical device to verify" in `ios/README.md`.*
+
 ## v1.1 backlog (not scheduled)
 
-- [ ] Viewer can control the played audio at the camera. volume up, down, play pause, previous and next.
-- [ ] Option to cancel out the played audio to don't hear that.
+- [x] Viewer can control the played audio at the camera. volume up, down, play pause, previous and next. → Phase 6
+- [x] Option to cancel out the played audio to don't hear that. → the Camera's
+      `.videoChat` audio session runs voice processing on the input, so the music
+      it plays is largely cancelled out of what the Viewer hears. How complete that
+      is in a real room is a two-device question.
 - [ ] Apple Watch companion for notifications + audio level
 - [ ] Automatic session-key rotation (X25519 ratchet in sealed signaling)

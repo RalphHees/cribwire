@@ -40,6 +40,20 @@ final class CameraCaptureController {
     /// Set while the local preview needs frames but nothing is being sent.
     private(set) var isCaptureOnly = false
 
+    /// The device capture is currently running on. Held because the torch belongs
+    /// to it: driving the light means locking the same `AVCaptureDevice` the
+    /// capture session already owns, not a second handle to the same hardware.
+    private var activeDevice: AVCaptureDevice?
+
+    /// What the light *should* be doing, on the Viewer's `0...1` scale.
+    ///
+    /// Kept separately from the hardware because the hardware forgets. Every rung
+    /// of the adaptive quality ladder calls `start(quality:)` again, and restarting
+    /// a capture session drops the torch — so the intent has to live somewhere
+    /// that survives the restart and be re-asserted afterwards. Without this the
+    /// night light switched itself off the first time the bitrate moved.
+    private var desiredLight: (isOn: Bool, level: Double) = (false, LightLevels.default)
+
     private let videoSource: RTCVideoSource
     private let capturer: RTCCameraVideoCapturer
     /// Sits between the capturer and the source so movement detection sees the
@@ -96,10 +110,21 @@ final class CameraCaptureController {
             }
         }
         isCapturing = true
+        activeDevice = device
+        // Restarting the session cleared the torch. Put it back, or a Viewer's
+        // night light goes out every time the quality ladder moves a rung.
+        applyDesiredLight()
     }
 
     func stop() async {
         guard isCapturing else { return }
+        // Before the session goes, not after: the torch cannot be switched off
+        // through a device whose session has already been torn down, and a phone
+        // left glowing in a nursery after the Camera stopped is the worst way this
+        // feature could fail. The intent is cleared with it, so the light cannot
+        // come back on by itself hours later when a Viewer happens to reconnect.
+        desiredLight.isOn = false
+        setTorch(on: false, level: desiredLight.level)
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             capturer.stopCapture {
                 continuation.resume()
@@ -107,6 +132,7 @@ final class CameraCaptureController {
         }
         isCapturing = false
         isCaptureOnly = false
+        activeDevice = nil
     }
 
     /// Whether capture should continue with no Viewer connected.
@@ -133,6 +159,112 @@ final class CameraCaptureController {
     /// simply stops producing.
     func setMicrophoneEnabled(_ enabled: Bool) {
         audioTrack?.isEnabled = enabled
+    }
+
+    // MARK: - Light
+
+    /// How the Viewer's `0...1` slider maps onto the torch.
+    ///
+    /// The top of the slider is **half** hardware power, not full. Two reasons,
+    /// and both are about the room rather than the API: a phone torch at full
+    /// power pointed into a cot is painful to a child who has just woken, and a
+    /// torch held at full power draws enough current that iOS shuts it off
+    /// thermally within minutes — which on a night light reads as the app being
+    /// broken. Half power runs indefinitely and is still far brighter than any
+    /// nursery needs.
+    enum LightLevels {
+        /// Hardware level at the bottom of the slider. Not zero: `setTorchModeOn`
+        /// rejects a level of zero, and "on but invisible" is not a state worth
+        /// offering anyway.
+        static let minimum: Float = 0.02
+        /// Hardware level at the top of the slider.
+        static let maximum: Float = 0.5
+        /// Where the slider starts — a low glow, enough to see a face by.
+        static let `default`: Double = 0.35
+
+        /// Maps the Viewer's scale onto the hardware's.
+        static func hardwareLevel(for level: Double) -> Float {
+            let clamped = Float(min(max(level, 0), 1))
+            return minimum + clamped * (maximum - minimum)
+        }
+    }
+
+    /// Applies a light change and reports what the light is actually doing.
+    ///
+    /// - Parameters:
+    ///   - isOn: `nil` leaves the on/off state alone.
+    ///   - level: `nil` leaves the brightness alone. Setting a brightness while
+    ///     the light is off turns it on — dragging a brightness slider is not a
+    ///     plausible way to ask for darkness.
+    @discardableResult
+    func setLight(isOn: Bool?, level: Double?) -> LightState {
+        if let level {
+            desiredLight.level = min(max(level, 0), 1)
+            if isOn == nil { desiredLight.isOn = true }
+        }
+        if let isOn { desiredLight.isOn = isOn }
+        applyDesiredLight()
+        return lightState
+    }
+
+    /// What the light is doing, read from the hardware rather than from intent.
+    ///
+    /// `isTorchActive` and not `desiredLight.isOn`, because iOS switches the torch
+    /// off on its own when the phone gets warm. A Viewer looking at a switch that
+    /// says "on" over a dark room has been told something false, and the whole
+    /// point of reporting state back is that it is the room's state.
+    var lightState: LightState {
+        LightState(
+            availability: lightAvailability,
+            isOn: activeDevice?.isTorchActive ?? false,
+            level: desiredLight.level
+        )
+    }
+
+    private var lightAvailability: LightState.Availability {
+        guard isCapturing, let device = activeDevice else { return .cameraIdle }
+        guard device.hasTorch else {
+            // A back camera with no torch is hardware that will never have one;
+            // the front camera is one flip away from working, and the Viewer is
+            // told which of those it is looking at.
+            return position == .front ? .wrongCamera : .noHardware
+        }
+        // False while the torch is too warm to light, which is the one failure a
+        // parent will otherwise interpret as the app being broken.
+        return device.isTorchAvailable ? .ready : .unavailable
+    }
+
+    private func applyDesiredLight() {
+        setTorch(on: desiredLight.isOn, level: desiredLight.level)
+    }
+
+    /// Best-effort throughout: a torch that refuses is a night light that did not
+    /// come on, never a stream that stopped.
+    private func setTorch(on: Bool, level: Double) {
+        guard let device = activeDevice, device.hasTorch else { return }
+        // Turning it *off* is attempted unconditionally. `isTorchAvailable` goes
+        // false when the phone is too warm, and refusing to act on that would
+        // leave a light nobody can switch off in a room with a sleeping child.
+        guard on else {
+            withLock(device) { $0.torchMode = .off }
+            return
+        }
+        guard device.isTorchAvailable else { return }
+        withLock(device) { device in
+            // `setTorchModeOn` throws rather than clamping, so the level is
+            // bounded by what this device reports as its maximum first.
+            let requested = min(
+                LightLevels.hardwareLevel(for: level),
+                AVCaptureDevice.maxAvailableTorchLevel
+            )
+            try? device.setTorchModeOn(level: max(requested, LightLevels.minimum))
+        }
+    }
+
+    private func withLock(_ device: AVCaptureDevice, _ body: (AVCaptureDevice) -> Void) {
+        guard (try? device.lockForConfiguration()) != nil else { return }
+        defer { device.unlockForConfiguration() }
+        body(device)
     }
 
     // MARK: - Device selection

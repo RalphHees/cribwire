@@ -100,6 +100,22 @@ enum WebRTCStack {
     /// Viewer plays it. `.mixWithOthers` keeps the app from stopping the user's
     /// music the moment a Viewer opens; `.defaultToSpeaker` stops Viewer audio
     /// coming out of the earpiece.
+    ///
+    /// `.mixWithOthers` is also what lets the Camera play a lullaby through this
+    /// same session while it streams (`Features/Nursery`). Two consequences of
+    /// `.videoChat` are worth knowing about there, and both are deliberate:
+    ///
+    /// - Voice processing runs on the **input**, so the music the Camera is
+    ///   playing is largely cancelled out of what the Viewer hears. That is the
+    ///   right way round for a monitor — the point is to hear the child, not the
+    ///   playlist — and it is why the mode is not relaxed while music plays.
+    /// - Voice processing can also attenuate playback on some devices. The
+    ///   Viewer's volume control is the answer to that, and it moves the Camera's
+    ///   own output volume rather than an app-level gain precisely so it can be.
+    ///
+    /// How loud the room actually ends up is hardware-dependent and has to be
+    /// checked on a real pair of devices; nothing here can be asserted on a build
+    /// machine.
     static func configureAudioSession(mode: AudioMode) {
         let session = RTCAudioSession.sharedInstance()
         session.lockForConfiguration()

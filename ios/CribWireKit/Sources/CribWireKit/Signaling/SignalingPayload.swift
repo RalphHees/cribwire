@@ -49,6 +49,22 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         /// 12 %" is answering the question behind most failed nights — the Camera
         /// quietly went flat — which is worth a message type of its own.
         case status
+        /// Viewer → Camera: change the music or the light in the room.
+        ///
+        /// The only message in the protocol that *acts* on the Camera rather than
+        /// describing it, which is why the Camera checks two things before obeying
+        /// one: that it came from a Viewer (a Camera receiving it would mean
+        /// someone is impersonating one), and that the sender has a session whose
+        /// certificate was verified. The seal already proves possession of the QR
+        /// secret; the session check means the sender is the peer this Camera is
+        /// actually streaming to, not merely someone who once scanned the code.
+        case control
+        /// Camera → Viewer: what the music and the light are currently doing.
+        ///
+        /// Sent on every change, and once to each Viewer as it verifies — exactly
+        /// like `status`. The Viewer holds no independent notion of the state, it
+        /// draws this, so a control that appears to have taken effect always has.
+        case nursery
     }
 
     /// Message type.
@@ -72,6 +88,10 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
     public let batt: Double?
     /// Whether the sender is charging, for `status`.
     public let chg: Bool?
+    /// The requested change, for `control`.
+    public let ctl: NurseryCommand?
+    /// The music and light state, for `nursery`.
+    public let nur: NurseryState?
 
     public init(
         t: Kind,
@@ -83,7 +103,9 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         mid: String? = nil,
         mline: Int? = nil,
         batt: Double? = nil,
-        chg: Bool? = nil
+        chg: Bool? = nil,
+        ctl: NurseryCommand? = nil,
+        nur: NurseryState? = nil
     ) {
         self.t = t
         self.seq = seq
@@ -95,6 +117,8 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         self.mline = mline
         self.batt = batt
         self.chg = chg
+        self.ctl = ctl
+        self.nur = nur
     }
 
     // MARK: - Factories
@@ -132,6 +156,16 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         SignalingPayload(t: .status, batt: batteryLevel >= 0 ? batteryLevel : nil, chg: isCharging)
     }
 
+    /// Viewer → Camera nursery control.
+    public static func control(_ command: NurseryCommand) -> SignalingPayload {
+        SignalingPayload(t: .control, ctl: command)
+    }
+
+    /// Camera → Viewer nursery state.
+    public static func nursery(_ state: NurseryState) -> SignalingPayload {
+        SignalingPayload(t: .nursery, nur: state)
+    }
+
     // MARK: - Stamping
 
     /// Returns a copy stamped with the sequence number and sender identity that
@@ -148,7 +182,9 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
             mid: mid,
             mline: mline,
             batt: batt,
-            chg: chg
+            chg: chg,
+            ctl: ctl,
+            nur: nur
         )
     }
 }

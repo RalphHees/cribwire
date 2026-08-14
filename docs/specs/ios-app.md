@@ -60,6 +60,58 @@ movement.
 - Picture-in-Picture when the app is backgrounded (AVKit PiP with the WebRTC track
   rendered via `AVSampleBufferDisplayLayer`).
 
+### 2.4a Nursery controls — music and light
+
+The Viewer can act on the room, not only watch it: play music through the Camera's
+speaker and switch the Camera's light on. Both are comforts layered on the monitor
+and neither may compromise it — every call in the path is best-effort, and a music
+service that hangs or a torch that refuses can never stop the stream.
+
+**Transport.** Two message types on the existing sealed signaling channel
+(`CribWireKit/Nursery`, carried by `SignalingPayload`):
+
+- `control` — Viewer → Camera. Play/pause/toggle, next, previous, volume, choose a
+  playlist, switch service, refresh the playlist list; and for the light, on/off and
+  brightness. Every field is advisory: the Camera clamps it, may refuse it, and
+  reports what actually happened.
+- `nursery` — Camera → Viewer. Music availability, transport state, now-playing,
+  volume, the playlist shortlist, and the light's availability, on-state and level.
+
+The Viewer holds **no** state of its own — it renders the Camera's report — so a
+control can be slow but never wrong. Commands go through the same seal as offers and
+ICE, so the server routes ciphertext and never learns that a light was switched on
+or which playlist was chosen. The Camera obeys a `control` only from a Viewer whose
+session has passed the DTLS fingerprint check (`security.md` §4), and only a Camera
+ever acts on one.
+
+**Playlists.** The Viewer is offered a shortlist, never a library: what CribWire
+itself has played on this Camera (most recent first), then the service's recently
+played, then favourites/library playlists, deduplicated and capped at
+`PlaylistShortlist.limit`. The cap and the name-length cap are also what keep the
+state message inside the 16 KiB signaling frame. Playlist names travel sealed and
+are never sent to the backend.
+
+**Services.** Apple Music is implemented through MusicKit's
+`ApplicationMusicPlayer` — not `SystemMusicPlayer`, which would take over the Music
+app on the Camera's own account. It needs the MusicKit service enabled on the App ID
+and `NSAppleMusicUsageDescription`; authorisation is requested **from the Camera's
+own screen only**, because a system prompt raised by a tap on another device is a
+prompt nobody is standing in front of. TIDAL is behind the same `MusicProvider`
+protocol and is offered only when a client id is compiled in — see
+`TidalMusicProvider.swift` for what completing it requires (TIDAL permits third-party
+playback only through its own SDK, under partner credentials).
+
+**Volume** means the Camera device's output volume. Neither service exposes a
+per-app gain, and for a phone playing into a room the device's volume is what
+"turn it down in there" means anyway.
+
+**Light** is the torch on the Camera's back camera, driven by the capture
+controller because it owns the capture device. The Viewer's slider tops out at half
+hardware power: full power is painful in a cot and is thermally unsustainable for a
+night. The reported on-state is read from `isTorchActive`, not from intent, so a
+torch iOS switched off for heat shows as off. It is switched off — and the intent
+cleared — whenever capture stops, so a light can never come back on by itself.
+
 ### 2.5 Noise and movement notifications
 
 - Detection runs **on the Camera device** — raw audio/video never reaches the backend,

@@ -24,6 +24,7 @@ struct ViewerLiveView: View {
     @State private var isAudioOnly = false
     @State private var toast: String?
     @State private var liveActivity = LiveActivityController()
+    @State private var showRoomControls = false
 
     private let record: PairingRecord
 
@@ -66,6 +67,7 @@ struct ViewerLiveView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .sheet(isPresented: $showRoomControls) { roomControlsSheet }
         .task {
             engine.start()
             liveActivity.start(cameraName: record.displayName, state: activityState)
@@ -257,24 +259,47 @@ struct ViewerLiveView: View {
             .accessibilityAddTraits(.isButton)
     }
 
+    /// Two rows rather than one. Five buttons across an iPhone leaves labels like
+    /// "Audio only" at two words a line, which is unreadable at the moment this
+    /// screen is actually used.
     private var controlRow: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                controlButton(
+                    systemName: engine.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    label: engine.isMuted ? "Unmute" : "Mute",
+                    isActive: engine.isMuted
+                ) {
+                    engine.setMuted(!engine.isMuted)
+                }
+
+                controlButton(
+                    systemName: isAudioOnly ? "video.slash.fill" : "video.fill",
+                    label: isAudioOnly ? "Show video" : "Audio only",
+                    isActive: isAudioOnly
+                ) {
+                    isAudioOnly.toggle()
+                }
+
+                // Music and light live behind one button rather than on this
+                // screen. Four more controls under a video feed is a busier
+                // screen than anyone wants at 3 a.m., and this is the one thing
+                // here that is reached for deliberately rather than glanced at.
+                controlButton(
+                    systemName: roomSymbol,
+                    label: "Room",
+                    isActive: isRoomActive,
+                    isEnabled: engine.nurseryState != nil
+                ) {
+                    showRoomControls = true
+                }
+            }
+            secondaryControlRow
+        }
+    }
+
+    private var secondaryControlRow: some View {
         HStack(spacing: 12) {
-            controlButton(
-                systemName: engine.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                label: engine.isMuted ? "Unmute" : "Mute",
-                isActive: engine.isMuted
-            ) {
-                engine.setMuted(!engine.isMuted)
-            }
-
-            controlButton(
-                systemName: isAudioOnly ? "video.slash.fill" : "video.fill",
-                label: isAudioOnly ? "Show video" : "Audio only",
-                isActive: isAudioOnly
-            ) {
-                isAudioOnly.toggle()
-            }
-
             controlButton(
                 systemName: "camera.fill",
                 label: "Snapshot",
@@ -293,8 +318,56 @@ struct ViewerLiveView: View {
                 ) {
                     pip.isActive ? pip.stop() : pip.start()
                 }
+            } else {
+                // Keeps Snapshot the width it is in the row above rather than
+                // letting it stretch across the screen on its own.
+                Color.clear.frame(maxWidth: .infinity)
             }
         }
+    }
+
+    /// The button reflects the room: playing music, or a light left on.
+    private var roomSymbol: String {
+        guard let state = engine.nurseryState else { return "music.note.house" }
+        if state.light.isOn { return "lightbulb.fill" }
+        return state.music.isPlaying ? "music.note.list" : "music.note.house"
+    }
+
+    private var isRoomActive: Bool {
+        guard let state = engine.nurseryState else { return false }
+        return state.music.isPlaying || state.light.isOn
+    }
+
+    private var roomControlsSheet: some View {
+        NavigationStack {
+            KCScreen {
+                ScrollView {
+                    Group {
+                        if let state = engine.nurseryState {
+                            NurseryControlsView(state: state) { command in
+                                engine.send(command)
+                            }
+                        } else {
+                            // Only reachable if the Camera stops reporting while
+                            // the sheet is open — a reconnect, usually.
+                            Text("Waiting for the camera…")
+                                .font(Theme.Typography.callout)
+                                .foregroundStyle(Theme.Palette.textMuted)
+                                .padding(.top, 40)
+                        }
+                    }
+                    .padding(.vertical, 20)
+                }
+            }
+            .navigationTitle(record.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { showRoomControls = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 
     private func controlButton(
