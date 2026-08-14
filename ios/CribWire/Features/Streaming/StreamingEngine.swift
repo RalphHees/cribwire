@@ -99,6 +99,17 @@ final class StreamingEngine: ObservableObject {
     @Published private(set) var peerBatteryLevel: Double?
     /// Viewer-side: whether the Camera is charging.
     @Published private(set) var isPeerCharging = false
+    /// The music and light in the room.
+    ///
+    /// On a Viewer this is what the Camera last reported, and it is `nil` until it
+    /// reports something — an older Camera never will, and a Viewer that invented
+    /// a default would show controls for a room that cannot answer them. The
+    /// Viewer renders this and holds no state of its own, so what the controls
+    /// show is always what the room is doing rather than what was last tapped.
+    ///
+    /// On a Camera it mirrors `nursery.state`, which is what lets the Camera's own
+    /// screen show the same facts without observing a second object.
+    @Published private(set) var nurseryState: NurseryState?
 
     // MARK: - Controls
 
@@ -116,7 +127,13 @@ final class StreamingEngine: ObservableObject {
     }
 
     func flipCamera() {
-        Task { await capture?.flip() }
+        Task {
+            await capture?.flip()
+            // Only the back camera has a torch, so flipping is the one action
+            // that can make the light unavailable — or bring it back. Viewers are
+            // told at once rather than finding out on the next poll.
+            await nursery?.reload()
+        }
     }
 
     /// Viewer-side push-to-talk. `true` while the button is held.
@@ -124,6 +141,18 @@ final class StreamingEngine: ObservableObject {
         guard role == .viewer else { return }
         isTalking = talking
         talkbackTrack?.isEnabled = talking
+    }
+
+    /// Viewer-side: ask the Camera to change the music or the light.
+    ///
+    /// Fire-and-forget. Nothing optimistic happens locally — the controls move
+    /// when the Camera's next `nursery` message says they moved, which is what
+    /// keeps a button from claiming something the room did not do. A command that
+    /// fails to send is simply not retried: the Viewer can see it did not take
+    /// effect, and a re-sent "next track" arriving late is worse than one lost.
+    func send(_ command: NurseryCommand) {
+        guard role == .viewer, isVerified, let client else { return }
+        Task { _ = try? await client.send(.control(command), to: .camera) }
     }
 
     /// Builds the talk-back track on first use and hands it to `session`.
@@ -155,6 +184,12 @@ final class StreamingEngine: ObservableObject {
     /// Camera-side only. Owned here because it consumes the capture feed: the
     /// frames it needs are the ones this engine is already encoding.
     let detection: DetectionCoordinator?
+    /// Camera-side only: the music and the light a Viewer can reach.
+    ///
+    /// Owned here for the same reason as `detection` — it needs the capture
+    /// controller (the torch belongs to the capture device) and it is driven by
+    /// messages that arrive on this engine's signaling channel.
+    let nursery: NurseryController?
 
     private var client: SignalingClient?
     private var eventTask: Task<Void, Never>?
@@ -215,6 +250,7 @@ final class StreamingEngine: ObservableObject {
         guard record.localRole == .camera else {
             self.capture = nil
             self.detection = nil
+            self.nursery = nil
             return
         }
 
@@ -222,11 +258,13 @@ final class StreamingEngine: ObservableObject {
         // capture controller's frame tap delivers straight into it.
         let detection = DetectionCoordinator(record: record, services: services)
         self.detection = detection
-        self.capture = CameraCaptureController { frame in
+        let capture = CameraCaptureController { frame in
             Task { @MainActor in
                 detection.ingest(frame)
             }
         }
+        self.capture = capture
+        self.nursery = NurseryController(capture: capture)
     }
 
     // MARK: - Lifecycle
@@ -255,6 +293,14 @@ final class StreamingEngine: ObservableObject {
         // alerts on a quiet nursery with no Viewer connected, which is the whole
         // point of it running detection itself.
         applyDetectionSettings(services.detectionSettings)
+
+        nursery?.onStateChange = { [weak self] state in
+            Task { @MainActor in
+                self?.nurseryState = state
+                await self?.broadcastNursery(state)
+            }
+        }
+        nursery?.start()
 
         connectTask = Task { [weak self] in
             guard let self else { return }
@@ -292,6 +338,8 @@ final class StreamingEngine: ObservableObject {
     private func refreshPeerCounts() {
         negotiatingPeerCount = sessions.count
         connectedPeerCount = sessions.values.filter(\.isVerified).count
+        // Music and torch state is polled only while somebody can see it.
+        nursery?.hasConnectedViewers = connectedPeerCount > 0
     }
 
     /// Sends the last battery reading to every connected Viewer.
@@ -302,6 +350,20 @@ final class StreamingEngine: ObservableObject {
             isCharging: battery.isCharging
         )
         for target in peer.map({ [$0] }) ?? Array(sessions.keys) {
+            _ = try? await client.send(payload, to: target)
+        }
+    }
+
+    /// Sends the music and light state to every **verified** Viewer.
+    ///
+    /// Verified and not merely connected, unlike `broadcastStatus`. Battery is a
+    /// number; this carries the names of playlists in the family's library, and it
+    /// is not sent to a peer whose certificate has not yet been checked against
+    /// the sealed fingerprint.
+    private func broadcastNursery(_ state: NurseryState) async {
+        guard role == .camera, let client else { return }
+        let payload = SignalingPayload.nursery(state)
+        for target in sessions.filter({ $0.value.isVerified }).map(\.key) {
             _ = try? await client.send(payload, to: target)
         }
     }
@@ -321,6 +383,9 @@ final class StreamingEngine: ObservableObject {
         localGuest?.stop(); localGuest = nil
         isAudioInterrupted = false
         detection?.stop()
+        nursery?.onStateChange = nil
+        nursery?.stop()
+        nurseryState = nil
 
         // Captured before teardown: the peers are told before the socket goes,
         // so they stop immediately rather than waiting for ICE to time out.
@@ -601,6 +666,9 @@ final class StreamingEngine: ObservableObject {
         if role == .viewer {
             remoteVideoTrack = nil
             isVerified = false
+            // The controls go with the video. Leaving them on screen would offer
+            // a light switch for a room this device can no longer reach.
+            nurseryState = nil
             state = .reconnecting
         } else if sessions.isEmpty {
             state = .connecting
@@ -709,12 +777,35 @@ final class StreamingEngine: ObservableObject {
             peerBatteryLevel = payload.batt
             isPeerCharging = payload.chg ?? false
 
+        case .nursery:
+            guard role == .viewer, let state = payload.nur else { return }
+            nurseryState = state
+
+        case .control:
+            // The one message that *acts* on this device, so it is the one with a
+            // second check. The seal already proves the sender holds the QR
+            // secret; requiring a verified session additionally means the sender
+            // is a peer this Camera has finished a fingerprint-checked handshake
+            // with — not a device replaying a blob at a Camera it never connected
+            // to. A Camera is also the only role that may act: a Viewer receiving
+            // one would mean something upstream is impersonating a Camera.
+            guard role == .camera,
+                  let command = payload.ctl,
+                  sessions[sender]?.isVerified == true
+            else {
+                return
+            }
+            // Off the read loop. A music service that takes a second to answer
+            // must not hold up the ICE candidate queued behind it.
+            Task { [weak self] in await self?.nursery?.apply(command) }
+
         case .bye:
             sessions.removeValue(forKey: sender)?.close()
             refreshPeerCounts()
             if role == .viewer {
                 remoteVideoTrack = nil
                 isVerified = false
+                nurseryState = nil
                 state = .connecting
             }
         }
@@ -894,6 +985,15 @@ final class StreamingEngine: ObservableObject {
         }
         if role == .camera {
             await updateCaptureForViewerCount()
+            // After capture is up, not before: whether the torch can be driven at
+            // all depends on there being a running capture session, so a state
+            // read a moment earlier would tell this Viewer the light is
+            // unavailable and then never correct itself until the next tick.
+            //
+            // The reload publishes unconditionally, and this peer counts as
+            // verified by now, so the broadcast that follows is what tells it —
+            // sending to it here as well would only duplicate the message.
+            await nursery?.reload()
         }
     }
 
@@ -1111,6 +1211,7 @@ final class StreamingEngine: ObservableObject {
         refreshPeerCounts()
         remoteVideoTrack = nil
         isVerified = false
+        nurseryState = nil
 
         let previous = client
         client = nil
@@ -1128,6 +1229,7 @@ final class StreamingEngine: ObservableObject {
     private func failSecurity() {
         isVerified = false
         remoteVideoTrack = nil
+        nurseryState = nil
         for session in sessions.values { session.close() }
         sessions.removeAll()
         refreshPeerCounts()

@@ -165,6 +165,14 @@ targets:
         NSPhotoLibraryAddUsageDescription: >-
           CribWire saves the snapshots you take of the live view to your photo
           library. It never reads your existing photos.
+        # Required by MusicKit before `MusicAuthorization.request()` will do
+        # anything: without it the request returns denied with no prompt, which
+        # looks exactly like a user refusing. Only the Camera ever asks — see
+        # `NurseryController.requestMusicAuthorization`.
+        NSAppleMusicUsageDescription: >-
+          CribWire plays music through this phone's speaker so you can soothe
+          your child from the paired device. It reads your playlists to offer
+          them, and never sends your library or listening history to a server.
 
         # Live Activity support (`docs/TASKS.md` Phase 5).
         NSSupportsLiveActivities: true
@@ -176,6 +184,12 @@ targets:
 
         # --- Runtime configuration ---------------------------------------
         CribWireAPIBaseURL: $(CRIBWIRE_API_BASE_URL)
+        # TIDAL client id from developer.tidal.com. Left as an unsubstituted
+        # placeholder on purpose: `TidalConfiguration` treats `$(…)` and empty
+        # as "not configured", so a default build simply does not offer TIDAL
+        # rather than offering a service it cannot play. See the header of
+        # `TidalMusicProvider.swift` for what completing it involves.
+        CribWireTidalClientID: $(CRIBWIRE_TIDAL_CLIENT_ID)
 
     scheme:
       testTargets:

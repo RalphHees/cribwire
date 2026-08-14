@@ -19,12 +19,14 @@ ios/
 │   │   ├── CryptoCore/      Root secret, HKDF, SAS, sealed envelope
 │   │   ├── Protocol/        QR payload, CribWire-HMAC authenticator, roles
 │   │   ├── Pairing/         Camera + Viewer pairing state machines
+│   │   ├── Nursery/         Music + light command vocabulary and playlist shortlist
 │   │   └── API/             Async REST client and its transport seam
 │   └── Tests/               Vector contract tests + state machine + client tests
 ├── CribWire/                 App target (SwiftUI) — the only app binary
 │   ├── App/                 Entry point, app delegate, service graph, config, registry
 │   ├── Design/              Palette, type scale, shared components
-│   ├── Features/            Role selection, pairing, device list, notifications
+│   ├── Features/            Role selection, pairing, device list, notifications,
+│   │                        streaming, detection, nursery music + light
 │   └── Security/            Keychain layer
 └── CribWireTests/            App-target unit tests
 ```
@@ -83,6 +85,24 @@ implementations in one change set — see the note at the top of
 | `DEVELOPMENT_TEAM` | empty | Apple Developer team ID |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `example.cribwire.*` | app and tests — one app bundle id |
 | `CRIBWIRE_API_BASE_URL` | `https://api.cribwire.example` | Camera-side default only |
+| `CRIBWIRE_TIDAL_CLIENT_ID` | undefined | Leave unset unless TIDAL is being wired up — see below |
+
+### Music services
+
+Apple Music needs one thing that is not in this repository: the **MusicKit** app
+service enabled on the App ID in the Apple Developer portal. Without it
+`MusicAuthorization.request()` returns denied with no prompt, which on screen is
+indistinguishable from the user refusing. `NSAppleMusicUsageDescription` is already
+in `project.yml`; both are required.
+
+TIDAL is deliberately *not* wired up. It permits third-party playback only through
+its own SDK under partner credentials issued at `developer.tidal.com`, so a default
+build does not offer it at all rather than offering a service that plays nothing.
+Everything except the playback engine is already provider-agnostic and works — the
+sealed command protocol, the Viewer's controls, the playlist shortlist, the Camera's
+history. The header of `CribWire/Features/Nursery/TidalMusicProvider.swift` lists
+exactly what completing it involves; `CRIBWIRE_TIDAL_CLIENT_ID` is the switch that
+makes the service appear once it is done.
 
 ### Where the keys live
 
@@ -161,3 +181,14 @@ checks:
   Simulator without a real token.
 - Pairing survival across app restarts and device reboots
   (`WhenUnlockedThisDeviceOnly` items are unavailable until first unlock).
+- Music playback on the Camera while it streams: that MusicKit plays through the
+  WebRTC audio session at all, and how loud the room actually gets. `.videoChat`
+  runs voice processing that both cancels the music out of what the Viewer hears
+  (wanted — the point is to hear the child) and can attenuate playback on some
+  hardware (not wanted). Nothing about this can be asserted on a build machine.
+- The torch as a night light: that it holds at the mapped level for hours without
+  iOS shutting it off thermally, that it survives a quality-ladder restart, and that
+  it goes out when capture stops.
+- That the Camera's system volume actually moves via `MPVolumeView` on current iOS.
+  `SystemVolumeController.canSetVolume` reports whether it can, and the Viewer hides
+  the slider when it cannot — but which of those happens is a device question.
