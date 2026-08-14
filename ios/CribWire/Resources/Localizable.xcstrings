@@ -815,6 +815,39 @@
         }
       }
     },
+    "Mini view could not start." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miniweergave kon niet starten."
+          }
+        }
+      }
+    },
+    "Mini view is not available right now." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miniweergave is nu niet beschikbaar."
+          }
+        }
+      }
+    },
+    "Mini view is not ready yet." : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Miniweergave is nog niet gereed."
+          }
+        }
+      }
+    },
     "Movement" : {
       "extractionState" : "manual",
       "localizations" : {

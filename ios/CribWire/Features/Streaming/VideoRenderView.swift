@@ -1,9 +1,36 @@
 import AVFoundation
 import CoreImage
 import Foundation
+import ImageIO
 import SwiftUI
 import UIKit
 import WebRTC
+
+/// How a decoded frame has to be turned before it is the right way up.
+///
+/// The Camera does **not** rotate pixels before encoding: `RTCCameraVideoCapturer`
+/// sends the sensor's landscape buffer and tags the frame with the turn the
+/// receiver should apply, which costs the Camera nothing and is what WebRTC's
+/// orientation extension is for. `RTCMTLVideoView` applies that tag when it
+/// draws — so anything else that consumes these frames has to apply it too, or
+/// it shows a phone-in-portrait nursery lying on its side.
+extension RTCVideoRotation {
+
+    var imageOrientation: CGImagePropertyOrientation {
+        switch self {
+        case ._0: return .up
+        case ._90: return .right
+        case ._180: return .down
+        case ._270: return .left
+        @unknown default: return .up
+        }
+    }
+
+    /// Whether the turn swaps width and height.
+    var swapsAxes: Bool {
+        self == ._90 || self == ._270
+    }
+}
 
 /// Keeps the most recent frame so the Viewer can save a still.
 ///
@@ -15,13 +42,19 @@ final class VideoFrameGrabber: NSObject, RTCVideoRenderer, @unchecked Sendable {
 
     private let lock = NSLock()
     private var latest: CVPixelBuffer?
+    /// Stored alongside the buffer: the pixels are landscape whatever way the
+    /// Camera is held, and the rotation is the only thing that says so.
+    private var latestRotation: RTCVideoRotation = ._0
 
     func setSize(_ size: CGSize) {}
 
     func renderFrame(_ frame: RTCVideoFrame?) {
-        guard let buffer = (frame?.buffer as? RTCCVPixelBuffer)?.pixelBuffer else { return }
+        guard let frame, let buffer = (frame.buffer as? RTCCVPixelBuffer)?.pixelBuffer else {
+            return
+        }
         lock.lock()
         latest = buffer
+        latestRotation = frame.rotation
         lock.unlock()
     }
 
@@ -33,10 +66,11 @@ final class VideoFrameGrabber: NSObject, RTCVideoRenderer, @unchecked Sendable {
     func snapshot() -> UIImage? {
         lock.lock()
         let buffer = latest
+        let rotation = latestRotation
         lock.unlock()
         guard let buffer else { return nil }
 
-        let image = CIImage(cvPixelBuffer: buffer)
+        let image = CIImage(cvPixelBuffer: buffer).oriented(rotation.imageOrientation)
         let context = CIContext()
         guard let cgImage = context.createCGImage(image, from: image.extent) else {
             return nil
