@@ -93,6 +93,14 @@ struct ViewerLiveView: View {
         .onChange(of: engine.remoteVideoTrack) { track in
             pip.attach(track: track)
         }
+        // AVKit reports a refused PiP start to its delegate and does nothing
+        // visible. Saying so is the difference between "not now" and a button
+        // that appears to be broken.
+        .onChange(of: pip.lastError) { message in
+            guard let message else { return }
+            show(message)
+            pip.clearError()
+        }
         .onChange(of: scenePhase) { phase in
             // Backgrounding tears the stream down rather than holding a camera
             // and a relay open behind a locked screen — unless PiP is running,
@@ -135,12 +143,12 @@ struct ViewerLiveView: View {
             if case .failed(let reason, let isSecurity) = engine.state {
                 failure(reason: reason, isSecurity: isSecurity)
             } else if engine.isVerified && !isAudioOnly {
-                VideoRenderView(track: engine.remoteVideoTrack, grabber: grabber)
-                // Required by AVKit: PiP cannot start from a layer that is not in
-                // the hierarchy. Invisible, and never what the user is looking at.
+                // Underneath, not beside: AVKit will only start the mini window
+                // from a layer that is in a window at a real size, and the Metal
+                // renderer on top of it is opaque, so nothing of it is seen.
                 PictureInPictureLayerHost(controller: pip)
-                    .frame(width: 1, height: 1)
                     .allowsHitTesting(false)
+                VideoRenderView(track: engine.remoteVideoTrack, grabber: grabber)
             } else if engine.isVerified && isAudioOnly {
                 audioOnlyPlaceholder
             } else {
@@ -310,11 +318,16 @@ struct ViewerLiveView: View {
             }
 
             if PictureInPictureController.isSupported {
+                // Deliberately not gated on `pip.isPossible`. That flag goes
+                // false for reasons the user cannot see — another app holding
+                // the system's single PiP window, most often — and a button that
+                // is simply grey explains none of them. Tapping now either opens
+                // the mini window or says why it did not.
                 controlButton(
                     systemName: "pip.enter",
                     label: "Mini view",
                     isActive: pip.isActive,
-                    isEnabled: pip.isPossible && engine.isVerified && !isAudioOnly
+                    isEnabled: engine.isVerified && !isAudioOnly
                 ) {
                     pip.isActive ? pip.stop() : pip.start()
                 }

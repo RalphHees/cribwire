@@ -122,6 +122,24 @@ final class VideoFrameGrabberTests: XCTestCase {
         XCTAssertEqual(image.size.height, 48)
     }
 
+    /// The Camera sends landscape pixels plus a rotation flag rather than
+    /// rotating them itself, so a snapshot taken of a Camera held in portrait is
+    /// sideways unless the flag is applied.
+    func testAppliesTheFramesRotationToTheSavedImage() throws {
+        let grabber = VideoFrameGrabber()
+        grabber.renderFrame(
+            RTCVideoFrame(
+                buffer: RTCCVPixelBuffer(pixelBuffer: try makePixelBuffer(width: 64, height: 48)),
+                rotation: ._90,
+                timeStampNs: 0
+            )
+        )
+
+        let image = try XCTUnwrap(grabber.snapshot())
+        XCTAssertEqual(image.size.width, 48)
+        XCTAssertEqual(image.size.height, 64)
+    }
+
     /// A nil frame must not clear a good one: the snapshot button should still
     /// work after a hiccup in the decoder.
     func testNilFrameLeavesTheLastImageIntact() throws {
@@ -135,6 +153,57 @@ final class VideoFrameGrabberTests: XCTestCase {
         )
         grabber.renderFrame(nil)
         XCTAssertNotNil(grabber.snapshot())
+    }
+
+    private func makePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
+        var buffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            kCVPixelFormatType_32BGRA,
+            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary,
+            &buffer
+        )
+        XCTAssertEqual(status, kCVReturnSuccess)
+        return try XCTUnwrap(buffer)
+    }
+}
+
+/// What the mini window is fed.
+///
+/// `AVSampleBufferDisplayLayer` shows the buffer it is given and nothing else —
+/// no rotation flag, and no transform on the source layer, because AVKit draws
+/// these buffers in its own window. So the turn has to be in the pixels by the
+/// time they are enqueued, which is what these assert.
+final class PixelBufferRotatorTests: XCTestCase {
+
+    func testAQuarterTurnSwapsTheAxes() throws {
+        let rotator = PixelBufferRotator()
+        let source = try makePixelBuffer(width: 64, height: 48)
+
+        for rotation: RTCVideoRotation in [._90, ._270] {
+            let rotated = try XCTUnwrap(rotator.rotate(source, by: rotation))
+            XCTAssertEqual(CVPixelBufferGetWidth(rotated), 48)
+            XCTAssertEqual(CVPixelBufferGetHeight(rotated), 64)
+        }
+    }
+
+    func testAHalfTurnKeepsTheAxes() throws {
+        let rotator = PixelBufferRotator()
+        let rotated = try XCTUnwrap(
+            rotator.rotate(try makePixelBuffer(width: 64, height: 48), by: ._180)
+        )
+        XCTAssertEqual(CVPixelBufferGetWidth(rotated), 64)
+        XCTAssertEqual(CVPixelBufferGetHeight(rotated), 48)
+    }
+
+    /// An upright frame is the common case once the Camera is in a stand, and it
+    /// must cost nothing: the same buffer comes back, not a copy of it.
+    func testAnUprightFrameIsPassedStraightThrough() throws {
+        let rotator = PixelBufferRotator()
+        let source = try makePixelBuffer(width: 64, height: 48)
+        XCTAssertTrue(rotator.rotate(source, by: ._0) === source)
     }
 
     private func makePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
