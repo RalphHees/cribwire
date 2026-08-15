@@ -131,24 +131,15 @@ final class AppServices {
         DetectionSettingsStore(defaults: defaults).load()
     }
 
-    /// Records alert settings changed from somewhere other than the alerts
-    /// screen — in practice, a Viewer that changed them remotely.
-    ///
-    /// The screen's own view model writes through its store as before; this
-    /// exists so the streaming engine has somewhere to put a change that arrived
-    /// over the wire, rather than holding it only in memory and losing it the
-    /// next time the Camera starts.
-    func saveDetectionSettings(_ settings: DetectionSettings) {
-        DetectionSettingsStore(defaults: defaults).save(settings)
-    }
-
     /// How much light the Camera makes its picture from.
+    ///
+    /// Read-only here, like `detectionSettings`. Both are *written* by whoever
+    /// owns the change — the alerts screen through its own store, and a Viewer's
+    /// change through `NurseryController`, which has to persist and report it in
+    /// one step. A second writer on this object would be a second place for the
+    /// two to drift apart.
     var cameraSensitivity: CameraSensitivity {
         CameraSensitivityStore(defaults: defaults).load()
-    }
-
-    func saveCameraSensitivity(_ sensitivity: CameraSensitivity) {
-        CameraSensitivityStore(defaults: defaults).save(sensitivity)
     }
 
     // MARK: - API access

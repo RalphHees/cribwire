@@ -1,4 +1,5 @@
 import CribWireKit
+import Foundation
 import SwiftUI
 
 /// Camera-side alert configuration (`ios-app.md` §2.5, design screenshot 6).
