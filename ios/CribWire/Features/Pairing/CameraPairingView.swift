@@ -6,8 +6,8 @@ import UIKit
 /// to SAS confirmation when a Viewer claims the pairing (`ios-app.md` §2.2).
 @MainActor
 struct CameraPairingView: View {
-    @StateObject private var captureMonitor = ScreenCaptureMonitor()
-    @StateObject private var model: CameraPairingViewModel
+    @State private var captureMonitor = ScreenCaptureMonitor()
+    @State private var model: CameraPairingViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.displayScale) private var displayScale
 
@@ -15,7 +15,7 @@ struct CameraPairingView: View {
 
     init(services: AppServices) {
         self.services = services
-        _model = StateObject(wrappedValue: CameraPairingViewModel(services: services))
+        _model = State(wrappedValue: CameraPairingViewModel(services: services))
     }
 
     var body: some View {

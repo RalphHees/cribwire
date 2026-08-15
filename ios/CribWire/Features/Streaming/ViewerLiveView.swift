@@ -17,10 +17,10 @@ struct ViewerLiveView: View {
     @StateObject private var engine: StreamingEngine
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @EnvironmentObject private var notifications: PushNotificationCoordinator
+    @Environment(PushNotificationCoordinator.self) private var notifications
 
     @State private var grabber = VideoFrameGrabber()
-    @StateObject private var pip = PictureInPictureController()
+    @State private var pip = PictureInPictureController()
     @State private var isAudioOnly = false
     @State private var toast: String?
     @State private var liveActivity = LiveActivityController()

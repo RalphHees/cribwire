@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 import UIKit
 
@@ -23,9 +22,10 @@ import UIKit
 // MARK: - Capture monitor
 
 @MainActor
-final class ScreenCaptureMonitor: ObservableObject {
+@Observable
+final class ScreenCaptureMonitor {
     /// True while the screen is being recorded or mirrored.
-    @Published private(set) var isCaptured: Bool = false
+    private(set) var isCaptured: Bool = false
 
     private var observers: [NSObjectProtocol] = []
 

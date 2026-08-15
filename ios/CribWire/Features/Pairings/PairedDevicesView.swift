@@ -9,7 +9,7 @@ import SwiftUI
 /// copy of the keys. The local half runs even if the network call fails, because
 /// a user who taps "Remove" must not be left with a pairing that still works.
 struct PairedDevicesView: View {
-    @EnvironmentObject private var services: AppServices
+    @Environment(AppServices.self) private var services
     @State private var pendingRevocation: PairingRecord?
     @State private var revokingIDs: Set<UUID> = []
     @State private var errorMessage: String?

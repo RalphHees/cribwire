@@ -3,14 +3,14 @@ import SwiftUI
 @main
 struct CribWireApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var services = AppServices()
+    @State private var services = AppServices()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(services)
-                .environmentObject(services.notifications)
+                .environment(services)
+                .environment(services.notifications)
                 .preferredColorScheme(.dark)
                 .task {
                     // Set before anything can register for remote
@@ -41,7 +41,7 @@ struct CribWireApp: App {
 /// Chooses the first screen: role selection until a role is picked, then the
 /// home screen for that role.
 struct RootView: View {
-    @EnvironmentObject private var services: AppServices
+    @Environment(AppServices.self) private var services
 
     var body: some View {
         Group {

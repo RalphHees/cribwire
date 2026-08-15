@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import CribWireKit
 import SwiftUI
@@ -16,19 +15,20 @@ import SwiftUI
 /// and Apple displays a generic string — the Viewer app is the only thing in the
 /// chain that can say "noise" rather than "activity".
 @MainActor
-final class DetectionCoordinator: ObservableObject {
+@Observable
+final class DetectionCoordinator {
 
     /// Live room level in dBFS, for the settings screen's meter and the Camera's
     /// status readout.
-    @Published private(set) var currentLevelDBFS = AWeightingFilter.silenceFloorDB
+    private(set) var currentLevelDBFS = AWeightingFilter.silenceFloorDB
     /// The last event this Camera sent, for the status screen.
-    @Published private(set) var lastEvent: DetectionEvent?
+    private(set) var lastEvent: DetectionEvent?
     /// Set when the microphone could not be opened. Surfaced rather than
     /// swallowed: a noise detector that is silently dead is worse than one the
     /// user knows is off.
-    @Published private(set) var isNoiseDetectionUnavailable = false
+    private(set) var isNoiseDetectionUnavailable = false
     /// True while the movement detector is consuming frames.
-    @Published private(set) var isMovementDetectionRunning = false
+    private(set) var isMovementDetectionRunning = false
 
     private var noise: NoiseDetector
     private var movement: MovementDetector

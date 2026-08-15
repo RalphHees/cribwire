@@ -21,6 +21,24 @@ import WebRTC
 ///
 /// The Camera is always the offerer (`ios-app.md` §3), which is why a Viewer that
 /// connects first simply waits: presence tells the Camera to offer.
+///
+/// ## Still an `ObservableObject`
+///
+/// Deliberately, while everything around it has moved to `@Observable`.
+///
+/// `@Observable` would mean `@State` in the two views that own an engine, and
+/// `State(wrappedValue:)` evaluates its argument on *every* view init — unlike
+/// `@StateObject`, which takes an autoclosure and builds the object once. Both
+/// engines are constructed inside `NavigationLink` destination closures on the
+/// home screens, which re-run whenever a push arrives or the pairing list
+/// changes, and a camera-side engine builds a `CameraCaptureController`: a
+/// WebRTC video source, an `RTCCameraVideoCapturer` wrapping an
+/// `AVCaptureSession`, and two tracks. Rebuilding and discarding that on every
+/// redraw is a real cost, not a theoretical one.
+///
+/// Migrating this class means first making `capture`, `detection` and `nursery`
+/// lazy — built on `start()` rather than in `init` — so that constructing an
+/// engine is cheap. Worth doing; not worth folding into a toolchain bump.
 @MainActor
 final class StreamingEngine: ObservableObject {
 

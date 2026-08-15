@@ -1,6 +1,5 @@
 import AVFoundation
 import AVKit
-import Combine
 import CoreImage
 import CoreMedia
 import CoreVideo
@@ -27,22 +26,23 @@ import WebRTC
 /// makes: VideoToolbox produces `CVPixelBuffer`s, and a software-decoded I420
 /// frame is dropped rather than converted on the main thread at 30 fps.
 @MainActor
-final class PictureInPictureController: NSObject, ObservableObject {
+@Observable
+final class PictureInPictureController: NSObject {
 
     /// Whether the device can do PiP at all. iPhones gained video PiP in iOS 14,
     /// but it is still absent on some hardware, and the button must not be shown
     /// where it cannot work.
     static var isSupported: Bool { AVPictureInPictureController.isPictureInPictureSupported() }
 
-    @Published private(set) var isActive = false
-    @Published private(set) var isPossible = false
+    private(set) var isActive = false
+    private(set) var isPossible = false
 
     /// Why the last attempt to open the mini window came to nothing.
     ///
     /// AVKit reports a refusal to the delegate and does nothing else, so without
     /// this the button is simply inert — the user taps, the screen does not
     /// change, and there is nowhere to look. The screen drains this into a toast.
-    @Published private(set) var lastError: String?
+    private(set) var lastError: String?
 
     /// The layer frames are enqueued on. Lives in the view hierarchy at the full
     /// size of the video area — AVKit starts the mini window *from* this layer

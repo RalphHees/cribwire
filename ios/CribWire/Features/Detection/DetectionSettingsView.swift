@@ -7,7 +7,9 @@ import SwiftUI
 /// them on — this screen is the "option to enable" the product requires, so it
 /// deliberately has no master toggle that could turn them on together.
 struct DetectionSettingsView: View {
-    @ObservedObject var model: DetectionSettingsViewModel
+    // @Bindable, not a plain `let`: this view writes back through
+    // `$model.settings...` in the toggles, sliders and pickers below.
+    @Bindable var model: DetectionSettingsViewModel
 
     /// The screen's own microphone tap.
     ///
@@ -20,7 +22,7 @@ struct DetectionSettingsView: View {
     @State private var isMicrophoneUnavailable = false
     /// Live preview behind the watch-area editor. Drawing a box on a grey
     /// rectangle is guesswork; drawing it on the actual room is not.
-    @StateObject private var preview = CameraPreviewSession()
+    @State private var preview = CameraPreviewSession()
 
     var body: some View {
         KCScreen {
@@ -279,7 +281,7 @@ private struct LevelMeter: View {
 ///    and the editor looked broken out of the box.
 private struct RegionOfInterestEditor: View {
     @Binding var region: DetectionRegion
-    @ObservedObject var preview: CameraPreviewSession
+    let preview: CameraPreviewSession
 
     /// The region as it was when the current drag began. `nil` between drags.
     @State private var dragOrigin: DetectionRegion?

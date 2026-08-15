@@ -4,7 +4,7 @@ import SwiftUI
 /// First launch: pick Camera or Viewer. No account, no sign-up — identity comes
 /// entirely from the QR pairing (`ios-app.md` §2.1).
 struct RoleSelectionView: View {
-    @EnvironmentObject private var services: AppServices
+    @Environment(AppServices.self) private var services
 
     var body: some View {
         KCScreen {
@@ -78,5 +78,5 @@ struct RoleSelectionView: View {
 }
 
 #Preview {
-    RoleSelectionView().environmentObject(AppServices())
+    RoleSelectionView().environment(AppServices())
 }

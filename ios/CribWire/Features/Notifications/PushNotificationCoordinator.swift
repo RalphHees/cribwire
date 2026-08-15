@@ -22,7 +22,8 @@ import CribWireKit
 /// Restoring the specific text at delivery time means reintroducing an
 /// extension; the backend payload is unchanged either way.
 @MainActor
-final class PushNotificationCoordinator: NSObject, ObservableObject {
+@Observable
+final class PushNotificationCoordinator: NSObject {
 
     /// Marks the copies this app posts itself, so `willPresent` can tell a fresh
     /// push from an upgrade of one that was delivered while the app was closed.
@@ -36,17 +37,17 @@ final class PushNotificationCoordinator: NSObject, ObservableObject {
         static let userInfoKey = "cribwire.presentation"
     }
 
-    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+    private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
     /// Hex APNs device token, once registration succeeds. `nil` means this
     /// device cannot receive pushes yet — pairing sends an empty token and the
     /// backend simply has nothing to fan out to.
-    @Published private(set) var apnsToken: String?
+    private(set) var apnsToken: String?
     /// The last event this device managed to open. Held in memory only: a push
     /// is a signal, not a record, and nothing about one is written to disk.
-    @Published private(set) var latestEvent: DecodedEvent?
+    private(set) var latestEvent: DecodedEvent?
     /// Set when the user taps an event notification. The live view that should
     /// consume it is Phase 2 (`docs/TASKS.md` → "Notification tap → deep-link").
-    @Published var pendingPairingID: UUID?
+    var pendingPairingID: UUID?
 
     /// A token is only valid in the environment it was minted for, and the
     /// backend picks the APNs host from what we register at pairing time. The

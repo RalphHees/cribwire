@@ -16,12 +16,13 @@ import UIKit
 /// It uses the same camera the Camera role streams from, so the framing a user
 /// draws a box on is the framing the detector will see.
 @MainActor
-final class CameraPreviewSession: ObservableObject {
+@Observable
+final class CameraPreviewSession {
 
     /// Whether a preview is actually available. False in the simulator, and on a
     /// device where camera access was refused — in both cases the editor falls
     /// back to a plain backdrop rather than pretending.
-    @Published private(set) var isAvailable = false
+    private(set) var isAvailable = false
 
     let session = AVCaptureSession()
     private var isConfigured = false

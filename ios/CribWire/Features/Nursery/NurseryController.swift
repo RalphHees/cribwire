@@ -1,4 +1,3 @@
-import Combine
 import CribWireKit
 import Foundation
 
@@ -23,11 +22,12 @@ import Foundation
 /// is best-effort, and a provider that hangs cannot stall the engine because
 /// commands are applied off the signaling read loop.
 @MainActor
-final class NurseryController: ObservableObject {
+@Observable
+final class NurseryController {
 
     // MARK: - State
 
-    @Published private(set) var state = NurseryState()
+    private(set) var state = NurseryState()
 
     /// Called when the state changes and Viewers should be told. Debounced —
     /// see `publish()`.
@@ -36,12 +36,20 @@ final class NurseryController: ObservableObject {
     /// Set by the engine. The refresh loop only runs while somebody is watching:
     /// polling a music player on a Camera nobody is connected to is battery spent
     /// on an answer no one will read.
-    var hasConnectedViewers = false {
-        didSet {
-            guard hasConnectedViewers != oldValue else { return }
-            hasConnectedViewers ? startRefreshLoop() : stopRefreshLoop()
+    ///
+    /// Computed over a backing store rather than carrying a `didSet`: the
+    /// `@Observable` macro rewrites stored properties into get/set accessors,
+    /// and Swift does not allow a property to have both accessors and observers.
+    var hasConnectedViewers: Bool {
+        get { storedHasConnectedViewers }
+        set {
+            guard newValue != storedHasConnectedViewers else { return }
+            storedHasConnectedViewers = newValue
+            newValue ? startRefreshLoop() : stopRefreshLoop()
         }
     }
+
+    private var storedHasConnectedViewers = false
 
     // MARK: - Dependencies
 
@@ -64,12 +72,17 @@ final class NurseryController: ObservableObject {
         providers.first { $0.kind == selectedKind } ?? providers.first
     }
 
+    /// Same shape as `hasConnectedViewers`, and for the same reason.
     private var selectedKind: MusicProviderKind {
-        didSet {
-            guard selectedKind != oldValue else { return }
-            defaults.set(selectedKind.rawValue, forKey: Self.providerKey)
+        get { storedSelectedKind }
+        set {
+            guard newValue != storedSelectedKind else { return }
+            storedSelectedKind = newValue
+            defaults.set(newValue.rawValue, forKey: Self.providerKey)
         }
     }
+
+    private var storedSelectedKind: MusicProviderKind
 
     private var playlists: [PlaylistSummary] = []
     /// The last state Viewers were actually told about. See `deliver(force:)`.
@@ -104,7 +117,9 @@ final class NurseryController: ObservableObject {
         self.volume = volume ?? SystemVolumeController()
         self.defaults = defaults
         self.allProviders = providers ?? [AppleMusicProvider(), TidalMusicProvider()]
-        self.selectedKind = defaults.string(forKey: Self.providerKey)
+        // Straight to the backing store: going through `selectedKind` would
+        // write the value it was just read from back into UserDefaults.
+        self.storedSelectedKind = defaults.string(forKey: Self.providerKey)
             .flatMap(MusicProviderKind.init(rawValue:))
             ?? .appleMusic
     }

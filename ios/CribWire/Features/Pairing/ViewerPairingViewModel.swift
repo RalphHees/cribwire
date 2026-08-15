@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import CribWireKit
 import SwiftUI
@@ -10,11 +9,12 @@ import SwiftUI
 /// exactly one moment: after the user has confirmed that both screens show the
 /// same six digits.
 @MainActor
-final class ViewerPairingViewModel: ObservableObject {
+@Observable
+final class ViewerPairingViewModel {
 
-    @Published private(set) var state: ViewerPairingStateMachine.State = .idle
+    private(set) var state: ViewerPairingStateMachine.State = .idle
     /// Transient hint under the viewfinder ("that isn't a CribWire code").
-    @Published private(set) var scanHint: String?
+    private(set) var scanHint: String?
 
     var sasCode: SASCode? {
         if case .confirmingSAS(let confirming) = state { return confirming.sasCode }

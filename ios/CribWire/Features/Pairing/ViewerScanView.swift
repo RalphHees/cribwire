@@ -7,7 +7,7 @@ import UIKit
 /// SAS, and only then store the keys.
 @MainActor
 struct ViewerScanView: View {
-    @StateObject private var model: ViewerPairingViewModel
+    @State private var model: ViewerPairingViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var cameraAuthorization = AVCaptureDevice.authorizationStatus(for: .video)
@@ -16,7 +16,7 @@ struct ViewerScanView: View {
 
     init(services: AppServices) {
         self.services = services
-        _model = StateObject(wrappedValue: ViewerPairingViewModel(services: services))
+        _model = State(wrappedValue: ViewerPairingViewModel(services: services))
     }
 
     var body: some View {

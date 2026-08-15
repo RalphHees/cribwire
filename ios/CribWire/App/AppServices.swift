@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import CribWireKit
 
@@ -6,7 +5,8 @@ import CribWireKit
 /// environment, so every screen gets the same stores and tests can substitute
 /// them wholesale.
 @MainActor
-final class AppServices: ObservableObject {
+@Observable
+final class AppServices {
 
     let configuration: AppConfiguration
     let keychain: KeychainStore
@@ -24,11 +24,23 @@ final class AppServices: ObservableObject {
 
     /// The device's role. Not a secret, so `UserDefaults` is fine — and nothing
     /// else in this app is allowed in there.
-    @Published var role: PairingRole? {
-        didSet { defaults.set(role?.rawValue, forKey: Self.roleKey) }
+    ///
+    /// Computed over `storedRole` rather than carrying a `didSet`, because the
+    /// two cannot coexist: `@Observable` rewrites stored properties into
+    /// get/set accessors, and Swift does not allow a property to have both
+    /// accessors and observers. Observation is unaffected — every read and write
+    /// passes through `storedRole`, which is the property SwiftUI tracks.
+    var role: PairingRole? {
+        get { storedRole }
+        set {
+            storedRole = newValue
+            defaults.set(newValue?.rawValue, forKey: Self.roleKey)
+        }
     }
 
-    @Published private(set) var pairings: [PairingRecord] = []
+    private var storedRole: PairingRole?
+
+    private(set) var pairings: [PairingRecord] = []
 
     private let defaults: UserDefaults
     private static let roleKey = "cribwire.role"
@@ -65,7 +77,10 @@ final class AppServices: ObservableObject {
         self.makeSignalingSocketFactory = makeSignalingSocketFactory
             ?? { URLSessionSignalingSocketFactory() }
 
-        self.role = defaults.string(forKey: Self.roleKey).flatMap(PairingRole.init(rawValue:))
+        // Straight to the backing store: going through `role` would write the
+        // value it was just read from back into UserDefaults.
+        self.storedRole = defaults.string(forKey: Self.roleKey)
+            .flatMap(PairingRole.init(rawValue:))
     }
 
     // MARK: - Launch

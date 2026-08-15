@@ -7,10 +7,10 @@ import UIKit
 /// "Start the camera" is the primary action but only appears once a Viewer has
 /// been paired — a Camera with nobody to stream to has nothing to start.
 struct CameraHomeView: View {
-    @EnvironmentObject private var services: AppServices
+    @Environment(AppServices.self) private var services
     /// Owned here so the detectors' settings survive navigation in and out of
     /// the alerts screen.
-    @StateObject private var detectionSettings = DetectionSettingsViewModel()
+    @State private var detectionSettings = DetectionSettingsViewModel()
 
     var body: some View {
         NavigationStack {
@@ -110,8 +110,8 @@ struct CameraHomeView: View {
 
 /// Viewer home: watch a paired Camera, and act on the alerts it sends.
 struct ViewerHomeView: View {
-    @EnvironmentObject private var services: AppServices
-    @EnvironmentObject private var notifications: PushNotificationCoordinator
+    @Environment(AppServices.self) private var services
+    @Environment(PushNotificationCoordinator.self) private var notifications
 
     var body: some View {
         NavigationStack {

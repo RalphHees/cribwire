@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import CribWireKit
 import SwiftUI
@@ -11,14 +10,15 @@ import SwiftUI
 /// effects the machine asks for. That keeps the timing and expiry rules
 /// unit-tested and keeps this file free of branching logic.
 @MainActor
-final class CameraPairingViewModel: ObservableObject {
+@Observable
+final class CameraPairingViewModel {
 
-    @Published private(set) var state: CameraPairingStateMachine.State = .idle
+    private(set) var state: CameraPairingStateMachine.State = .idle
     /// The URL currently encoded in the QR. Held only while it is on screen.
-    @Published private(set) var qrURLString: String?
+    private(set) var qrURLString: String?
     /// Seconds until the code is replaced.
-    @Published private(set) var secondsUntilRegeneration: Int = 0
-    @Published private(set) var errorMessage: String?
+    private(set) var secondsUntilRegeneration: Int = 0
+    private(set) var errorMessage: String?
 
     /// The SAS this device derived for the pairing being confirmed.
     var sasCode: SASCode? {
@@ -62,7 +62,7 @@ final class CameraPairingViewModel: ObservableObject {
     /// Off by default: the ordinary flow is the one most people want, and this
     /// trades push alerts and remote viewing for working with the internet
     /// unplugged (`docs/TASKS.md` Phase 5).
-    @Published var isLocalOnly = false
+    var isLocalOnly = false
 
     private let services: AppServices
     private let apiBaseURL: URL?

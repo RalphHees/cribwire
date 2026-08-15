@@ -21,7 +21,7 @@ import UIKit
 struct CameraStatusView: View {
 
     @StateObject private var engine: StreamingEngine
-    @EnvironmentObject private var services: AppServices
+    @Environment(AppServices.self) private var services
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
