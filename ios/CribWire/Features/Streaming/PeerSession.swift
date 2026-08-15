@@ -134,6 +134,14 @@ final class PeerSession {
     /// mid-handshake from one that has given up.
     var linkState: PeerLinkState = .new
 
+    /// When this session was built, on a clock that does not move when the
+    /// system's does. It answers one question: is a `peer-online` for this peer
+    /// a duplicate of the announcement that produced this session, or a peer that
+    /// has since restarted?
+    private let createdAt = ContinuousClock.now
+
+    var age: Duration { ContinuousClock.now - createdAt }
+
     init(peer: SignalingRecipient, connection: RTCPeerConnection, observer: PeerConnectionObserver) {
         self.peer = peer
         self.connection = connection

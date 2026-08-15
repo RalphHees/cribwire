@@ -225,10 +225,25 @@ public actor SignalingClient {
         inbound.reset()
     }
 
-    /// Forgets one sender's watermark — used when presence says that Viewer went
-    /// offline, so its next session may start at 1 again.
+    /// Forgets one sender's watermark — used when presence says that peer
+    /// (re)attached, so its next session may start at 1 again.
     public func forgetSender(deviceID: String?) {
         inbound.forget(sender: deviceID)
+    }
+
+    /// Forgets every inbound watermark, without touching the outbound counter.
+    ///
+    /// For a peer that announces itself without a device id: a Camera address is
+    /// just `camera`, because a pairing has exactly one. Only a Viewer hears
+    /// that, and a Viewer has exactly one peer, so this is no broader than
+    /// `forgetSender` — it simply has no name to pass.
+    ///
+    /// Deliberately *not* `resetSequenceState()`, which also rewinds
+    /// `outboundSeq`. The server rejects a `seq` that does not increase strictly
+    /// per connection, so rewinding the outbound counter on a live socket would
+    /// get everything this client says next dropped as a regression.
+    public func forgetAllSenders() {
+        inbound.reset()
     }
 
     // MARK: - Sending

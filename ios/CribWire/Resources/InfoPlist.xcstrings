@@ -24,6 +24,18 @@
         }
       }
     },
+    "NSAppleMusicUsageDescription" : {
+      "comment" : "Privacy - Media Library Usage Description",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "CribWire plays music through this phone's speaker so you can soothe your child from the paired device. It reads your playlists to offer them, and never sends your library or listening history to a server."
+          }
+        }
+      }
+    },
     "NSCameraUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {

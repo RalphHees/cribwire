@@ -27,7 +27,7 @@ final class ScreenCaptureMonitor {
     /// True while the screen is being recorded or mirrored.
     private(set) var isCaptured: Bool = false
 
-    private var observers: [NSObjectProtocol] = []
+    private let observers = ObserverTokens()
 
     init() {
         refresh()
@@ -47,13 +47,7 @@ final class ScreenCaptureMonitor {
             ) { [weak self] _ in
                 Task { @MainActor in self?.refresh() }
             }
-            observers.append(observer)
-        }
-    }
-
-    deinit {
-        for observer in observers {
-            NotificationCenter.default.removeObserver(observer)
+            observers.add(observer)
         }
     }
 
@@ -62,6 +56,31 @@ final class ScreenCaptureMonitor {
         // way to ask about capture state without a view in hand, and CribWire is
         // a single-window app.
         isCaptured = UIScreen.main.isCaptured
+    }
+}
+
+/// Holds notification tokens and removes them when it is released.
+///
+/// The monitor is main-actor isolated, so its `deinit` cannot touch its own
+/// isolated state — and hopping to the main actor from `deinit` would capture a
+/// `self` that outlives deallocation. Handing the tokens to a nonisolated box
+/// instead means the monitor's last release drops the box, whose own `deinit`
+/// unregisters on whichever thread that happens to be; `removeObserver` is
+/// thread-safe.
+private final class ObserverTokens: @unchecked Sendable {
+    /// Only mutated from the main actor during `ScreenCaptureMonitor.init`, and
+    /// read in `deinit` when no other reference can exist.
+    private var tokens: [NSObjectProtocol] = []
+
+    @MainActor
+    func add(_ token: NSObjectProtocol) {
+        tokens.append(token)
+    }
+
+    deinit {
+        for token in tokens {
+            NotificationCenter.default.removeObserver(token)
+        }
     }
 }
 

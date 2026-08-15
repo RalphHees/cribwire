@@ -341,6 +341,84 @@ final class SignalingTests: XCTestCase {
         XCTAssertEqual(ledger.admit(1, from: "viewer-a"), .accept)
     }
 
+    /// The returning-Viewer case, end to end through the client.
+    ///
+    /// A Viewer that closes the app and comes back builds a fresh client and
+    /// numbers from 1 again, while the Camera's client has been up the whole time
+    /// and still holds the old watermark. Unless it is told the peer re-attached,
+    /// the Camera drops the answer and every ICE candidate behind it, and the
+    /// stream can never be rebuilt.
+    func testAReturningPeerIsAcceptedOnceItsWatermarkIsForgotten() async throws {
+        let camera = try makeClient(role: .camera, deviceID: cameraID, socket: ScriptedSocket())
+        var events = await camera.events.makeAsyncIterator()
+
+        // The Viewer's first visit gets as far as its third message.
+        let firstVisit = try await viewerFrame(payload: .bye(), sendCount: 3)
+        await camera.handle(firstVisit)
+        guard case .received = await events.next() else {
+            return XCTFail("the first session's message should be accepted")
+        }
+
+        // It comes back with a new client, so its next answer is seq 1 again.
+        let secondVisit = try await viewerFrame(
+            payload: .answer(sdp: "v=0 answer", fingerprint: "sha-256 AA:BB")
+        )
+        await camera.handle(secondVisit)
+        let staleRejection = await events.next()
+        XCTAssertEqual(staleRejection, .rejected(.outOfOrder))
+
+        await camera.forgetSender(deviceID: viewerID)
+        await camera.handle(secondVisit)
+        guard case .received(let payload) = await events.next() else {
+            return XCTFail("a forgotten sender may start again at 1")
+        }
+        XCTAssertEqual(payload.t, .answer)
+        XCTAssertEqual(payload.seq, 1)
+    }
+
+    /// A Camera announces itself as `camera` with no device id, so a Viewer has
+    /// no name to forget — and needs none, having exactly one peer.
+    func testForgettingEverySenderLetsAReconnectedCameraStartAgain() async throws {
+        let viewer = try makeClient(role: .viewer, deviceID: viewerID, socket: ScriptedSocket())
+        var events = await viewer.events.makeAsyncIterator()
+
+        await viewer.handle(try await cameraFrame(payload: .bye(), sendCount: 4))
+        guard case .received = await events.next() else {
+            return XCTFail("the first session's message should be accepted")
+        }
+
+        let afterReconnect = try await cameraFrame(payload: .bye())
+        await viewer.handle(afterReconnect)
+        let staleRejection = await events.next()
+        XCTAssertEqual(staleRejection, .rejected(.outOfOrder))
+
+        await viewer.forgetAllSenders()
+        await viewer.handle(afterReconnect)
+        guard case .received = await events.next() else {
+            return XCTFail("a forgotten sender may start again at 1")
+        }
+    }
+
+    /// `forgetAllSenders` must leave the outbound counter alone: the server drops
+    /// any frame whose `seq` does not increase strictly on the connection, so a
+    /// rewind here would silence this client for the rest of the socket's life.
+    func testForgettingSendersDoesNotRewindOutboundNumbering() async throws {
+        let socket = ScriptedSocket()
+        let camera = try makeClient(role: .camera, deviceID: cameraID, socket: socket)
+        try await camera.connect()
+        try await camera.send(.bye(), to: .viewer(deviceID: viewerID))
+        await camera.forgetAllSenders()
+        try await camera.send(.bye(), to: .viewer(deviceID: viewerID))
+
+        let sequences: [Int] = try socket.sent.map { frame in
+            let json = try XCTUnwrap(
+                JSONSerialization.jsonObject(with: Data(frame.utf8)) as? [String: Any]
+            )
+            return try XCTUnwrap(json["seq"] as? Int)
+        }
+        XCTAssertEqual(sequences, [1, 2])
+    }
+
     func testGuardAllowsGapsButNotRewinds() {
         var sequenceGuard = SequenceGuard()
         XCTAssertEqual(sequenceGuard.admit(3), .accept)
@@ -366,6 +444,20 @@ final class SignalingTests: XCTestCase {
         try await camera.connect()
         for _ in 0..<sendCount {
             try await camera.send(payload, to: recipient ?? .viewer(deviceID: viewerID))
+        }
+        return try XCTUnwrap(socket.sent.last)
+    }
+
+    /// A frame as the viewer would put it on the wire.
+    private func viewerFrame(
+        payload: SignalingPayload = .answer(sdp: "v=0 answer", fingerprint: "sha-256 AA:BB"),
+        sendCount: Int = 1
+    ) async throws -> String {
+        let socket = ScriptedSocket()
+        let viewer = try makeClient(role: .viewer, deviceID: viewerID, socket: socket)
+        try await viewer.connect()
+        for _ in 0..<sendCount {
+            try await viewer.send(payload, to: .camera)
         }
         return try XCTUnwrap(socket.sent.last)
     }

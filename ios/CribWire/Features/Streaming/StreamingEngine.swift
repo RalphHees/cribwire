@@ -68,6 +68,14 @@ final class StreamingEngine: ObservableObject {
     /// A returning parent staring at a spinner is the failure this bounds.
     static let recoveryBudget: TimeInterval = 10
 
+    /// How long after a session is built a second `peer-online` for the same peer
+    /// still counts as a duplicate announcement rather than that peer returning.
+    ///
+    /// Duplicates come from two devices attaching at once, so they are
+    /// milliseconds apart; a returning app needs seconds for a Keychain read, a
+    /// TURN fetch and a socket upgrade before it can announce anything.
+    static let duplicatePresenceWindow: Duration = .seconds(2)
+
     /// How good the link looks, for the Viewer's indicator.
     enum LinkQuality: Equatable {
         case unknown
@@ -685,6 +693,14 @@ final class StreamingEngine: ObservableObject {
 
     private func handlePeerOnline(_ presence: SignalingPresence) async {
         guard let peer = address(of: presence) else { return }
+
+        // Everything below rests on one fact: a peer that announces itself is
+        // running a **new** `SignalingClient`. Every path that attaches a socket
+        // — `start()` and `rebuild()` alike — builds one, so its sequence
+        // numbers restart at 1 and it holds no peer connections.
+        await forgetSequenceWatermark(of: peer)
+        discardStaleSession(with: peer)
+
         guard role == .camera else {
             // The Viewer waits to be offered to; announcing itself is all it has
             // to do.
@@ -700,6 +716,71 @@ final class StreamingEngine: ObservableObject {
         // capture is up.
         warmCaptureForReturningViewer()
         await offer(to: peer)
+    }
+
+    /// Drops the inbound sequence watermark held for a peer that has just
+    /// (re)attached.
+    ///
+    /// Without this, a Viewer that closes the app and comes back is silently
+    /// unable to talk to the Camera at all. The Camera keeps one long-lived
+    /// `SignalingClient`, whose ledger still holds that Viewer's last sequence
+    /// number — say 37 — while the returning Viewer's brand-new client numbers
+    /// its answer 1. Every message of the new session is rejected as
+    /// `.outOfOrder`, and rejections are deliberately quiet, so the Camera offers,
+    /// hears nothing back, and sits in "1 connecting…" for ever while the Viewer
+    /// waits for video that cannot arrive. The same thing happens mirrored, to a
+    /// Viewer that stayed up across a Camera reconnect.
+    ///
+    /// The watermark is dropped on `peer-online` only, never on `peer-offline`.
+    /// Presence is the one thing the server can forge — it is not sealed — and
+    /// forgetting a *live* peer's watermark is what would reopen the replay
+    /// window. Tying it to the event that also means "this peer's counter just
+    /// restarted" keeps the reset aligned with a peer that really did restart;
+    /// what an injected `peer-online` buys an attacker is the chance to replay
+    /// blobs it cannot decrypt into a handshake that pins the DTLS certificate,
+    /// which fails — the same denial of service a server that simply drops frames
+    /// already has.
+    private func forgetSequenceWatermark(of peer: SignalingRecipient) async {
+        guard let client else { return }
+        switch peer {
+        case .viewer(let deviceID):
+            await client.forgetSender(deviceID: deviceID)
+        case .camera:
+            // Only a Viewer hears this, and a Viewer has exactly one peer.
+            await client.forgetAllSenders()
+        }
+    }
+
+    /// Throws away a peer connection belonging to the peer's *previous*
+    /// signalling session.
+    ///
+    /// The session is dead whatever its ICE state says: the peer that owned the
+    /// other end has rebuilt. It is not always reported as dead, though — the
+    /// server supersedes a device's old socket on re-attach and deliberately
+    /// sends no `peer-offline` for it, and a suspended app's socket can stay open
+    /// until the heartbeat sweep notices. So a Camera can hold a session that
+    /// still looks `.connected` for a Viewer that is already gone, and
+    /// `offer(to:)` would decline to disturb it — leaving the returning Viewer
+    /// with no offer at all.
+    ///
+    /// Sessions younger than the duplicate window are left alone: two presence
+    /// announcements for the same peer can genuinely race when both devices
+    /// attach at once (the broadcast and the directed announce-back), and *that*
+    /// is the case `offer(to:)`'s guard exists for. Those arrive within
+    /// milliseconds; a peer that has actually restarted takes seconds.
+    private func discardStaleSession(with peer: SignalingRecipient) {
+        guard let existing = sessions[peer],
+              existing.age > Self.duplicatePresenceWindow
+        else {
+            return
+        }
+        sessions.removeValue(forKey: peer)?.close()
+        refreshPeerCounts()
+        guard role == .viewer else { return }
+        remoteVideoTrack = nil
+        isVerified = false
+        stopTalking()
+        nurseryState = nil
     }
 
     /// Starts capture without blocking negotiation on it.
