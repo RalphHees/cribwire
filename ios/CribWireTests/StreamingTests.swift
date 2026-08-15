@@ -343,6 +343,59 @@ final class AudioInterruptionTests: XCTestCase {
 /// video within ten seconds — and it is only kept if the timing constants stay
 /// consistent with each other. These assert the arithmetic, so raising one of
 /// them in isolation fails here instead of on someone's nursery floor.
+/// The one thing about the Camera's audio that can be asserted without a room to
+/// listen in: the configuration libwebrtc will apply on its own initiative.
+///
+/// Talk-back was completely inaudible on the Camera because it applied its own
+/// defaults — `playAndRecord` + `voiceChat` + `allowBluetooth`, with **no**
+/// `defaultToSpeaker` — over ours whenever its audio device module restarted, and
+/// the session it left behind played into the built-in receiver. A phone lying in
+/// a cot room has its earpiece pointed at the ceiling, so that is silence.
+///
+/// Whether the room is actually loud enough still needs two devices; that the
+/// route is not the earpiece does not.
+@MainActor
+final class WebRTCAudioConfigurationTests: XCTestCase {
+
+    func testWebRTCIsTaughtToKeepPlaybackOnTheSpeaker() {
+        // Configuring is what installs the override; nothing else has to happen
+        // for libwebrtc to start honouring it.
+        WebRTCStack.configureAudioSession(mode: .inactive, output: .room)
+
+        let configuration = RTCAudioSessionConfiguration.webRTC()
+        XCTAssertTrue(
+            configuration.categoryOptions.contains(.defaultToSpeaker),
+            "without this libwebrtc routes the Viewer's voice to the earpiece"
+        )
+        XCTAssertEqual(configuration.category, AVAudioSession.Category.playAndRecord.rawValue)
+        // The lullaby has to keep playing while a Viewer is connected.
+        XCTAssertTrue(configuration.categoryOptions.contains(.mixWithOthers))
+    }
+
+    /// The Camera's mode decides which volume the room's music slider moves. A
+    /// voice mode puts the device in the call volume, and the music a parent
+    /// starts in the Music app plays in the media volume — so a Camera in a voice
+    /// mode has a slider that changes nothing anybody can hear.
+    func testTheCameraStaysOutOfTheCallVolume() {
+        WebRTCStack.configureAudioSession(mode: .inactive, output: .room)
+        XCTAssertEqual(
+            RTCAudioSessionConfiguration.webRTC().mode,
+            AVAudioSession.Mode.default.rawValue,
+            "libwebrtc would otherwise put its own voiceChat mode back"
+        )
+    }
+
+    /// The Viewer has no such conflict: nothing else on that phone is making
+    /// noise, so it keeps the voice mode.
+    func testTheViewerKeepsTheVoiceMode() {
+        WebRTCStack.configureAudioSession(mode: .inactive, output: .followRoute)
+        XCTAssertEqual(
+            RTCAudioSessionConfiguration.webRTC().mode,
+            AVAudioSession.Mode.videoChat.rawValue
+        )
+    }
+}
+
 final class RecoveryBudgetTests: XCTestCase {
 
     func testBudgetIsTheTenSecondsPromised() {

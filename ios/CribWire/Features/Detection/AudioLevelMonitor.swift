@@ -36,17 +36,12 @@ final class AudioLevelMonitor {
     /// permission is missing, which is indistinguishable from a quiet room. The
     /// caller must ask first or the meter lies.
     static func requestMicrophoneAccess() async {
-        guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
-        _ = await AVAudioApplication.requestRecordPermission()
+        await MicrophoneAccess.request()
     }
 
     /// Whether the microphone has actually been granted.
-    ///
-    /// `AVAudioApplication` only, since the floor is iOS 26. The
-    /// `AVAudioSession.recordPermission` half of this was deprecated in 17 and
-    /// answered the same question a different way.
     static var isMicrophoneGranted: Bool {
-        AVAudioApplication.shared.recordPermission == .granted
+        MicrophoneAccess.isGranted
     }
 
     func start() throws {
@@ -55,11 +50,18 @@ final class AudioLevelMonitor {
         // be checked rather than discovered.
         guard Self.isMicrophoneGranted else { throw MonitorError.noInputAvailable }
 
-        // The meter is used on a screen that is not streaming, so nothing else
-        // has configured the session for recording.
-        let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, options: [.defaultToSpeaker, .mixWithOthers])
-        try? session.setActive(true)
+        // Through `WebRTCStack`, and never `AVAudioSession` directly.
+        //
+        // This used to set the category and activate the session itself, which
+        // is a rule libwebrtc does not tolerate being broken: it tracks the
+        // session's state inside `RTCAudioSession` and takes a lock around every
+        // change, so a category set behind its back leaves its own idea of the
+        // session wrong — and the detector runs *while streaming*, since a Camera
+        // alerts on a quiet nursery whether or not anyone is watching. Going
+        // through the same call the engine uses means both clients ask for the
+        // same configuration, under the lock, and the last one to run cannot
+        // silently undo the other.
+        WebRTCStack.configureAudioSession(mode: .active, output: .room)
 
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)

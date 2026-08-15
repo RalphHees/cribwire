@@ -124,6 +124,13 @@ final class StreamingEngine: ObservableObject {
     /// on at all until `isVerified`, and *any* loss of the peer turns it off, so a
     /// held button never carries a live microphone into the next handshake.
     @Published private(set) var isTalking = false
+    /// Something the parent needs to know about talk-back, for a toast: the
+    /// microphone was refused, or the Camera's offer had no room for a voice.
+    ///
+    /// A message rather than a flag because each cause has a different thing to
+    /// do about it, and none of them is worth taking the screen over — the video
+    /// is still the point.
+    @Published var talkbackNotice: String?
     /// Viewer-side: the Camera's last reported battery, `0...1`, or `nil` until it
     /// says. Arrives sealed over signaling — the server never sees it.
     @Published private(set) var peerBatteryLevel: Double?
@@ -182,8 +189,38 @@ final class StreamingEngine: ObservableObject {
             return
         }
         guard isVerified else { return }
-        isTalking = true
-        talkbackTrack?.isEnabled = true
+
+        // Without this the button worked and nobody could be heard. libwebrtc
+        // does not fail on a missing microphone permission — it sends digital
+        // silence — so the Viewer lit up "Release to stop" while transmitting
+        // nothing, and the Camera side had no way to tell that from a parent who
+        // had gone quiet.
+        switch MicrophoneAccess.current {
+        case .granted:
+            isTalking = true
+            talkbackTrack?.isEnabled = true
+
+        case .undetermined:
+            // Asked for on the first press, and this press is spent on the
+            // prompt. The alternative — opening the microphone when the answer
+            // arrives — would arm it after the button was released, which is the
+            // one thing push-to-talk may never do.
+            Task { [weak self] in
+                let granted = await MicrophoneAccess.request()
+                self?.talkbackNotice = granted
+                    ? String(localized: "Microphone allowed. Hold to talk.")
+                    : Self.microphoneDeniedNotice
+            }
+
+        case .denied:
+            talkbackNotice = Self.microphoneDeniedNotice
+        }
+    }
+
+    private static var microphoneDeniedNotice: String {
+        String(
+            localized: "CribWire cannot use this phone's microphone. Allow it in Settings to talk to the room."
+        )
     }
 
     /// Cuts the microphone, unconditionally.
@@ -196,6 +233,32 @@ final class StreamingEngine: ObservableObject {
     private func stopTalking() {
         isTalking = false
         talkbackTrack?.isEnabled = false
+    }
+
+    /// Configures the shared audio session for this device's job.
+    ///
+    /// The role decides where playback goes, and the difference matters: a
+    /// Viewer is a phone in a hand, while a Camera is a phone on a shelf whose
+    /// earpiece points at the ceiling. Talk-back into that earpiece is the same
+    /// thing as talk-back into nothing.
+    private func configureAudioSession(_ mode: WebRTCStack.AudioMode) {
+        WebRTCStack.configureAudioSession(
+            mode: mode,
+            output: role == .camera ? .room : .followRoute
+        )
+    }
+
+    /// Camera-side: how loud a Viewer's voice is played into the room.
+    ///
+    /// Applied to every session, and re-applied whenever one is built: a
+    /// reconnect produces a new received track, and a gain set on the old one
+    /// went with it.
+    private func applyTalkbackGain() {
+        guard role == .camera, let nursery else { return }
+        let gain = nursery.state.talkback.gain
+        for session in sessions.values {
+            session.setRemoteAudioGain(gain)
+        }
     }
 
     /// Viewer-side: ask the Camera to change the music or the light.
@@ -228,7 +291,17 @@ final class StreamingEngine: ObservableObject {
         track.isEnabled = false
         // Fitted to the offer's existing audio transceiver — never added as a new
         // one. See `PeerSession.attachTalkback`.
-        session.attachTalkback(track)
+        //
+        // The result is checked rather than discarded: a failure here means the
+        // offer had no audio section this Viewer could speak into, and the
+        // symptom is a talk button that behaves perfectly and reaches nobody.
+        // Silence about it is what makes that impossible to diagnose from the
+        // one side that can see it.
+        if !session.attachTalkback(track) {
+            talkbackNotice = String(
+                localized: "This camera is not accepting talk-back right now."
+            )
+        }
     }
 
     // MARK: - Dependencies
@@ -332,7 +405,7 @@ final class StreamingEngine: ObservableObject {
         isRunning = true
         isStopping = false
         state = .connecting
-        WebRTCStack.configureAudioSession(mode: .active)
+        configureAudioSession(.active)
 
         pathMonitor = NetworkPathMonitor { [weak self] _ in
             // A different interface invalidates every gathered candidate. An ICE
@@ -465,7 +538,7 @@ final class StreamingEngine: ObservableObject {
             await client?.disconnect()
         }
         Task { await capture?.stop() }
-        WebRTCStack.configureAudioSession(mode: .inactive)
+        configureAudioSession(.inactive)
         state = .idle
     }
 
@@ -936,6 +1009,15 @@ final class StreamingEngine: ObservableObject {
             else {
                 return
             }
+            // Talk-back gain is this engine's to apply — it lives on a peer
+            // connection, which the nursery controller knows nothing about — so
+            // it is handled here and the room half is forwarded on. The
+            // controller still holds the *value*, because that is what a Viewer
+            // reads back and what survives a reconnect.
+            if let talkback = command.talkback {
+                nursery?.setTalkbackVolume(talkback.volume)
+                applyTalkbackGain()
+            }
             // Off the read loop. A music service that takes a second to answer
             // must not hold up the ICE candidate queued behind it.
             Task { [weak self] in await self?.nursery?.apply(command) }
@@ -1120,6 +1202,9 @@ final class StreamingEngine: ObservableObject {
         // A reconnect builds a fresh track, so mute has to be re-applied or it
         // silently lapses.
         session.setRemoteAudioEnabled(!isMuted)
+        // Same reasoning for the voice coming the other way: the gain belongs to
+        // a track this handshake has only just created.
+        applyTalkbackGain()
         // Tell the new peer the battery now, rather than leaving its gauge blank
         // until the level happens to change.
         if role == .camera {
@@ -1219,7 +1304,7 @@ final class StreamingEngine: ObservableObject {
         case .resumable:
             isAudioInterrupted = false
             statusDetail = nil
-            WebRTCStack.configureAudioSession(mode: .active)
+            configureAudioSession(.active)
             applyDetectionSettings(services.detectionSettings)
 
         case .endedWithoutResume:
@@ -1229,18 +1314,24 @@ final class StreamingEngine: ObservableObject {
             statusDetail = String(localized: "Waiting for the call to end")
 
         case .routeChanged(let deviceDisconnected):
-            // The session is intact; only where the sound goes has changed. The
-            // category is re-asserted because a disconnect can drop the app back
-            // to the receiver, which on a Camera on a shelf is inaudible.
-            if deviceDisconnected {
-                WebRTCStack.configureAudioSession(mode: .active)
+            // The session is intact; only where the sound goes has changed.
+            //
+            // Re-asserted on **every** route change on a Camera, not only on a
+            // disconnect. libwebrtc's audio device module reconfigures the
+            // session whenever it restarts, and each of those arrives here as a
+            // route change with nothing disconnected — which is exactly the
+            // moment playback can land back on the earpiece and talk-back go
+            // quiet. On a Viewer a route change is the parent's own doing (they
+            // plugged something in), so it is left alone.
+            if deviceDisconnected || role == .camera {
+                configureAudioSession(.active)
             }
 
         case .mediaServicesWereReset:
             // Every audio object in the process is now invalid, including the
             // ones inside WebRTC. A full rebuild is the only recovery.
             statusDetail = String(localized: "Restarting audio")
-            WebRTCStack.configureAudioSession(mode: .active)
+            configureAudioSession(.active)
             detection?.stop()
             applyDetectionSettings(services.detectionSettings)
             scheduleReconnect(reason: "The audio system restarted.")

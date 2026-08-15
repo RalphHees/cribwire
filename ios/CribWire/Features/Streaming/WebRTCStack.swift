@@ -101,40 +101,132 @@ enum WebRTCStack {
     /// music the moment a Viewer opens; `.defaultToSpeaker` stops Viewer audio
     /// coming out of the earpiece.
     ///
-    /// `.mixWithOthers` is also what lets the Camera play a lullaby through this
-    /// same session while it streams (`Features/Nursery`). Two consequences of
-    /// `.videoChat` are worth knowing about there, and both are deliberate:
+    /// `.mixWithOthers` is also what lets a lullaby keep playing in the room while
+    /// the Camera streams (`Features/Nursery`).
     ///
-    /// - Voice processing runs on the **input**, so the music the Camera is
-    ///   playing is largely cancelled out of what the Viewer hears. That is the
-    ///   right way round for a monitor — the point is to hear the child, not the
-    ///   playlist — and it is why the mode is not relaxed while music plays.
-    /// - Voice processing can also attenuate playback on some devices. The
-    ///   Viewer's volume control is the answer to that, and it moves the Camera's
-    ///   own output volume rather than an app-level gain precisely so it can be.
+    /// The **mode differs by role**, and the reason is volume rather than audio
+    /// quality — see `sessionMode(for:)`. The short version: a voice mode moves
+    /// the device into the call volume, and the Camera's music lives in the media
+    /// volume, so a Camera in a voice mode has a music slider that controls
+    /// nothing anyone can hear.
     ///
     /// How loud the room actually ends up is hardware-dependent and has to be
     /// checked on a real pair of devices; nothing here can be asserted on a build
     /// machine.
-    static func configureAudioSession(mode: AudioMode) {
+    @MainActor
+    static func configureAudioSession(mode: AudioMode, output: AudioOutput = .followRoute) {
+        let sessionMode = sessionMode(for: output)
+        teachWebRTC(sessionMode)
+
         let session = RTCAudioSession.sharedInstance()
         session.lockForConfiguration()
         defer { session.unlockForConfiguration() }
         do {
-            try session.setCategory(
-                .playAndRecord,
-                with: [.allowBluetooth, .defaultToSpeaker, .mixWithOthers]
-            )
-            try session.setMode(.videoChat)
-            try session.setActive(mode == .active)
+            try session.setCategory(.playAndRecord, with: categoryOptions)
+            try session.setMode(sessionMode)
+            // Only on a real change. `RTCAudioSession` counts activations and
+            // expects them balanced, and this is called repeatedly with the same
+            // intent — on every route change, after every interruption, from the
+            // detector as well as the engine. Calling it each time ran the count
+            // up, and the single `setActive(false)` in `stop()` could then never
+            // bring it back to zero: the Camera would hold the audio session, and
+            // the recording indicator with it, long after the monitor stopped.
+            if isActive != (mode == .active) {
+                try session.setActive(mode == .active)
+                isActive = mode == .active
+            }
+            if mode == .active, output == .room, isRoutedToEarpiece(session) {
+                try session.overrideOutputAudioPort(.speaker)
+            }
         } catch {
             // A failed audio session downgrades the stream; it never stops it.
             // Video still flows, which is more than half of what a monitor is for.
         }
     }
 
+    /// Whether *this app* has asked for the session, so the asks stay balanced.
+    @MainActor
+    private static var isActive = false
+
+    private static let categoryOptions: AVAudioSession.CategoryOptions =
+        [.allowBluetooth, .defaultToSpeaker, .mixWithOthers]
+
+    /// Replaces the configuration libwebrtc applies to the audio session on its
+    /// own initiative.
+    ///
+    /// **This is what made talk-back inaudible on the Camera.** Everything above
+    /// configures the session correctly and then libwebrtc's audio device module,
+    /// when it starts playout or recording, applies
+    /// `RTCAudioSessionConfiguration.webRTCConfiguration` over the top of it. Its
+    /// defaults are `playAndRecord` + `voiceChat` + `allowBluetooth` — and
+    /// crucially **no `defaultToSpeaker`**, so the session it leaves behind routes
+    /// playback to the built-in receiver. On a phone held to an ear that is
+    /// correct; on a phone lying face-up in a cot room it means the parent's voice
+    /// comes out of the earpiece, which from anywhere in the room is silence.
+    ///
+    /// Nothing else was affected, which is why this was invisible: recording is
+    /// unaffected by the output route, so the Viewer kept hearing the room, and
+    /// the music comes from the Music app's own session and kept using the
+    /// speaker. Only the one path that plays through libwebrtc went missing.
+    ///
+    /// Overriding the configuration — rather than re-asserting ours afterwards —
+    /// is the fix, because the ADM re-applies it on every restart: an
+    /// interruption, a route change, a rebuilt peer connection. There is no
+    /// moment after which re-asserting would be safe.
+    private static func teachWebRTC(_ sessionMode: AVAudioSession.Mode) {
+        let configuration = RTCAudioSessionConfiguration.webRTC()
+        configuration.category = AVAudioSession.Category.playAndRecord.rawValue
+        configuration.categoryOptions = categoryOptions
+        configuration.mode = sessionMode.rawValue
+        RTCAudioSessionConfiguration.setWebRTC(configuration)
+    }
+
+    /// Which mode this device's job needs — and, inseparably, which volume the
+    /// hardware buttons and the Viewer's slider will move.
+    ///
+    /// This is the part that is easy to get wrong twice. iOS keeps separate
+    /// volumes for media and for calls, and an active `playAndRecord` session in
+    /// a voice mode puts the device in the *call* volume. The Camera's music is
+    /// usually not ours — a parent starts something in the Music app, which plays
+    /// in the *media* volume — so a Camera in a voice mode has a music slider
+    /// that moves a volume nothing audible is using.
+    ///
+    /// So the Camera stays in `.default`. What it gives up is the session-level
+    /// declaration of voice chat; what it keeps is the echo cancellation that
+    /// actually matters, because libwebrtc records through a
+    /// `VoiceProcessingIO` audio unit either way — the cancellation lives in the
+    /// unit, not in the mode. The Viewer has no such conflict: nothing else on
+    /// that phone is making noise, so it keeps `.videoChat`.
+    private static func sessionMode(for output: AudioOutput) -> AVAudioSession.Mode {
+        switch output {
+        case .room: return .default
+        case .followRoute: return .videoChat
+        }
+    }
+
+    /// Whether playback is currently going to the earpiece.
+    ///
+    /// Checked rather than overridden unconditionally: `.speaker` forces the
+    /// built-in speaker even when headphones or a Bluetooth speaker are
+    /// connected, and a Camera paired to a speaker for lullabies should keep
+    /// using it. The earpiece is the one route that is always wrong for a phone
+    /// nobody is holding.
+    private static func isRoutedToEarpiece(_ session: RTCAudioSession) -> Bool {
+        session.currentRoute.outputs.contains { $0.portType == .builtInReceiver }
+    }
+
     enum AudioMode {
         case active
         case inactive
+    }
+
+    /// Where playback should come out.
+    enum AudioOutput {
+        /// A phone on a shelf. Playback belongs in the room, and never in an
+        /// earpiece nobody is holding.
+        case room
+        /// Whatever the route says. The Viewer is a phone in someone's hand, and
+        /// holding it to an ear at 3 a.m. is a reasonable thing to do with it.
+        case followRoute
     }
 }

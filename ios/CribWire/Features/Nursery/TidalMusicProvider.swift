@@ -36,8 +36,9 @@ import Foundation
 ///    the `CribWire` target.
 /// 3. Implement the bodies below against `Auth` (login and token refresh),
 ///    `TidalAPI` (the user's playlists and recently played) and `Player`
-///    (transport). Nothing outside this file has to change: `NurseryController`
-///    already treats every provider identically.
+///    (transport), and set `isPlaybackImplemented` to `true` in the same commit.
+///    Nothing outside this file has to change: `NurseryController` already treats
+///    every provider identically.
 ///
 /// The one thing to keep when doing so is the sign-in rule shared with
 /// `AppleMusicProvider`: authorisation is requested from the Camera's own screen
@@ -48,11 +49,30 @@ final class TidalMusicProvider: MusicProvider {
 
     let kind: MusicProviderKind = .tidal
 
-    /// Only offered when a client id is available. A CribWire with none — which
-    /// is every build until someone completes the steps above — does not show
-    /// TIDAL in the Viewer's switcher at all, rather than showing a service that
-    /// can never work.
-    var isConfigured: Bool { configuration != nil }
+    /// Whether this build can play a note of TIDAL.
+    ///
+    /// `false`, and it stays `false` until the `Player` adapter in step 3 above
+    /// exists. Flip it in the same commit that implements playback — it is the
+    /// switch that makes this provider real, and the only one.
+    ///
+    /// It is a separate constant from the client id because the two answer
+    /// different questions, and conflating them is what put "TIDAL is not set up
+    /// on this camera" in front of somebody holding a TIDAL subscription. A
+    /// client id used to be a safe proxy for "somebody did this work", back when
+    /// the only way to have one was to compile it in. It stopped being one the
+    /// moment the id could arrive from `GET /v1/config`: a deployment can now set
+    /// `TIDAL_CLIENT_ID` on the backend — a perfectly reasonable thing to do —
+    /// and every Camera in the fleet would offer a service with no engine behind
+    /// it.
+    private static let isPlaybackImplemented = false
+
+    /// Offered only when this build can play it *and* a client id is available.
+    ///
+    /// Both halves are needed, and the first is the one that has never been
+    /// satisfied. A Camera that cannot play TIDAL does not show it in the
+    /// Viewer's switcher at all, rather than showing a service that can only
+    /// disappoint.
+    var isConfigured: Bool { Self.isPlaybackImplemented && configuration != nil }
 
     /// Resolved on each read rather than captured once.
     ///

@@ -63,6 +63,7 @@ final class NurseryController {
     private let systemRemote: any SystemMusicRemote
 
     private static let providerKey = "cribwire.musicProvider"
+    private static let talkbackVolumeKey = "cribwire.talkbackVolume"
 
     /// Providers that could actually be offered. A service with no credentials
     /// compiled in is not shown at all, rather than shown as permanently broken.
@@ -126,6 +127,13 @@ final class NurseryController {
         self.storedSelectedKind = defaults.string(forKey: Self.providerKey)
             .flatMap(MusicProviderKind.init(rawValue:))
             ?? .appleMusic
+
+        // `object(forKey:)` rather than `double(forKey:)`: the latter answers 0
+        // for a key that was never set, and 0 is silence — the one value a
+        // talk-back gain must not be defaulted to.
+        if let stored = defaults.object(forKey: Self.talkbackVolumeKey) as? Double {
+            self.state.talkback = TalkbackState(volume: stored)
+        }
     }
 
     // MARK: - Lifecycle
@@ -166,7 +174,9 @@ final class NurseryController {
         // empty room after the monitor was shut down.
         let provider = self.provider
         Task { await provider?.stop() }
-        state = NurseryState()
+        // The talk-back gain is carried across: it is what this Camera is set to,
+        // and a monitor being stopped is not somebody changing it.
+        state = NurseryState(talkback: state.talkback)
         lastDelivered = nil
     }
 
@@ -315,6 +325,21 @@ final class NurseryController {
 
         recentsStore.record(playlistID: playlistID, provider: provider.kind, name: name)
         await reloadPlaylists()
+    }
+
+    /// Records how loud a Viewer's voice should be played into the room.
+    ///
+    /// Only the value: turning it into a gain on a live peer connection is
+    /// `StreamingEngine`'s job, since it is the one that holds the sessions. Kept
+    /// here anyway because it belongs to the room rather than to a connection —
+    /// it has to survive the Viewer going away and coming back, and it has to be
+    /// readable by every Viewer rather than only the one that set it.
+    func setTalkbackVolume(_ level: Double) {
+        let clamped = min(max(level, 0), 1)
+        guard clamped != state.talkback.volume else { return }
+        state.talkback = TalkbackState(volume: clamped)
+        defaults.set(clamped, forKey: Self.talkbackVolumeKey)
+        publish()
     }
 
     private func apply(light command: LightCommand) {

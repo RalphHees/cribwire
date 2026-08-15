@@ -180,6 +180,21 @@ final class PeerSession {
         remoteAudioTrack()?.isEnabled = enabled
     }
 
+    /// Camera-side: how loud the Viewer's voice is played into the room.
+    ///
+    /// A gain on the *received* track, which is the only volume in this app that
+    /// is not the device's own. That distinction is the whole feature: the phone's
+    /// output volume scales the lullaby and the parent's voice together, while
+    /// this moves one of them past the other.
+    ///
+    /// `RTCAudioSource.volume` accepts `0...10` and libwebrtc's own header calls
+    /// it the way to change the volume of a remote track. Applied on every call
+    /// rather than cached, because a reconnect builds a new track and a gain set
+    /// on the old one goes with it.
+    func setRemoteAudioGain(_ gain: Double) {
+        remoteAudioTrack()?.source.volume = min(max(gain, 0), 10)
+    }
+
     /// Attaches a local audio track for talk-back **without adding an m-line**.
     ///
     /// `addTrack` looks like the obvious call and is the wrong one here. In

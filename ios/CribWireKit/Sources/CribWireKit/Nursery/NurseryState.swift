@@ -12,21 +12,84 @@ public struct NurseryState: Codable, Equatable, Sendable {
 
     public var music: MusicState
     public var light: LightState
+    public var talkback: TalkbackState
 
-    public init(music: MusicState = .init(), light: LightState = .init()) {
+    public init(
+        music: MusicState = .init(),
+        light: LightState = .init(),
+        talkback: TalkbackState = .init()
+    ) {
         self.music = music
         self.light = light
+        self.talkback = talkback
     }
 
     enum CodingKeys: String, CodingKey {
         case music = "m"
         case light = "l"
+        case talkback = "t"
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.music = (try? container.decode(MusicState.self, forKey: .music)) ?? .init()
         self.light = (try? container.decode(LightState.self, forKey: .light)) ?? .init()
+        // A Camera too old to send this has a talk-back gain of exactly 1, which
+        // is what the default describes — so an older room reads as "unchanged",
+        // never as "silent".
+        self.talkback = (try? container.decode(TalkbackState.self, forKey: .talkback))
+            ?? TalkbackState(volume: TalkbackState.neutralVolume)
+    }
+}
+
+// MARK: - Talk-back
+
+/// How loud the Viewer's voice is made before it reaches the room.
+///
+/// Deliberately not part of `MusicState`, and deliberately not the device volume
+/// that `MusicState.volume` moves. That one is the phone's output: it scales the
+/// lullaby and the parent's voice together, so a nursery quiet enough to sleep in
+/// is also one where nobody can be heard. This is a gain applied to the incoming
+/// voice alone, which is what makes "music soft, voice clear" a thing the two
+/// controls can express at once.
+public struct TalkbackState: Codable, Equatable, Sendable {
+
+    /// The largest gain offered. Above roughly this, a voice recorded close to a
+    /// phone's microphone clips rather than gets louder, so more slider would be
+    /// more distortion and not more volume.
+    public static let maxGain: Double = 4
+
+    /// The slider position that changes nothing.
+    public static var neutralVolume: Double { 1 / maxGain }
+
+    /// Where the slider starts: the midpoint, which is a 2× boost.
+    ///
+    /// Not neutral, on purpose. The Camera's audio session runs in `.videoChat`
+    /// mode, whose voice processing attenuates playback on some devices, and it
+    /// competes with music from the same speaker. Neutral is the setting that
+    /// made talk-back inaudible; a parent who finds this too loud can see the
+    /// slider and move it, which is not true of the volume they never had.
+    public static let defaultVolume: Double = 0.5
+
+    /// `0...1`, as the Viewer's slider reads it.
+    public var volume: Double
+
+    /// The multiplier the Camera applies to the incoming voice. `1` leaves it
+    /// exactly as it arrived.
+    public var gain: Double { volume * Self.maxGain }
+
+    public init(volume: Double = TalkbackState.defaultVolume) {
+        self.volume = min(max(volume, 0), 1)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case volume = "v"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let volume: Double? = try? container.decodeIfPresent(Double.self, forKey: .volume)
+        self.init(volume: volume ?? Self.defaultVolume)
     }
 }
 

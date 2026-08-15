@@ -19,17 +19,23 @@ public struct NurseryCommand: Codable, Equatable, Sendable {
 
     public var music: MusicCommand?
     public var light: LightCommand?
+    public var talkback: TalkbackCommand?
 
-    public init(music: MusicCommand? = nil, light: LightCommand? = nil) {
+    public init(
+        music: MusicCommand? = nil,
+        light: LightCommand? = nil,
+        talkback: TalkbackCommand? = nil
+    ) {
         self.music = music
         self.light = light
+        self.talkback = talkback
     }
 
     /// Nothing to do. A command that decodes to this is dropped rather than
     /// acted on — it is what an older build produces when a newer one sends a
     /// command it has no field for.
     public var isEmpty: Bool {
-        music == nil && light == nil
+        music == nil && light == nil && talkback == nil
     }
 
     public static func music(_ command: MusicCommand) -> NurseryCommand {
@@ -40,19 +46,62 @@ public struct NurseryCommand: Codable, Equatable, Sendable {
         NurseryCommand(light: command)
     }
 
+    public static func talkback(_ command: TalkbackCommand) -> NurseryCommand {
+        NurseryCommand(talkback: command)
+    }
+
     enum CodingKeys: String, CodingKey {
         case music = "m"
         case light = "l"
+        case talkback = "t"
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Each half is decoded independently and forgivingly: a malformed light
+        // Each part is decoded independently and forgivingly: a malformed light
         // command must not throw away a perfectly good music command sent in the
         // same message, and neither must reject the whole signaling payload —
         // that would be scored as a protocol violation by `SignalingClient`.
         self.music = try? container.decodeIfPresent(MusicCommand.self, forKey: .music)
         self.light = try? container.decodeIfPresent(LightCommand.self, forKey: .light)
+        self.talkback = try? container.decodeIfPresent(TalkbackCommand.self, forKey: .talkback)
+    }
+}
+
+// MARK: - Talk-back
+
+/// How loud the Viewer's voice should come out of the Camera.
+///
+/// Its own command rather than a `MusicCommand` action, because it is its own
+/// knob: the music and the voice come out of the same speaker but must not share
+/// a slider. A parent turning a lullaby down to a murmur is not asking to be
+/// inaudible when they say "I'm coming" — those are opposite intentions, and one
+/// control cannot hold both.
+public struct TalkbackCommand: Codable, Equatable, Sendable {
+
+    /// `0...1`, as the Viewer's slider reads it. The Camera turns this into the
+    /// gain it applies — see `TalkbackState.gain`.
+    public var volume: Double
+
+    public init(volume: Double) {
+        self.volume = min(max(volume, 0), 1)
+    }
+
+    public static func setVolume(_ level: Double) -> TalkbackCommand {
+        TalkbackCommand(volume: level)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case volume = "v"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let volume: Double? = try? container.decodeIfPresent(Double.self, forKey: .volume)
+        // A command with no level is a command that says nothing; it lands on the
+        // default rather than on silence, which is the one value a talk-back
+        // command must never be mistaken for.
+        self.init(volume: volume ?? TalkbackState.defaultVolume)
     }
 }
 

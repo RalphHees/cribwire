@@ -101,6 +101,14 @@ struct ViewerLiveView: View {
             show(message)
             pip.clearError()
         }
+        // Talk-back fails silently by nature — a refused microphone sends
+        // silence rather than an error — so the only way a parent learns the
+        // room cannot hear them is if this says so.
+        .onChange(of: engine.talkbackNotice) { _, message in
+            guard let message else { return }
+            show(message)
+            engine.talkbackNotice = nil
+        }
         .onChange(of: scenePhase) { _, phase in
             // Backgrounding tears the stream down rather than holding a camera
             // and a relay open behind a locked screen — unless PiP is running,

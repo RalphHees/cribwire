@@ -19,6 +19,7 @@ struct NurseryControlsView: View {
     var body: some View {
         VStack(spacing: 10) {
             musicCard
+            talkbackCard
             lightCard
         }
         .sheet(isPresented: $showPlaylists) {
@@ -239,6 +240,42 @@ struct NurseryControlsView: View {
         return state.music.playlists
             .first { $0.playlistID == id && $0.provider == state.music.provider }?
             .name
+    }
+
+    // MARK: - Talk-back
+
+    /// Its own card, next to the music rather than inside it.
+    ///
+    /// The two sliders move sound from the same speaker and are still not the
+    /// same control: the music one is the phone's output volume, which scales
+    /// everything the room hears, while this one lifts a voice out of whatever
+    /// that is set to. Turning a lullaby down to a murmur and still being heard
+    /// when you say "I'm here" needs both, which is why one slider could never
+    /// have done it.
+    private var talkbackCard: some View {
+        KCCard {
+            VStack(alignment: .leading, spacing: 12) {
+                header(
+                    symbol: "mic.fill",
+                    title: "Your voice",
+                    trailing: nil
+                )
+
+                ThrottledSlider(
+                    value: state.talkback.volume,
+                    leadingSymbol: "speaker.fill",
+                    trailingSymbol: "speaker.wave.3.fill",
+                    accessibilityLabel: Text("How loud your voice is in the room")
+                ) { level in
+                    send(.talkback(.setVolume(level)))
+                }
+
+                Text("How loud you are when you hold Talk. Separate from the music, so the room can be quiet and you can still be heard.")
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(Theme.Palette.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     // MARK: - Light

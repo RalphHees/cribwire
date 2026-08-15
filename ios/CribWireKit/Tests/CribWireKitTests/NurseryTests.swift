@@ -259,6 +259,84 @@ final class NurseryTests: XCTestCase {
         XCTAssertEqual(decoded, music)
     }
 
+    // MARK: - Talk-back
+
+    /// The gain the Camera applies, and the two positions on the slider that
+    /// have to mean something exact.
+    func testTheTalkbackSliderMapsOntoAGain() {
+        XCTAssertEqual(TalkbackState(volume: 0).gain, 0, accuracy: 0.0001)
+        XCTAssertEqual(
+            TalkbackState(volume: TalkbackState.neutralVolume).gain,
+            1,
+            accuracy: 0.0001,
+            "neutral has to leave the voice exactly as it arrived"
+        )
+        XCTAssertEqual(
+            TalkbackState(volume: TalkbackState.defaultVolume).gain,
+            2,
+            accuracy: 0.0001,
+            "the default is a boost: neutral is what nobody could hear"
+        )
+        XCTAssertEqual(TalkbackState(volume: 1).gain, TalkbackState.maxGain, accuracy: 0.0001)
+    }
+
+    func testTalkbackVolumeIsClampedOnBothConstructionAndDecoding() throws {
+        XCTAssertEqual(TalkbackState(volume: 9).volume, 1)
+        XCTAssertEqual(TalkbackState(volume: -3).volume, 0)
+        XCTAssertEqual(TalkbackCommand(volume: 4).volume, 1)
+
+        let decoded = try JSONDecoder().decode(
+            TalkbackCommand.self,
+            from: Data(#"{"v":7.5}"#.utf8)
+        )
+        XCTAssertEqual(decoded.volume, 1)
+    }
+
+    /// A talk-back command must not look like nothing to do, or the Camera drops
+    /// it before it reaches the slider it belongs to.
+    func testATalkbackOnlyCommandIsNotEmpty() throws {
+        XCTAssertFalse(NurseryCommand.talkback(.setVolume(0.8)).isEmpty)
+
+        let decoded = try JSONDecoder().decode(
+            NurseryCommand.self,
+            from: Data(#"{"t":{"v":0.8}}"#.utf8)
+        )
+        XCTAssertEqual(decoded.talkback?.volume, 0.8)
+        XCTAssertFalse(decoded.isEmpty)
+        XCTAssertNil(decoded.music)
+    }
+
+    /// A command that names the section but not the level lands on the default,
+    /// never on silence.
+    func testATalkbackCommandWithNoLevelIsNotSilence() throws {
+        let decoded = try JSONDecoder().decode(
+            NurseryCommand.self,
+            from: Data(#"{"t":{}}"#.utf8)
+        )
+        XCTAssertEqual(decoded.talkback?.volume, TalkbackState.defaultVolume)
+    }
+
+    /// A Camera too old to report talk-back applies no gain at all, so that is
+    /// what its Viewer must show — reading it as silence would put a slider at
+    /// zero for a room that is, in fact, unchanged.
+    func testAnOlderCameraReportsANeutralTalkbackGain() throws {
+        let decoded = try JSONDecoder().decode(
+            NurseryState.self,
+            from: Data(#"{"m":{"av":"ready"},"l":{"av":"ready"}}"#.utf8)
+        )
+        XCTAssertEqual(decoded.talkback.gain, 1, accuracy: 0.0001)
+    }
+
+    func testTalkbackSurvivesTheWire() throws {
+        let state = NurseryState(talkback: TalkbackState(volume: 0.75))
+        let decoded = try JSONDecoder().decode(
+            NurseryState.self,
+            from: try JSONEncoder().encode(state)
+        )
+        XCTAssertEqual(decoded.talkback.volume, 0.75)
+        XCTAssertEqual(decoded, state)
+    }
+
     func testAStateMessageFitsInsideTheSignalingFrameCap() throws {
         // The worst case the Camera can build: a full shortlist of maximum-length
         // names and details, plus a maximum-length now-playing line.

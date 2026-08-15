@@ -88,6 +88,47 @@ final class TidalConfigurationTests: XCTestCase {
         XCTAssertFalse(availability == .ready, "a service that cannot play is never ready")
     }
 
+    /// A client id is not an implementation.
+    ///
+    /// Setting `TIDAL_CLIENT_ID` on the backend is a reasonable thing for a
+    /// deployment to do, and it must not make every Camera in the fleet advertise
+    /// a service with no player behind it — which is what put "TIDAL is not set
+    /// up on this camera" in front of someone who had a TIDAL subscription.
+    @MainActor
+    func testAClientIDAloneDoesNotOfferTidal() async {
+        let provider = TidalMusicProvider(
+            configuration: TidalConfiguration(clientID: "a-real-looking-client-id")
+        )
+        XCTAssertFalse(
+            provider.isConfigured,
+            "offer TIDAL only when this build can actually play it"
+        )
+        let availability = await provider.availability()
+        XCTAssertEqual(availability, .notConfigured)
+    }
+
+    /// The switcher is built from the providers a Camera can use, so an
+    /// unimplemented service must not reach a Viewer's screen at all.
+    @MainActor
+    func testTidalIsNotAmongTheProvidersACameraOffers() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.tidalOffer"))
+        defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.tidalOffer") }
+
+        let controller = NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [
+                FakeMusicProvider(availability: .ready, canControlPlayback: true),
+                TidalMusicProvider(configuration: TidalConfiguration(clientID: "id"))
+            ],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+        await controller.reload()
+
+        XCTAssertFalse(controller.state.music.availableProviders.contains(.tidal))
+    }
+
     /// The backend's copy wins, which is the point of serving one at all: an id
     /// rotated on the server has to beat the one this build was compiled with.
     func testTheBackendClientIDIsPreferredOverTheBuiltInOne() {
@@ -118,17 +159,11 @@ final class TidalConfigurationTests: XCTestCase {
         XCTAssertNil(TidalConfiguration.make(remote: RemoteConfiguration(tidalClientID: "  ")))
     }
 
-    /// The provider resolves on each read, so an id that arrives from the
-    /// backend after launch takes effect without restarting the app.
-    @MainActor
-    func testTheProviderPicksUpAnIDThatArrivesAfterItWasBuilt() {
-        var configuration: TidalConfiguration?
-        let provider = TidalMusicProvider { configuration }
-        XCTAssertFalse(provider.isConfigured)
-
-        configuration = TidalConfiguration(clientID: "arrived-later")
-        XCTAssertTrue(provider.isConfigured)
-    }
+    // No test for the provider resolving its id on every read: `isConfigured`
+    // short-circuits on `isPlaybackImplemented`, so today the resolver is never
+    // consulted at all and there is nothing to observe. It becomes assertable in
+    // the commit that implements playback, which is the commit that gives it a
+    // reason to exist.
 }
 
 /// What the backend is allowed to change between releases, and how long a device
@@ -342,6 +377,73 @@ final class NurseryTransportAvailabilityTests: XCTestCase {
         await controller.apply(.music(.toggle))
         XCTAssertEqual(provider.calls, ["pause"])
         XCTAssertEqual(remote.calls, [])
+    }
+}
+
+/// The talk-back gain is the Camera's, not a session's: it has to outlive the
+/// Viewer that set it, and every Viewer has to read the same value.
+@MainActor
+final class TalkbackVolumeTests: XCTestCase {
+
+    private let suiteName = "cribwire.tests.talkbackVolume"
+
+    override func tearDown() {
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    private func makeController(defaults: UserDefaults) -> NurseryController {
+        NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [FakeMusicProvider(availability: .ready, canControlPlayback: true)],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+    }
+
+    func testTheVolumeIsRecordedClampedAndReported() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+
+        controller.setTalkbackVolume(0.75)
+        XCTAssertEqual(controller.state.talkback.volume, 0.75)
+        XCTAssertEqual(controller.state.talkback.gain, 3, accuracy: 0.0001)
+
+        controller.setTalkbackVolume(4)
+        XCTAssertEqual(controller.state.talkback.volume, 1)
+    }
+
+    /// It is a property of the room, so a Camera restarting has to come back to
+    /// the same setting rather than to the default.
+    func testTheVolumeSurvivesARestart() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        makeController(defaults: defaults).setTalkbackVolume(0.9)
+
+        XCTAssertEqual(makeController(defaults: defaults).state.talkback.volume, 0.9)
+    }
+
+    /// `stop()` resets the room's state, and used to take this with it — which
+    /// would silently drop a Viewer's setting every time the monitor was stopped.
+    func testStoppingTheMonitorDoesNotResetTheVolume() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+        controller.start()
+        controller.setTalkbackVolume(0.9)
+        controller.stop()
+
+        XCTAssertEqual(controller.state.talkback.volume, 0.9)
+    }
+
+    /// The value a Camera comes up with when nobody has ever set one. Zero is
+    /// what `UserDefaults.double(forKey:)` would have answered, and zero is
+    /// silence.
+    func testAnUnsetVolumeDefaultsToTheBoostRatherThanToSilence() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+
+        XCTAssertEqual(controller.state.talkback.volume, TalkbackState.defaultVolume)
+        XCTAssertGreaterThan(controller.state.talkback.gain, 1)
     }
 }
 
