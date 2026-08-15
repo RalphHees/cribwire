@@ -1,6 +1,6 @@
 # CribWire — iOS
 
-One SwiftUI app target (iOS 16+), backed by `CribWireKit`, a local Swift package
+One SwiftUI app target (iOS 26+), backed by `CribWireKit`, a local Swift package
 holding everything that is pure logic: crypto, the wire formats from
 [`shared/protocol.md`](../shared/protocol.md), the pairing state machine, and the
 REST client.
@@ -54,7 +54,7 @@ cd ios && xcodegen generate
 xcodebuild test \
   -project ios/CribWire.xcodeproj \
   -scheme CribWire \
-  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   CODE_SIGNING_ALLOWED=NO
 ```
 
@@ -86,8 +86,7 @@ The `CribWireWidgets` scheme in `project.yml` is checked in specifically to
 prevent this: it builds the extension but launches the **app**, which is how the
 activity is meant to start. To see it:
 
-1. Run the `CribWire` (or `CribWireWidgets`) scheme on a device or a 16.1+
-   simulator.
+1. Run the `CribWire` (or `CribWireWidgets`) scheme on a device or simulator.
 2. Start a Viewer session — `LiveActivityController.start` is what calls
    `Activity.request`; nothing renders until a real activity exists.
 3. Lock the screen, or use the Dynamic Island on a Pro device.
@@ -96,11 +95,12 @@ To break on the drawing code in `CribWireLiveActivity.swift`, attach once the
 activity is on screen: **Debug ▸ Attach to Process ▸ CribWireWidgets**. It runs
 in its own process, so breakpoints hit only after that attach.
 
-If nothing appears at all, in order of likelihood: Live Activities are off for
-CribWire in Settings ▸ CribWire; the simulator is on iOS 16.0, below the
-extension's 16.1 floor; or `ActivityAuthorizationInfo().areActivitiesEnabled` is
-false, which `LiveActivityController.isAvailable` reports and the app then
-silently degrades past by design.
+If nothing appears at all, it is almost always that Live Activities are switched
+off for CribWire in Settings ▸ CribWire. That is what
+`ActivityAuthorizationInfo().areActivitiesEnabled` reports,
+`LiveActivityController.isAvailable` surfaces, and the app then silently degrades
+past by design — a missing Live Activity is never worth an error in front of
+someone watching their child.
 
 ## Test vectors
 

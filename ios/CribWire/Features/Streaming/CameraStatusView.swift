@@ -63,7 +63,7 @@ struct CameraStatusView: View {
             UIScreen.main.brightness = previousBrightness
             engine.stop()
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             // Coming back from the background: re-assert the idle timer, which
             // iOS resets, and re-read the battery.
             if phase == .active {

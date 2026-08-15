@@ -1,8 +1,5 @@
-import Foundation
-
-#if canImport(ActivityKit)
 import ActivityKit
-#endif
+import Foundation
 
 /// The shape of CribWire's Live Activity.
 ///
@@ -17,7 +14,7 @@ import ActivityKit
 /// Camera's battery. No detection detail, no snapshot, no pairing identifier.
 /// "Noise detected at 03:14" on a lock screen is a statement about someone's
 /// child, and it does not belong here.
-struct CribWireActivityAttributes: Codable, Hashable {
+struct CribWireActivityAttributes: ActivityAttributes, Codable, Hashable {
 
     /// Set once when the activity starts.
     ///
@@ -57,7 +54,3 @@ struct CribWireActivityAttributes: Codable, Hashable {
         }
     }
 }
-
-#if canImport(ActivityKit)
-extension CribWireActivityAttributes: ActivityAttributes {}
-#endif

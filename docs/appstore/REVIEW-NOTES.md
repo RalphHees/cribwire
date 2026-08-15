@@ -112,4 +112,4 @@ it turns a multi-day round trip into a same-day one.
 - [ ] Export-compliance answer confirmed with counsel (`PRIVACY-LABELS.md`)
 - [ ] Privacy labels entered as "Data Not Collected" across every category
 - [ ] Two-device demo video uploaded or linked in the review notes
-- [ ] Tested on the oldest supported OS (iOS 16) as well as the newest
+- [ ] Tested on the oldest supported OS (iOS 26) as well as the newest

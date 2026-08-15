@@ -25,7 +25,7 @@ struct CribWireApp: App {
                 // Same again on every return to the foreground — `onChange` does
                 // not fire for the launch transition (see
                 // `PushNotificationCoordinator`).
-                .onChange(of: scenePhase) { phase in
+                .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {
                         await services.notifications.upgradeDeliveredNotifications()

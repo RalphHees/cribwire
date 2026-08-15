@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.2
 import PackageDescription
 
 // CribWireKit holds every piece of CribWire that is pure logic: crypto, the wire
@@ -13,7 +13,13 @@ import PackageDescription
 let package = Package(
     name: "CribWireKit",
     platforms: [
-        .iOS(.v16),
+        // Matches the app's floor (`ios/project.yml`).
+        .iOS(.v26),
+        // Deliberately *not* raised alongside iOS. macOS appears here only so
+        // `swift test` runs on a dev machine and on the macOS CI runner; nothing
+        // ships to macOS. Requiring macOS 26 would make the package refuse to
+        // resolve on the `macos-15` runner in `.github/workflows/ios.yml` — a
+        // self-inflicted CI failure with no product behind it.
         .macOS(.v13)
     ],
     products: [
@@ -43,5 +49,10 @@ let package = Package(
                 .copy("Resources/cribwire-v1.json")
             ]
         )
-    ]
+    ],
+    // swift-tools-version 6.2 would otherwise default every target to the Swift
+    // 6 language mode. Pinned to v5 to stay in step with SWIFT_VERSION in
+    // `ios/project.yml`: the two must move to Swift 6 together, or the same
+    // source file means different things depending on which builds it.
+    swiftLanguageModes: [.v5]
 )

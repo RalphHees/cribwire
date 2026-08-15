@@ -36,27 +36,17 @@ final class AudioLevelMonitor {
     /// permission is missing, which is indistinguishable from a quiet room. The
     /// caller must ask first or the meter lies.
     static func requestMicrophoneAccess() async {
-        if #available(iOS 17.0, *) {
-            guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
-            _ = await AVAudioApplication.requestRecordPermission()
-        } else {
-            guard AVAudioSession.sharedInstance().recordPermission == .undetermined else {
-                return
-            }
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                AVAudioSession.sharedInstance().requestRecordPermission { _ in
-                    continuation.resume()
-                }
-            }
-        }
+        guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
+        _ = await AVAudioApplication.requestRecordPermission()
     }
 
     /// Whether the microphone has actually been granted.
+    ///
+    /// `AVAudioApplication` only, since the floor is iOS 26. The
+    /// `AVAudioSession.recordPermission` half of this was deprecated in 17 and
+    /// answered the same question a different way.
     static var isMicrophoneGranted: Bool {
-        if #available(iOS 17.0, *) {
-            return AVAudioApplication.shared.recordPermission == .granted
-        }
-        return AVAudioSession.sharedInstance().recordPermission == .granted
+        AVAudioApplication.shared.recordPermission == .granted
     }
 
     func start() throws {

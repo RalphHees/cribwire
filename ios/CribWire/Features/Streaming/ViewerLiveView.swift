@@ -79,29 +79,29 @@ struct ViewerLiveView: View {
         }
         // Connection changes are worth showing at once; the throttle inside the
         // controller keeps the routine battery ticks from burning the budget.
-        .onChange(of: engine.state) { _ in
+        .onChange(of: engine.state) {
             liveActivity.update(activityState, force: true)
         }
-        .onChange(of: engine.peerBatteryLevel) { _ in
+        .onChange(of: engine.peerBatteryLevel) {
             liveActivity.update(activityState)
         }
-        .onChange(of: notifications.latestEvent?.event.ts) { _ in
+        .onChange(of: notifications.latestEvent?.event.ts) {
             liveActivity.update(activityState, force: true)
         }
         // The PiP converter has to follow the track across reconnects, which
         // produce a brand-new track object.
-        .onChange(of: engine.remoteVideoTrack) { track in
+        .onChange(of: engine.remoteVideoTrack) { _, track in
             pip.attach(track: track)
         }
         // AVKit reports a refused PiP start to its delegate and does nothing
         // visible. Saying so is the difference between "not now" and a button
         // that appears to be broken.
-        .onChange(of: pip.lastError) { message in
+        .onChange(of: pip.lastError) { _, message in
             guard let message else { return }
             show(message)
             pip.clearError()
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             // Backgrounding tears the stream down rather than holding a camera
             // and a relay open behind a locked screen — unless PiP is running,
             // which is precisely a request to keep watching while doing something

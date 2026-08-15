@@ -21,7 +21,7 @@ Before designing anything, read the authoritative specs:
 
 Ground rules for every design you produce:
 
-1. Stay within the spec's technical choices (Swift 5.10+/SwiftUI, iOS 16 minimum,
+1. Stay within the spec's technical choices (Swift 5 mode on the 6.2 toolchain/SwiftUI, iOS 26 minimum,
    MVVM with `StreamingEngine`/`DetectionEngine` service layer, Swift Concurrency,
    libwebrtc, AVFoundation, CryptoKit, Keychain). If a spec choice is wrong or
    infeasible, say so explicitly and propose a spec change — do not silently

@@ -6,7 +6,7 @@ milestone.
 
 ## Phase 0 — Project foundations
 
-- [x] Create Xcode project (SwiftUI, iOS 16 min) — via `ios/project.yml`
+- [x] Create Xcode project (SwiftUI, iOS 26 min) — via `ios/project.yml`
       (XcodeGen). One app target: the Notification Service Extension was merged
       into the app, which also removed the shared app group and Keychain access
       group it existed for

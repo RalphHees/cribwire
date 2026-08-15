@@ -55,7 +55,7 @@ struct DetectionSettingsView: View {
         }
         // Only while the editor is on screen: a camera running behind a settings
         // list is a battery cost with nothing to show for it.
-        .onChange(of: model.settings.movement.isEnabled) { isEnabled in
+        .onChange(of: model.settings.movement.isEnabled) { _, isEnabled in
             if isEnabled {
                 Task { await preview.start() }
             } else {

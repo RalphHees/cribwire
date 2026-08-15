@@ -1,8 +1,5 @@
-import Foundation
-
-#if canImport(ActivityKit)
 import ActivityKit
-#endif
+import Foundation
 
 /// Starts, updates and ends the Viewer's Live Activity.
 ///
@@ -18,67 +15,68 @@ import ActivityKit
 @MainActor
 final class LiveActivityController {
 
-    /// Whether the device and the user's settings allow one at all.
+    /// Whether the user's settings allow one at all.
+    ///
+    /// Only a settings question now that the floor is iOS 26 — every supported
+    /// device has ActivityKit.
     static var isAvailable: Bool {
-        #if canImport(ActivityKit)
-        if #available(iOS 16.1, *) {
-            return ActivityAuthorizationInfo().areActivitiesEnabled
-        }
-        #endif
-        return false
+        ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
-    #if canImport(ActivityKit)
-    @available(iOS 16.1, *)
-    private var activity: Activity<CribWireActivityAttributes>? {
-        get { _activity as? Activity<CribWireActivityAttributes> }
-        set { _activity = newValue }
-    }
-    /// Stored untyped so the property itself needs no availability annotation.
-    private var _activity: Any?
-    #endif
+    /// Stored with its real type. It used to be held as `Any` and cast on every
+    /// access, purely so the property needed no `@available` annotation on a
+    /// 16.0 floor. Nothing about that is needed at 26.
+    private var activity: Activity<CribWireActivityAttributes>?
 
     /// Throttles updates. ActivityKit budgets them, and the interesting fields
     /// (battery, connection) change far more often than a Lock Screen needs.
     private var lastUpdate = Date.distantPast
     private static let minimumUpdateInterval: TimeInterval = 10
 
+    /// Wraps a state in the `ActivityContent` the modern ActivityKit API takes.
+    ///
+    /// `staleDate` is left `nil`, which keeps today's behaviour: the card never
+    /// dims itself. Giving it one is worth considering separately — a Lock Screen
+    /// still reading "Watching" after updates stopped is the same lie `end()`
+    /// guards against, arrived at by a different route — but it is a product
+    /// decision about what a parent should see, not part of a toolchain bump.
+    private func content(
+        _ state: CribWireActivityAttributes.ContentState
+    ) -> ActivityContent<CribWireActivityAttributes.ContentState> {
+        ActivityContent(state: state, staleDate: nil)
+    }
+
     func start(cameraName: String, state: CribWireActivityAttributes.ContentState) {
-        #if canImport(ActivityKit)
-        guard #available(iOS 16.1, *), Self.isAvailable, activity == nil else { return }
+        guard Self.isAvailable, activity == nil else { return }
         activity = try? Activity.request(
             attributes: CribWireActivityAttributes(cameraName: cameraName),
-            contentState: state,
+            content: content(state),
             pushType: nil
         )
         lastUpdate = Date()
-        #endif
     }
 
     /// - Parameter force: bypass the throttle for changes worth showing at once,
     ///   such as losing the stream.
     func update(_ state: CribWireActivityAttributes.ContentState, force: Bool = false) {
-        #if canImport(ActivityKit)
-        guard #available(iOS 16.1, *), let activity else { return }
+        guard let activity else { return }
         let now = Date()
         guard force || now.timeIntervalSince(lastUpdate) >= Self.minimumUpdateInterval else {
             return
         }
         lastUpdate = now
-        Task { await activity.update(using: state) }
-        #endif
+        let next = content(state)
+        Task { await activity.update(next) }
     }
 
     /// Ends the activity. Dismissed immediately rather than lingering: once the
     /// Viewer has stopped, a Lock Screen card still saying "Watching" is a lie
     /// about whether a child is being monitored.
     func end() {
-        #if canImport(ActivityKit)
-        guard #available(iOS 16.1, *), let activity else { return }
+        guard let activity else { return }
         self.activity = nil
         Task {
-            await activity.end(dismissalPolicy: .immediate)
+            await activity.end(nil, dismissalPolicy: .immediate)
         }
-        #endif
     }
 }

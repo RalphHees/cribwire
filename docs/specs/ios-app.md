@@ -171,7 +171,7 @@ cleared — whenever capture stops, so a light can never come back on by itself.
 
 | Area | Choice |
 |---|---|
-| Language / UI | Swift 5.10+, SwiftUI (iOS 16 minimum) |
+| Language / UI | Swift 5 language mode on the Swift 6.2 toolchain, SwiftUI (iOS 26 minimum) |
 | Architecture | MVVM + a `StreamingEngine` and `DetectionEngine` service layer; Swift Concurrency (`async/await`, actors) |
 | Streaming | libwebrtc (`stasel/WebRTC` binary distribution or Google pod) |
 | Capture | AVFoundation (`AVCaptureSession`, `AVAudioEngine`) |

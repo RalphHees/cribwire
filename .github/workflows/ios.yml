@@ -138,6 +138,11 @@ jobs:
             -scheme CribWire \
             -clonedSourcePackagesDirPath "${SPM_CLONE_DIR}"
 
+      # Restricted to iOS 26 runtimes. The app's deployment target is 26.0
+      # (ios/project.yml), so an older simulator does not "mostly work" — the
+      # install fails, and it fails during the test phase with a message about
+      # the device rather than about the floor. Matching the runtime here turns
+      # that into an explicit, self-explaining CI failure instead.
       - name: Pick an iOS simulator
         id: sim
         run: |
@@ -146,13 +151,13 @@ jobs:
           udid=$(echo "${devices}" | jq -r '
             [ .devices
               | to_entries[]
-              | select(.key | contains("SimRuntime.iOS-"))
+              | select(.key | test("SimRuntime\\.iOS-(2[6-9]|[3-9][0-9])"))
               | .value[]
               | select(.isAvailable)
               | select(.name | startswith("iPhone"))
               | .udid ] | last // empty')
           if [ -z "${udid}" ]; then
-            echo "::error::No available iPhone simulator on this runner image."
+            echo "::error::No available iOS 26+ iPhone simulator on this runner image. The app's deployment target is 26.0; install a matching runtime or lower the floor in ios/project.yml."
             xcrun simctl list runtimes
             exit 1
           fi

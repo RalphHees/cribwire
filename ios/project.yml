@@ -17,15 +17,22 @@ name: CribWire
 options:
   bundleIdPrefix: com.ralphhees.cribwire
   createIntermediateGroups: true
+  # iOS 26 and nothing older. That is a deliberately aggressive floor for a baby
+  # monitor — the Camera is usually an old phone retired to a shelf, which is
+  # exactly the hardware a high floor excludes. It is set here because the app
+  # leans on APIs that are 26-only in practice and because supporting one OS
+  # removes every `#available` branch that could only ever be exercised on a
+  # device nobody tests on. Lowering it again means restoring those branches.
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "26.0"
   developmentLanguage: en
   # EN/NL (`docs/TASKS.md` Phase 4). Dutch is not an afterthought here — the app
   # is built and first used in the Netherlands.
   knownRegions: [en, nl, Base]
   groupSortPosition: top
   minimumXcodeGenVersion: "2.38.0"
-  xcodeVersion: "16.0"
+  # Held equal to XCODE_VERSION in .github/workflows/ios.yml.
+  xcodeVersion: "26.3"
 
 # ---------------------------------------------------------------------------
 # Shared build settings
@@ -33,18 +40,27 @@ options:
 settings:
   base:
     # Language mode, not toolchain version: SWIFT_VERSION only accepts 4.0/4.2/
-    # 5.0/6.0. The project targets the Swift 5 language mode built with a
-    # 5.10-or-newer toolchain (CI pins Xcode 16.4); `CribWireKit/Package.swift`
-    # declares swift-tools-version 5.10 separately.
+    # 5.0/6.0. Still the Swift 5 language mode, built with the Swift 6.2
+    # toolchain in Xcode 26.3; `CribWireKit/Package.swift` declares its own
+    # swift-tools-version separately.
+    #
+    # Moving to "6.0" is the next step and is deliberately not taken in the same
+    # change as the deployment-target bump: Swift 6 turns the data-race
+    # diagnostics below from warnings into errors, and the two should not fail
+    # together. Clear the `complete` warnings first, then flip this line.
     SWIFT_VERSION: "5.0"
-    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
     # Placeholder — set to the real Apple Developer team ID.
     DEVELOPMENT_TEAM: "NRV7K64R87"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
-    SWIFT_STRICT_CONCURRENCY: targeted
+    # `complete` rather than `targeted`. In the Swift 5 language mode these are
+    # warnings, and they are precisely the set that becomes errors under Swift 6
+    # — so this is the migration's to-do list, visible in the build log, without
+    # the build going red on the day the floor moved.
+    SWIFT_STRICT_CONCURRENCY: complete
     # Extract localizable strings into the String Catalog at build time, so a new
     # `Text("…")` shows up as an untranslated entry instead of silently shipping
     # English to Dutch users.
@@ -224,12 +240,12 @@ targets:
         PRODUCT_NAME: CribWireWidgets
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: "1,2"
-        # Higher than the app's 16.0 on purpose. ActivityConfiguration is 16.1+,
-        # so on a 16.0 device this extension would install and then register zero
-        # widgets — an empty WidgetBundle, which WidgetKit reports as "failed to
-        # get descriptors" rather than as anything diagnosable. Declaring 16.1
-        # means the system simply does not load it there.
-        IPHONEOS_DEPLOYMENT_TARGET: "16.1"
+        # No IPHONEOS_DEPLOYMENT_TARGET override: the project floor of 26.0 is
+        # already far above ActivityConfiguration's 16.1. Do not reintroduce a
+        # version check around the widget in the bundle — an extension that
+        # installs and then registers zero widgets is reported by WidgetKit as
+        # "failed to get descriptors for extensionBundleID", which reads like a
+        # provisioning fault and costs an afternoon.
     # One source of truth for the extension's Info.plist, matching how the app
     # target is set up: XcodeGen writes this file, and it is gitignored rather
     # than committed. GENERATE_INFOPLIST_FILE is deliberately absent — pairing it
