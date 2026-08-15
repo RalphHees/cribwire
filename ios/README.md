@@ -28,6 +28,7 @@ ios/
 │   ├── Features/            Role selection, pairing, device list, notifications,
 │   │                        streaming, detection, nursery music + light
 │   └── Security/            Keychain layer
+├── CribWireWidgets/          Widget extension — the Live Activity, and nothing else
 └── CribWireTests/            App-target unit tests
 ```
 
@@ -61,6 +62,45 @@ xcodebuild test \
 exists and [swift-crypto](https://github.com/apple/swift-crypto) everywhere else,
 via `#if canImport(CryptoKit)`. swift-crypto is only linked on non-Apple
 platforms (`.when(platforms: [.linux, .windows])`).
+
+## Running the Live Activity
+
+`CribWireWidgets` is a widget extension that contains **only** an
+`ActivityConfiguration`. It ships no Home Screen and no Lock Screen widget, and
+that is a deliberate product decision, not an omission — see the header of
+`CribWireActivityAttributes.swift` for why the payload stays this thin.
+
+It follows that the extension cannot be launched on its own. Xcode's widget Run
+action works by asking SpringBoard to place a widget for the extension's bundle
+id; with no widget in the bundle, WidgetKit has no descriptors to return and the
+run fails:
+
+```
+Failed to show Widget 'com.ralphhees.cribwire.CribWire.Widgets' …
+SBAvocadoDebuggingControllerErrorDomain Code=1
+"Failed to get descriptors for extensionBundleID (com.ralphhees.cribwire.CribWire.Widgets)"
+… The request to open "com.apple.springboard" failed.
+```
+
+The `CribWireWidgets` scheme in `project.yml` is checked in specifically to
+prevent this: it builds the extension but launches the **app**, which is how the
+activity is meant to start. To see it:
+
+1. Run the `CribWire` (or `CribWireWidgets`) scheme on a device or a 16.1+
+   simulator.
+2. Start a Viewer session — `LiveActivityController.start` is what calls
+   `Activity.request`; nothing renders until a real activity exists.
+3. Lock the screen, or use the Dynamic Island on a Pro device.
+
+To break on the drawing code in `CribWireLiveActivity.swift`, attach once the
+activity is on screen: **Debug ▸ Attach to Process ▸ CribWireWidgets**. It runs
+in its own process, so breakpoints hit only after that attach.
+
+If nothing appears at all, in order of likelihood: Live Activities are off for
+CribWire in Settings ▸ CribWire; the simulator is on iOS 16.0, below the
+extension's 16.1 floor; or `ActivityAuthorizationInfo().areActivitiesEnabled` is
+false, which `LiveActivityController.isAvailable` reports and the app then
+silently degrades past by design.
 
 ## Test vectors
 

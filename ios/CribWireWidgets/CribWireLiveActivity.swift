@@ -128,11 +128,19 @@ struct CribWireLiveActivity: Widget {
     }
 }
 
+/// The extension's entry point.
+///
+/// `CribWireLiveActivity` is listed unconditionally, and that is the point: the
+/// target's deployment floor is 16.1 (`project.yml`) precisely so this needs no
+/// `if #available` around it. A version check here would compile at a lower floor
+/// and then register an *empty* bundle on 16.0 — WidgetKit reports that as
+/// "failed to get descriptors for extensionBundleID", which reads like a
+/// signing or provisioning fault rather than a widget that was never registered.
+/// If someone lowers the deployment target, this line fails to build. That is the
+/// intended outcome.
 @main
 struct CribWireWidgetBundle: WidgetBundle {
     var body: some Widget {
-        if #available(iOS 16.1, *) {
-            CribWireLiveActivity()
-        }
+        CribWireLiveActivity()
     }
 }

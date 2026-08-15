@@ -205,6 +205,10 @@ targets:
   # unlike the notification-decryption case there is no way to keep this in the
   # app. It shares no Keychain group and holds no key — the payload it draws is
   # already non-secret by construction (see CribWireActivityAttributes).
+  #
+  # This bundle holds *only* an ActivityConfiguration. It deliberately ships no
+  # Home Screen or Lock Screen widget, which is why it must not be launched with
+  # Xcode's widget Run action — see the `CribWireWidgets` scheme below.
   # ---------------------------------------------------------------------------
   CribWireWidgets:
     type: app-extension
@@ -220,13 +224,28 @@ targets:
         PRODUCT_NAME: CribWireWidgets
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: "1,2"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: CribWire
-        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        # Higher than the app's 16.0 on purpose. ActivityConfiguration is 16.1+,
+        # so on a 16.0 device this extension would install and then register zero
+        # widgets — an empty WidgetBundle, which WidgetKit reports as "failed to
+        # get descriptors" rather than as anything diagnosable. Declaring 16.1
+        # means the system simply does not load it there.
+        IPHONEOS_DEPLOYMENT_TARGET: "16.1"
+    # One source of truth for the extension's Info.plist, matching how the app
+    # target is set up: XcodeGen writes this file, and it is gitignored rather
+    # than committed. GENERATE_INFOPLIST_FILE is deliberately absent — pairing it
+    # with an `info:` block gives the NSExtension dictionary two owners, and that
+    # dictionary is the whole of what marks this bundle as a widget extension.
     info:
       path: CribWireWidgets/Info.plist
       properties:
         CFBundleDisplayName: CribWire
+        # Must track the host app exactly. An embedded extension whose version
+        # differs from its container is rejected at install and at upload, and
+        # the install-side rejection arrives as a SpringBoard "request denied"
+        # with nothing in it that names the version as the cause. XcodeGen's
+        # defaults are a flat 1.0/1, so both keys are stated here.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
 
@@ -247,3 +266,42 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ralphhees.cribwire.CribWireTests
         GENERATE_INFOPLIST_FILE: YES
+
+# ---------------------------------------------------------------------------
+# Schemes
+#
+# The CribWire scheme is generated from that target's `scheme:` block above.
+# This section exists for CribWireWidgets alone.
+# ---------------------------------------------------------------------------
+schemes:
+
+  # Xcode autocreates one scheme per target, and the autocreated widget-extension
+  # scheme runs by asking SpringBoard to *place a widget* for the extension's
+  # bundle id. CribWireWidgets ships only a Live Activity, so WidgetKit has no
+  # widget descriptors to hand back and the launch dies with
+  #
+  #   SBAvocadoDebuggingControllerErrorDomain Code=1
+  #   "Failed to get descriptors for extensionBundleID
+  #    (com.ralphhees.cribwire.CribWire.Widgets)"
+  #
+  # which surfaces as the far less helpful "The request to open
+  # com.apple.springboard failed". Checking in a shared scheme of the same name
+  # takes precedence over the autocreated one and launches the host app instead:
+  # start a Viewer session and the Live Activity appears the way it does for a
+  # real user. Breakpoints in CribWireLiveActivity.swift need the extension's own
+  # process — Debug ▸ Attach to Process ▸ CribWireWidgets, once it is drawing.
+  CribWireWidgets:
+    build:
+      targets:
+        CribWireWidgets: all
+        CribWire: all
+    run:
+      config: Debug
+      executable: CribWire
+      askForAppToLaunch: false
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
