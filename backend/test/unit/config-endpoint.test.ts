@@ -3,6 +3,7 @@
  * and the one it must never learn.
  */
 
+import type { LightMyRequestResponse } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Config } from '../../src/config.ts';
 import { loadConfig, tidalConfigured } from '../../src/config.ts';
@@ -43,7 +44,7 @@ afterEach(async () => {
 function get(
   app: TestApp,
   credentials: { deviceKey: Buffer; deviceId: string; pairingId: string },
-): ReturnType<TestApp['app']['inject']> {
+): Promise<LightMyRequestResponse> {
   return app.app.inject(
     signRequest({
       method: 'GET',

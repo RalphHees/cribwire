@@ -148,7 +148,16 @@ struct TidalConfiguration: Equatable {
     /// `nil` when neither source has one, which is what makes an unconfigured
     /// deployment hide TIDAL rather than offer it.
     static var current: TidalConfiguration? {
-        make(remote: RemoteConfigurationStore().load()) ?? make(bundle: .main)
+        make(remote: RemoteConfigurationStore().load(), bundle: .main)
+    }
+
+    /// The precedence rule itself, split out so it can be asserted without
+    /// standing up a bundle or writing to the shared defaults.
+    static func make(
+        remote: RemoteConfiguration,
+        bundle: Bundle
+    ) -> TidalConfiguration? {
+        make(remote: remote) ?? make(bundle: bundle)
     }
 
     static func make(remote: RemoteConfiguration) -> TidalConfiguration? {

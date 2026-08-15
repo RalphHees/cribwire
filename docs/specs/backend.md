@@ -60,6 +60,7 @@ cache in Redis).
 | `POST /v1/pairings/{id}/turn-credentials` | Returns ephemeral TURN credentials (TTL 1 h) for either role. |
 | `POST /v1/events` | Camera posts a detection event: `{pairingId, ciphertext}` where `ciphertext` is the ChaCha20-Poly1305-encrypted event (type, timestamp). Server fans out to all viewer tokens via APNs without being able to read it. Rate-limited to 1 event / 30 s / pairing (client debounces harder; this is abuse protection). |
 | `PUT /v1/devices/token` | Rotate an APNs device token. |
+| `GET /v1/config` | Deployment configuration a build cannot carry because it changes faster than releases ship — currently the TIDAL client id. Authenticated, identical for every device, and **public values only**: a client id travels in the clear in every OAuth exchange, whereas the client secret stays in this server's environment and is never served. Carries `ttlSeconds`, which is how quickly a rotated value reaches phones already in the field. An absent section means this deployment has no such service, and the client falls back to what it was built with. |
 | `GET /v1/health`, `GET /v1/version` | Ops endpoints (unauthenticated, no data). |
 
 ### WebSocket (`/v1/signal?pairingId=…`)

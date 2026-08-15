@@ -87,6 +87,118 @@ final class TidalConfigurationTests: XCTestCase {
         XCTAssertEqual(availability, .notConfigured)
         XCTAssertFalse(availability == .ready, "a service that cannot play is never ready")
     }
+
+    /// The backend's copy wins, which is the point of serving one at all: an id
+    /// rotated on the server has to beat the one this build was compiled with.
+    func testTheBackendClientIDIsPreferredOverTheBuiltInOne() {
+        let remote = RemoteConfiguration(tidalClientID: "from-backend")
+        let resolved = TidalConfiguration.make(
+            remote: remote,
+            bundle: Bundle(for: TidalConfigurationTests.self)
+        )
+        XCTAssertEqual(resolved?.clientID, "from-backend")
+    }
+
+    /// A deployment that serves no id leaves the build's own value in charge,
+    /// rather than blanking it — which is what keeps a local-network pairing,
+    /// where no server is ever called, working exactly as before.
+    func testNoBackendClientIDFallsBackToTheBuild() {
+        let resolved = TidalConfiguration.make(
+            remote: RemoteConfiguration(),
+            bundle: Bundle(for: TidalConfigurationTests.self)
+        )
+        XCTAssertNil(resolved, "this test bundle carries no built-in id either")
+        XCTAssertNil(TidalConfiguration.make(remote: RemoteConfiguration()))
+    }
+
+    /// A blank id from the backend is not an id. Same rule as the build's, so a
+    /// server that sends `""` cannot switch TIDAL on and then play nothing.
+    func testABlankBackendClientIDIsNotConfigured() {
+        XCTAssertNil(TidalConfiguration.make(remote: RemoteConfiguration(tidalClientID: "")))
+        XCTAssertNil(TidalConfiguration.make(remote: RemoteConfiguration(tidalClientID: "  ")))
+    }
+
+    /// The provider resolves on each read, so an id that arrives from the
+    /// backend after launch takes effect without restarting the app.
+    @MainActor
+    func testTheProviderPicksUpAnIDThatArrivesAfterItWasBuilt() {
+        var configuration: TidalConfiguration?
+        let provider = TidalMusicProvider { configuration }
+        XCTAssertFalse(provider.isConfigured)
+
+        configuration = TidalConfiguration(clientID: "arrived-later")
+        XCTAssertTrue(provider.isConfigured)
+    }
+}
+
+/// What the backend is allowed to change between releases, and how long a device
+/// keeps believing it.
+final class RemoteConfigurationTests: XCTestCase {
+
+    private let suiteName = "cribwire.tests.remoteConfig"
+
+    override func tearDown() {
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    private func makeStore() throws -> RemoteConfigurationStore {
+        RemoteConfigurationStore(defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)))
+    }
+
+    func testAnEmptyStoreIsStaleSoTheFirstLaunchAsks() throws {
+        let store = try makeStore()
+        XCTAssertTrue(store.load().isStale())
+        XCTAssertNil(store.load().tidalClientID)
+    }
+
+    func testAResponseIsStoredAndReadBack() throws {
+        let store = try makeStore()
+        let now = Date()
+        store.record(
+            API.AppConfigurationResponse(
+                ttlSeconds: 3600,
+                tidal: .init(clientID: "server-id")
+            ),
+            at: now
+        )
+
+        let loaded = store.load()
+        XCTAssertEqual(loaded.tidalClientID, "server-id")
+        XCTAssertFalse(loaded.isStale(at: now.addingTimeInterval(3599)))
+        XCTAssertTrue(loaded.isStale(at: now.addingTimeInterval(3601)))
+    }
+
+    /// A deployment that dropped TIDAL has to be able to say so. Recording the
+    /// absence — rather than leaving the last id in place — is what lets a
+    /// service be withdrawn as well as rotated.
+    func testAResponseWithoutTidalClearsTheStoredID() throws {
+        let store = try makeStore()
+        store.record(.init(ttlSeconds: 60, tidal: .init(clientID: "server-id")))
+        store.record(.init(ttlSeconds: 60, tidal: nil))
+
+        XCTAssertNil(store.load().tidalClientID)
+    }
+
+    /// A phone whose clock jumped backwards must not be pinned to a retired id
+    /// for as long as the clock is wrong.
+    func testAClockThatWentBackwardsCountsAsStale() {
+        let configuration = RemoteConfiguration(
+            tidalClientID: "server-id",
+            fetchedAt: Date(),
+            ttlSeconds: 3600
+        )
+        XCTAssertTrue(configuration.isStale(at: Date().addingTimeInterval(-60)))
+    }
+
+    func testAResponseWithNoTTLFallsBackToADay() {
+        let now = Date()
+        let configuration = RemoteConfiguration(tidalClientID: "id", fetchedAt: now)
+        XCTAssertFalse(configuration.isStale(at: now.addingTimeInterval(3600)))
+        XCTAssertTrue(
+            configuration.isStale(at: now.addingTimeInterval(RemoteConfiguration.defaultTTL + 1))
+        )
+    }
 }
 
 /// What a parent can still do when the music service says no.
