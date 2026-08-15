@@ -13,21 +13,31 @@ public struct NurseryState: Codable, Equatable, Sendable {
     public var music: MusicState
     public var light: LightState
     public var talkback: TalkbackState
+    /// How much light the Camera is making its picture from.
+    public var sensitivity: SensitivityState
+    /// What the Camera is set to raise an alert about.
+    public var alerts: AlertsState
 
     public init(
         music: MusicState = .init(),
         light: LightState = .init(),
-        talkback: TalkbackState = .init()
+        talkback: TalkbackState = .init(),
+        sensitivity: SensitivityState = .init(),
+        alerts: AlertsState = .init()
     ) {
         self.music = music
         self.light = light
         self.talkback = talkback
+        self.sensitivity = sensitivity
+        self.alerts = alerts
     }
 
     enum CodingKeys: String, CodingKey {
         case music = "m"
         case light = "l"
         case talkback = "t"
+        case sensitivity = "s"
+        case alerts = "al"
     }
 
     public init(from decoder: Decoder) throws {
@@ -39,6 +49,13 @@ public struct NurseryState: Codable, Equatable, Sendable {
         // never as "silent".
         self.talkback = (try? container.decode(TalkbackState.self, forKey: .talkback))
             ?? TalkbackState(volume: TalkbackState.neutralVolume)
+        // Both land on `unknown` availability when the Camera did not send them,
+        // which is what a build from before these existed looks like. The Viewer
+        // shows "this camera is running an older version" rather than controls
+        // that would reach nothing.
+        self.sensitivity = (try? container.decode(SensitivityState.self, forKey: .sensitivity))
+            ?? SensitivityState()
+        self.alerts = (try? container.decode(AlertsState.self, forKey: .alerts)) ?? AlertsState()
     }
 }
 

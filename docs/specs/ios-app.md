@@ -40,8 +40,15 @@ movement.
   noise/movement detection.
 - Screen shows a minimal status view (connection state, number of connected viewers,
   detection status) and dims after 30 s to save battery and avoid lighting the room.
-- Night-vision assist: low-light boost via `AVCaptureDevice.isLowLightBoostEnabled`
-  where supported, and an optional exposure/ISO bias slider.
+- Night-vision assist: a single **picture brightness** setting (`CameraSensitivity`,
+  `0…1`) that the Camera turns into exposure compensation (up to +2 EV), the
+  hardware low-light boost where supported, and — in the top half of its range — a
+  frame-rate ceiling (20 fps, then 15) so each frame is exposed for longer. It is
+  stored on the Camera, applied before the first frame, and re-applied after every
+  capture restart, since the adaptive ladder discards the session's exposure
+  settings each time it moves a rung. Editable **on the Camera and from a Viewer**
+  (§2.4); there is no infrared illuminator, so a room with no light in it at all
+  stays black whatever this is set to.
 - Runs while locked/backgrounded as far as iOS allows: audio background mode keeps
   noise detection alive in the background; video capture requires the app to be
   foreground (documented limitation — the recommended setup is a dedicated device,
@@ -60,22 +67,33 @@ movement.
 - Picture-in-Picture when the app is backgrounded (AVKit PiP with the WebRTC track
   rendered via `AVSampleBufferDisplayLayer`).
 
-### 2.4a Nursery controls — music and light
+### 2.4a Nursery controls — music, light, picture and alerts
 
 The Viewer can act on the room, not only watch it: play music through the Camera's
-speaker and switch the Camera's light on. Both are comforts layered on the monitor
-and neither may compromise it — every call in the path is best-effort, and a music
-service that hangs or a torch that refuses can never stop the stream.
+speaker, switch the Camera's light on, change how bright the picture is, and change
+what the Camera raises an alert about. The first two are comforts layered on the
+monitor and neither may compromise it — every call in the path is best-effort, and a
+music service that hangs or a torch that refuses can never stop the stream.
+
+The last two are **settings rather than actuators**: the Camera stores them, applies
+them, and reports them back, so a change made from a Viewer survives a reconnect and
+a restart of the Camera. They are reachable from the Viewer for one reason — the
+person who discovers that the picture is black, or that the noise threshold is
+wrong, is the one being woken by it in another room, holding the Viewer.
 
 **Transport.** Two message types on the existing sealed signaling channel
 (`CribWireKit/Nursery`, carried by `SignalingPayload`):
 
 - `control` — Viewer → Camera. Play/pause/toggle, next, previous, volume, choose a
-  playlist, switch service, refresh the playlist list; and for the light, on/off and
-  brightness. Every field is advisory: the Camera clamps it, may refuse it, and
-  reports what actually happened.
+  playlist, switch service, refresh the playlist list; for the light, on/off and
+  brightness; the talk-back gain; the picture-brightness boost and its night-boost
+  switch; and the complete `DetectionSettings` for the alerts. Every field is
+  advisory: the Camera clamps it, may refuse it, and reports what actually happened.
 - `nursery` — Camera → Viewer. Music availability, transport state, now-playing,
-  volume, the playlist shortlist, and the light's availability, on-state and level.
+  volume, the playlist shortlist, the light's availability, on-state and level, the
+  picture-brightness state (including whether the phone has hardware low-light
+  boost and the exposure compensation it actually accepted), and the alert settings
+  the Camera is running — plus whether it failed to open its microphone.
 
 The Viewer holds **no** state of its own — it renders the Camera's report — so a
 control can be slow but never wrong. Commands go through the same seal as offers and
@@ -112,6 +130,22 @@ night. The reported on-state is read from `isTorchActive`, not from intent, so a
 torch iOS switched off for heat shows as off. It is switched off — and the intent
 cleared — whenever capture stops, so a light can never come back on by itself.
 
+**Picture brightness** is `CameraSensitivity` (§2.3), edited with the same view on
+both devices. A command changes only the field it carries, so moving the slider
+cannot also flip the night-boost switch. It is offered even while the Camera is
+idle: the value is stored and applied at the next start, unlike the torch, which
+needs a live capture session to reach.
+
+**Alerts** carry the whole `DetectionSettings` value rather than a delta. A Viewer
+edits what the Camera last reported, so what it sends is a complete picture the
+Camera clamps on arrival; two Viewers editing at once end on whichever arrived last
+rather than on a mixture of both. The movement watch area is drawn only on the
+Camera — a Viewer has no preview to draw it over — but it rides through a Viewer's
+edit untouched. The Camera persists the settings to the same store its own alerts
+screen edits, hands them to the detection coordinator, and reports them back; the
+alerts screen re-reads the store so a remote change cannot be silently written over
+by the next local edit.
+
 ### 2.5 Noise and movement notifications
 
 - Detection runs **on the Camera device** — raw audio/video never reaches the backend,
@@ -126,6 +160,10 @@ cleared — whenever capture stops, so a light can never come back on by itself.
   e.g. a window with moving curtains.
 - Both detectors can be enabled/disabled independently by the user (this is the
   "option to enable" — both default to **off** until explicitly turned on).
+- Editable from **either device**: the Camera's own alerts screen, or a Viewer's room
+  controls (§2.4a). Sliders bind to a `sensitivityFraction` (`0…1`, 1 = fires on the
+  quietest room / smallest movement) rather than to the stored threshold, which runs
+  the other way — −60 dBFS is the *most* sensitive noise setting.
 - Debounce: after an event, the same detector stays silent for a cooldown period
   (default 3 min, configurable 1–10 min) to avoid notification storms.
 - On an event the Camera calls the backend `POST /v1/events` endpoint; the backend

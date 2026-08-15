@@ -19,7 +19,8 @@ ios/
 │   │   ├── CryptoCore/      Root secret, HKDF, SAS, sealed envelope
 │   │   ├── Protocol/        QR payload, CribWire-HMAC authenticator, roles
 │   │   ├── Pairing/         Camera + Viewer pairing state machines
-│   │   ├── Nursery/         Music + light command vocabulary and playlist shortlist
+│   │   ├── Nursery/         Music, light, picture-brightness and alert command
+│   │   │                    vocabulary, plus the playlist shortlist
 │   │   └── API/             Async REST client and its transport seam
 │   └── Tests/               Vector contract tests + state machine + client tests
 ├── CribWire/                 App target (SwiftUI) — the only app binary

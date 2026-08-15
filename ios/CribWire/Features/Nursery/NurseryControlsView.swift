@@ -1,7 +1,8 @@
 import CribWireKit
 import SwiftUI
 
-/// The Viewer's music and light controls.
+/// The Viewer's controls for the other room: music, voice, light, how bright the
+/// picture is, and what the Camera raises an alert about.
 ///
 /// Designed for one hand in a dark room by someone who is not fully awake, which
 /// rules out most of what a music UI normally does. There is no browsing, no
@@ -21,6 +22,19 @@ struct NurseryControlsView: View {
             musicCard
             talkbackCard
             lightCard
+            // The picture and the alerts are settings rather than actuators, so
+            // they sit below the three controls that do something to the room
+            // right now. They are here rather than on a screen of their own
+            // because this sheet is already "the camera in the other room", and
+            // a parent looking at a black picture is looking at it here.
+            SensitivityControlsView(
+                state: state.sensitivity,
+                send: { send(.sensitivity($0)) }
+            )
+            AlertsControlsView(
+                state: state.alerts,
+                send: { send(.alerts($0)) }
+            )
         }
         .sheet(isPresented: $showPlaylists) {
             PlaylistPickerView(music: state.music) { playlist in

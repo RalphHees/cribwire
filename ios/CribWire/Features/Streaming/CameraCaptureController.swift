@@ -12,9 +12,11 @@ import WebRTC
 ///
 /// Two things here are about the room rather than the protocol:
 ///
-/// - **Low-light boost** — a nursery is dark. Where the hardware offers it, the
-///   low-light boost and a longer maximum exposure are enabled, which is worth
-///   far more than any bitrate the ladder can buy.
+/// - **Light sensitivity** — a nursery is dark, and a phone's automatic exposure
+///   settles on a picture that is correct and black. `CameraSensitivity` is the
+///   override: exposure compensation, the hardware low-light boost, and — at the
+///   top of the range — a lower frame rate so each frame is exposed for longer.
+///   It is worth far more than any bitrate the ladder can buy.
 /// - **Capture-only mode** — with no Viewer connected the camera keeps running
 ///   only if a detector needs the frames. Otherwise capture stops outright, which
 ///   is the single biggest thing the Camera can do for its battery.
@@ -54,6 +56,12 @@ final class CameraCaptureController {
     /// night light switched itself off the first time the bitrate moved.
     private var desiredLight: (isOn: Bool, level: Double) = (false, LightLevels.default)
 
+    /// How much light the picture should be made from. Held here for the same
+    /// reason as `desiredLight`: a capture restart re-reads it, because every
+    /// exposure setting is a property of a session that the ladder throws away
+    /// each time it moves a rung.
+    private(set) var sensitivity: CameraSensitivity
+
     private let videoSource: RTCVideoSource
     private let capturer: RTCCameraVideoCapturer
     /// Sits between the capturer and the source so movement detection sees the
@@ -63,8 +71,10 @@ final class CameraCaptureController {
 
     init(
         factory: RTCPeerConnectionFactory = WebRTCStack.factory,
+        sensitivity: CameraSensitivity = .default,
         onLumaFrame: @escaping @Sendable (LumaFrame) -> Void = { _ in }
     ) {
+        self.sensitivity = sensitivity
         let source = factory.videoSource()
         self.videoSource = source
         let tap = CapturerFrameTap(source: source, onLumaFrame: onLumaFrame)
@@ -101,9 +111,13 @@ final class CameraCaptureController {
             return
         }
 
-        configureForLowLight(device)
-
-        let fps = min(quality.fps, Self.maximumFrameRate(of: format))
+        // The sensitivity ceiling is applied to the *ladder's* rate rather than
+        // replacing it: a poor link that has dropped to 15 fps is not asked to
+        // climb back up because someone brightened the picture.
+        let fps = min(
+            min(quality.fps, sensitivity.frameRateCeiling ?? quality.fps),
+            Self.maximumFrameRate(of: format)
+        )
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             capturer.startCapture(with: device, format: format, fps: fps) { _ in
                 continuation.resume()
@@ -111,6 +125,12 @@ final class CameraCaptureController {
         }
         isCapturing = true
         activeDevice = device
+        // **After** the capturer has started, not before. Starting it sets the
+        // device's active format, and a format change resets the exposure
+        // configuration that hangs off it — so a bias applied first would be
+        // silently thrown away, and the dark room this setting exists for would
+        // come back exactly as dark.
+        applySensitivity(to: device)
         // Restarting the session cleared the torch. Put it back, or a Viewer's
         // night light goes out every time the quality ladder moves a rung.
         applyDesiredLight()
@@ -303,21 +323,84 @@ final class CameraCaptureController {
         Int(format.videoSupportedFrameRateRanges.map(\.maxFrameRate).max() ?? 30)
     }
 
-    /// Turns on whatever this device offers for a dark room.
+    // MARK: - Light sensitivity
+
+    /// Changes how much light the picture is made from.
+    ///
+    /// Asynchronous because the top of the range costs a capture restart: the
+    /// frame rate is part of the format the session was started with, and it is
+    /// the one lever here that genuinely lets more light onto the sensor rather
+    /// than amplifying what already reached it. Exposure compensation and the
+    /// hardware boost apply to the running session with no restart at all, which
+    /// is what keeps a slider drag from stuttering the stream.
+    @discardableResult
+    func setSensitivity(_ settings: CameraSensitivity) async -> SensitivityState {
+        let previousCeiling = sensitivity.frameRateCeiling
+        sensitivity = settings
+
+        if isCapturing, previousCeiling != settings.frameRateCeiling {
+            // Re-enters `start`, which re-reads the sensitivity for both the
+            // frame rate and the device configuration — and puts the torch back.
+            await start(quality: quality)
+        } else if let device = activeDevice {
+            applySensitivity(to: device)
+        }
+        return sensitivityState
+    }
+
+    /// What the exposure is actually set to, read from the device.
+    var sensitivityState: SensitivityState {
+        guard isCapturing, let device = activeDevice else {
+            // Idle is not "unavailable": the value is stored and applied at the
+            // next start, so it is still worth changing from a Viewer.
+            return SensitivityState(
+                availability: .cameraIdle,
+                settings: sensitivity,
+                supportsLowLightBoost: false,
+                exposureBiasEV: nil
+            )
+        }
+        let supportsBias = device.minExposureTargetBias < device.maxExposureTargetBias
+        return SensitivityState(
+            availability: supportsBias ? .ready : .unsupported,
+            settings: sensitivity,
+            supportsLowLightBoost: device.isLowLightBoostSupported,
+            // Read back rather than computed: the device clamps to its own
+            // supported range, which on some hardware is narrower than the
+            // slider, and a Viewer should see what it got and not what it asked
+            // for.
+            exposureBiasEV: Double(device.exposureTargetBias)
+        )
+    }
+
+    /// Turns on whatever this device offers for a dark room, at the level the
+    /// current sensitivity asks for.
     ///
     /// Every step is individually optional — hardware support varies and a
     /// missing capability must never stop the stream — so each is guarded and the
     /// whole thing is best-effort.
-    private func configureForLowLight(_ device: AVCaptureDevice) {
+    private func applySensitivity(to device: AVCaptureDevice) {
         guard (try? device.lockForConfiguration()) != nil else { return }
         defer { device.unlockForConfiguration() }
 
         if device.isLowLightBoostSupported {
-            device.automaticallyEnablesLowLightBoostWhenAvailable = true
+            device.automaticallyEnablesLowLightBoostWhenAvailable = sensitivity.lowLightBoost
         }
         if device.isExposureModeSupported(.continuousAutoExposure) {
             device.exposureMode = .continuousAutoExposure
         }
+        // Compensation, not a fixed exposure: the room changes when a light is
+        // switched on in the hallway, and a Camera pinned to one exposure would
+        // then be as unwatchable in the other direction. This tells the automatic
+        // exposure to aim brighter than it thinks is right, and lets it keep
+        // doing its job around that.
+        //
+        // Clamped to what this device supports before it is set: the setter traps
+        // on an out-of-range value rather than clamping it itself.
+        let requestedBias = Float(sensitivity.exposureBiasEV)
+        let bias = min(max(requestedBias, device.minExposureTargetBias), device.maxExposureTargetBias)
+        device.setExposureTargetBias(bias, completionHandler: nil)
+
         if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
             device.whiteBalanceMode = .continuousAutoWhiteBalance
         }

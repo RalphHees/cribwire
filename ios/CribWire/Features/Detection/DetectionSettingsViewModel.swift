@@ -46,4 +46,21 @@ final class DetectionSettingsViewModel {
     func updateLevel(_ level: Double) {
         currentLevel = level
     }
+
+    /// Re-reads the store, if something else has written to it.
+    ///
+    /// Something else now can: a Viewer can change these settings from the other
+    /// room, and the change lands in the same `UserDefaults` this screen edits. A
+    /// screen that kept showing the values it loaded at launch would quietly undo
+    /// that the next time anything here was touched.
+    ///
+    /// The equality guard is what makes it safe to call often, including from a
+    /// `UserDefaults` change notification that this very screen caused: reloading
+    /// an identical value would otherwise write it straight back and, mid-drag,
+    /// fight the finger.
+    func reload() {
+        let loaded = store.load()
+        guard loaded != storedSettings else { return }
+        storedSettings = loaded
+    }
 }

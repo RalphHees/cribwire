@@ -657,3 +657,124 @@ final class MusicRecentsStoreTests: XCTestCase {
         XCTAssertTrue(MusicRecentsStore(defaults: defaults).load().entries.isEmpty)
     }
 }
+
+/// The two settings a Viewer can change on the Camera: how bright the picture is,
+/// and what raises an alert.
+///
+/// Both are *settings*, not actuators, and that is the whole of what these tests
+/// pin down: a change arriving from the other room has to be stored — so the
+/// Camera comes back tuned after a restart — and an alert change has to reach
+/// whoever runs the detectors, because this type deliberately does not.
+@MainActor
+final class NurseryRemoteSettingsTests: XCTestCase {
+
+    private let suiteName = "cribwire.tests.remoteSettings"
+
+    override func tearDown() {
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    private func makeController(defaults: UserDefaults) -> NurseryController {
+        NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [FakeMusicProvider(availability: .ready, canControlPlayback: true)],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+    }
+
+    func testABrightnessChangeIsStoredSoTheCameraComesBackTuned() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+
+        await controller.apply(.sensitivity(.setBoost(0.8)))
+
+        XCTAssertEqual(controller.state.sensitivity.settings.boost, 0.8)
+        XCTAssertEqual(
+            CameraSensitivityStore(defaults: defaults).load().boost,
+            0.8,
+            "a Camera restarted at midnight has to come back as bright as it was left"
+        )
+    }
+
+    func testABrightnessCommandChangesOnlyWhatItCarries() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        CameraSensitivityStore(defaults: defaults).save(
+            CameraSensitivity(boost: 0.2, lowLightBoost: false)
+        )
+        let controller = makeController(defaults: defaults)
+
+        await controller.apply(.sensitivity(.setBoost(0.9)))
+
+        XCTAssertEqual(controller.state.sensitivity.settings.boost, 0.9)
+        XCTAssertFalse(
+            controller.state.sensitivity.settings.lowLightBoost,
+            "moving the slider must not also flip a switch the Viewer never touched"
+        )
+    }
+
+    func testAnIdleCameraStillReportsTheBrightnessAsChangeable() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+
+        await controller.reload()
+
+        XCTAssertEqual(controller.state.sensitivity.availability, .cameraIdle)
+        XCTAssertTrue(controller.state.sensitivity.isControllable)
+    }
+
+    func testAnAlertChangeIsStoredAndHandedToWhoeverRunsTheDetectors() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+
+        var applied: [DetectionSettings] = []
+        controller.onAlertSettingsChange = { applied.append($0) }
+
+        let settings = DetectionSettings(
+            noise: NoiseDetectionSettings(isEnabled: true, thresholdDBFS: -45),
+            cooldown: 300
+        )
+        await controller.apply(.alerts(settings))
+
+        XCTAssertEqual(applied, [settings], "storing them is not the same as running them")
+        XCTAssertEqual(DetectionSettingsStore(defaults: defaults).load(), settings)
+        XCTAssertEqual(controller.state.alerts.settings, settings)
+        XCTAssertTrue(controller.state.alerts.isEditable)
+    }
+
+    /// The report coming back is not a new instruction. Feeding it round again
+    /// would have the engine re-applying its own settings on every refresh tick.
+    func testReportingAlertsBackDoesNotAskForThemToBeAppliedAgain() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let controller = makeController(defaults: defaults)
+
+        var applied: [DetectionSettings] = []
+        controller.onAlertSettingsChange = { applied.append($0) }
+
+        controller.reportAlerts(
+            DetectionSettings(movement: MovementDetectionSettings(isEnabled: true)),
+            isMicrophoneUnavailable: true
+        )
+
+        XCTAssertTrue(applied.isEmpty)
+        XCTAssertTrue(controller.state.alerts.isMicrophoneUnavailable)
+        XCTAssertTrue(controller.state.alerts.settings.movement.isEnabled)
+    }
+
+    /// A Camera whose alerts have never been touched still has to say what they
+    /// are: a Viewer that cannot tell "off" from "not reported" cannot offer to
+    /// turn them on.
+    func testAlertsAreReportedFromTheFirstMessageRatherThanAfterTheFirstChange() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        DetectionSettingsStore(defaults: defaults).save(
+            DetectionSettings(noise: NoiseDetectionSettings(isEnabled: true))
+        )
+
+        let controller = makeController(defaults: defaults)
+
+        XCTAssertEqual(controller.state.alerts.availability, .ready)
+        XCTAssertTrue(controller.state.alerts.settings.noise.isEnabled)
+    }
+}

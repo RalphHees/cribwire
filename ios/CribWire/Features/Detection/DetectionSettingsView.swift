@@ -43,6 +43,10 @@ struct DetectionSettingsView: View {
         .navigationTitle("Alerts")
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            // These settings can now be changed from a Viewer, so what was loaded
+            // when this model was created may be stale before the screen is even
+            // opened.
+            model.reload()
             // The meter needs the microphone whether or not noise alerts are on:
             // the whole point is calibrating the threshold before enabling them.
             await AudioLevelMonitor.requestMicrophoneAccess()
@@ -54,6 +58,13 @@ struct DetectionSettingsView: View {
         .onDisappear {
             stopMetering()
             preview.stop()
+        }
+        // A Viewer changing the alerts from the other room writes to the same
+        // store this screen edits. Without this the change would be invisible
+        // here, and the next edit made on this phone would send the stale value
+        // straight back over it.
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            model.reload()
         }
         // Only while the editor is on screen: a camera running behind a settings
         // list is a battery cost with nothing to show for it.
@@ -84,12 +95,14 @@ struct DetectionSettingsView: View {
 
                 if model.settings.noise.isEnabled {
                     VStack(alignment: .leading, spacing: 6) {
-                        Slider(
-                            value: $model.settings.noise.thresholdDBFS,
-                            in: NoiseDetectionSettings.thresholdRange
-                        )
-                        .tint(Theme.Palette.coral)
-                        .accessibilityLabel("Noise sensitivity")
+                        // Bound to the sensitivity, not to the dBFS threshold the
+                        // detector stores. The two run in opposite directions —
+                        // −60 dBFS is the *most* sensitive setting — so this
+                        // slider used to move left for more sensitivity, under
+                        // labels that said the opposite.
+                        Slider(value: $model.settings.noise.sensitivityFraction, in: 0 ... 1)
+                            .tint(Theme.Palette.coral)
+                            .accessibilityLabel("Noise sensitivity")
 
                         HStack {
                             Text("Low")

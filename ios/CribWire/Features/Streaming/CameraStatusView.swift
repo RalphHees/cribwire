@@ -96,6 +96,7 @@ struct CameraStatusView: View {
         ScrollView {
             VStack(spacing: Theme.Metrics.stackSpacing) {
                 preview
+                sensitivityCard
                 statusCard
                 if let warning = batteryWarning { batteryCard(warning) }
                 nurseryCard
@@ -144,6 +145,24 @@ struct CameraStatusView: View {
             }
         }
         .accessibilityLabel("Camera preview")
+    }
+
+    /// Directly under the preview, on purpose: this is the one setting whose
+    /// effect you can only judge by looking at the room it is pointed at, and the
+    /// person setting the Camera up is standing in that room.
+    ///
+    /// It emits commands rather than writing the setting itself, so a change made
+    /// here takes exactly the path a Viewer's change takes — stored once, clamped
+    /// once, and reported back to everyone watching.
+    @ViewBuilder
+    private var sensitivityCard: some View {
+        if let state = engine.nurseryState {
+            SensitivityControlsView(
+                state: state.sensitivity,
+                send: { engine.applyLocally(.sensitivity($0)) },
+                tint: Theme.Palette.coral
+            )
+        }
     }
 
     private var statusCard: some View {
@@ -209,10 +228,20 @@ struct CameraStatusView: View {
         }
     }
 
+    /// What the detectors are set to, preferring the engine's own report.
+    ///
+    /// `services.detectionSettings` reads the store, which tells SwiftUI nothing
+    /// when it changes — so a Viewer that turned movement alerts on from the
+    /// other room used to leave this screen claiming they were still off. The
+    /// engine's `nurseryState` is published on every change from either end.
+    private var alertSettings: DetectionSettings {
+        engine.nurseryState?.alerts.settings ?? services.detectionSettings
+    }
+
     /// The movement watch area, when movement detection is on and it is not the
     /// whole frame (in which case there is nothing to point out).
     private var movementRegion: DetectionRegion? {
-        let movement = services.detectionSettings.movement
+        let movement = alertSettings.movement
         guard movement.isEnabled, !movement.regionOfInterest.isFullFrame else { return nil }
         return movement.regionOfInterest
     }
@@ -263,7 +292,7 @@ struct CameraStatusView: View {
         if engine.detection?.isNoiseDetectionUnavailable == true {
             return String(localized: "Microphone unavailable")
         }
-        let settings = services.detectionSettings
+        let settings = alertSettings
         switch (settings.noise.isEnabled, settings.movement.isEnabled) {
         case (true, true): return String(localized: "Noise and movement")
         case (true, false): return String(localized: "Noise")

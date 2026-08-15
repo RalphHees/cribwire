@@ -60,6 +60,27 @@ public struct NoiseDetectionSettings: Codable, Equatable, Sendable {
         Sensitivity.matching(thresholdDBFS: thresholdDBFS)
     }
 
+    /// The threshold expressed as a *sensitivity*, `0...1`, where 1 fires on the
+    /// quietest room.
+    ///
+    /// Sliders bind to this rather than to `thresholdDBFS`, because the stored
+    /// value runs the other way: −60 dBFS is the most sensitive setting this
+    /// detector offers and −10 dBFS the least. A slider bound straight to the
+    /// threshold moves left for *more* sensitivity, which is why the Low / Medium
+    /// / High labels under it used to sit under the wrong ends.
+    public var sensitivityFraction: Double {
+        get {
+            let least = Self.thresholdRange.upperBound
+            let most = Self.thresholdRange.lowerBound
+            return min(max((least - thresholdDBFS) / (least - most), 0), 1)
+        }
+        set {
+            let least = Self.thresholdRange.upperBound
+            let most = Self.thresholdRange.lowerBound
+            thresholdDBFS = least - min(max(newValue, 0), 1) * (least - most)
+        }
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         // Everything is optional on the way in so a settings file written by an
@@ -116,6 +137,25 @@ public struct MovementDetectionSettings: Codable, Equatable, Sendable {
     public var regionOfInterest: DetectionRegion
 
     public static let changedPixelFractionRange: ClosedRange<Double> = 0.005 ... 0.25
+
+    /// The threshold expressed as a *sensitivity*, `0...1`, where 1 fires on the
+    /// smallest movement.
+    ///
+    /// Same reason as `NoiseDetectionSettings.sensitivityFraction`: the stored
+    /// value is how much of the watch area has to change, so it runs the opposite
+    /// way from the slider a parent is reading.
+    public var sensitivityFraction: Double {
+        get {
+            let least = Self.changedPixelFractionRange.upperBound
+            let most = Self.changedPixelFractionRange.lowerBound
+            return min(max((least - changedPixelFraction) / (least - most), 0), 1)
+        }
+        set {
+            let least = Self.changedPixelFractionRange.upperBound
+            let most = Self.changedPixelFractionRange.lowerBound
+            changedPixelFraction = least - min(max(newValue, 0), 1) * (least - most)
+        }
+    }
 
     public init(
         isEnabled: Bool = false,

@@ -33,6 +33,15 @@ final class NurseryController {
     /// see `publish()`.
     var onStateChange: ((NurseryState) -> Void)?
 
+    /// Called when a Viewer changed the alert settings.
+    ///
+    /// This type stores them and reports them; it does not run the detectors —
+    /// starting and stopping a microphone tap belongs to the engine, which owns
+    /// the detection coordinator and the capture pipeline the settings decide the
+    /// fate of. Persisting here and applying there is the same split as the
+    /// torch: the value is the room's, the hardware is somebody else's.
+    var onAlertSettingsChange: ((DetectionSettings) -> Void)?
+
     /// Set by the engine. The refresh loop only runs while somebody is watching:
     /// polling a music player on a Camera nobody is connected to is battery spent
     /// on an answer no one will read.
@@ -57,6 +66,12 @@ final class NurseryController {
     private let recentsStore: MusicRecentsStore
     private let volume: SystemVolumeController
     private let defaults: UserDefaults
+    /// Both settings a Viewer can edit outlive any connection, so both are read
+    /// from and written straight back to their stores rather than kept only in
+    /// this object: a Camera restarted at midnight comes back tuned the way the
+    /// person who was woken by it left it.
+    private let sensitivityStore: CameraSensitivityStore
+    private let detectionStore: DetectionSettingsStore
     /// Every provider this build knows about, whether or not it is usable here.
     private let allProviders: [any MusicProvider]
     /// The music already playing on this phone, which is usually not ours.
@@ -120,6 +135,8 @@ final class NurseryController {
         self.recentsStore = recentsStore
         self.volume = volume ?? SystemVolumeController()
         self.defaults = defaults
+        self.sensitivityStore = CameraSensitivityStore(defaults: defaults)
+        self.detectionStore = DetectionSettingsStore(defaults: defaults)
         self.allProviders = providers ?? [AppleMusicProvider(), TidalMusicProvider()]
         self.systemRemote = systemRemote ?? MediaPlayerMusicRemote()
         // Straight to the backing store: going through `selectedKind` would
@@ -134,6 +151,16 @@ final class NurseryController {
         if let stored = defaults.object(forKey: Self.talkbackVolumeKey) as? Double {
             self.state.talkback = TalkbackState(volume: stored)
         }
+
+        // Reported from the first message onwards, rather than after the first
+        // change: a Viewer that connects to a Camera whose alerts are off has to
+        // be able to see that, and turn them on.
+        self.state.alerts = AlertsState(
+            availability: .ready,
+            settings: self.detectionStore.load()
+        )
+        self.state.sensitivity = capture?.sensitivityState
+            ?? SensitivityState(availability: .cameraIdle, settings: self.sensitivityStore.load())
     }
 
     // MARK: - Lifecycle
@@ -175,8 +202,19 @@ final class NurseryController {
         let provider = self.provider
         Task { await provider?.stop() }
         // The talk-back gain is carried across: it is what this Camera is set to,
-        // and a monitor being stopped is not somebody changing it.
-        state = NurseryState(talkback: state.talkback)
+        // and a monitor being stopped is not somebody changing it. The exposure
+        // and the alert settings are carried for the same reason — they are
+        // stored settings of this room, not facts about a connection, and
+        // resetting them here would report a Camera that had forgotten them.
+        state = NurseryState(
+            talkback: state.talkback,
+            sensitivity: SensitivityState(
+                availability: .cameraIdle,
+                settings: state.sensitivity.settings,
+                supportsLowLightBoost: state.sensitivity.supportsLowLightBoost
+            ),
+            alerts: state.alerts
+        )
         lastDelivered = nil
     }
 
@@ -194,6 +232,12 @@ final class NurseryController {
         }
         if let light = command.light, !light.isEmpty {
             apply(light: light)
+        }
+        if let sensitivity = command.sensitivity, !sensitivity.isEmpty {
+            await apply(sensitivity: sensitivity)
+        }
+        if let alerts = command.alerts, let settings = alerts.settings {
+            apply(alerts: settings)
         }
         publish()
     }
@@ -347,6 +391,63 @@ final class NurseryController {
         state.light = capture.setLight(isOn: command.isOn, level: command.level)
     }
 
+    /// Changes how much light the Camera makes its picture from.
+    ///
+    /// Folded onto what the Camera is currently running rather than taken whole,
+    /// so a Viewer that moved only the slider cannot also flip the hardware boost
+    /// back to whatever its own screen last drew.
+    private func apply(sensitivity command: SensitivityCommand) async {
+        let merged = command.applied(to: sensitivitySettings)
+        guard merged != sensitivitySettings else { return }
+        sensitivityStore.save(merged)
+        if let capture {
+            state.sensitivity = await capture.setSensitivity(merged)
+        } else {
+            state.sensitivity = SensitivityState(availability: .cameraIdle, settings: merged)
+        }
+    }
+
+    /// The settings the Camera is running, whether or not capture is up. The
+    /// capture controller is the authority while it exists — it is what actually
+    /// holds the device — and the store answers for a Camera that is idle.
+    private var sensitivitySettings: CameraSensitivity {
+        capture?.sensitivity ?? sensitivityStore.load()
+    }
+
+    /// Applies a Viewer's alert settings.
+    ///
+    /// Stored here and handed on: the detectors themselves are started and
+    /// stopped by whoever owns them. Reported straight back rather than after the
+    /// engine has acted, because the settings *are* what was asked for — the
+    /// engine can only fail to open a microphone, and that arrives separately as
+    /// `isMicrophoneUnavailable`.
+    private func apply(alerts settings: DetectionSettings) {
+        detectionStore.save(settings)
+        state.alerts = AlertsState(
+            availability: .ready,
+            settings: settings,
+            isMicrophoneUnavailable: state.alerts.isMicrophoneUnavailable
+        )
+        onAlertSettingsChange?(settings)
+    }
+
+    /// Camera-side: the alert settings changed on this phone, or a detector
+    /// reported whether it could open the microphone.
+    ///
+    /// Deliberately does not call `onAlertSettingsChange` — this is the report
+    /// coming back, not a new instruction, and feeding it round again would have
+    /// the engine re-applying its own settings on every tick.
+    func reportAlerts(_ settings: DetectionSettings, isMicrophoneUnavailable: Bool) {
+        let updated = AlertsState(
+            availability: .ready,
+            settings: settings,
+            isMicrophoneUnavailable: isMicrophoneUnavailable
+        )
+        guard updated != state.alerts else { return }
+        state.alerts = updated
+        publish()
+    }
+
     // MARK: - Camera-side actions
 
     /// Asks the current provider for whatever authorisation it needs.
@@ -380,6 +481,7 @@ final class NurseryController {
         await reloadPlaylists()
         await refreshMusicState()
         refreshLightState()
+        refreshSensitivityState()
         publish(immediately: true)
     }
 
@@ -453,6 +555,15 @@ final class NurseryController {
         state.light = capture?.lightState ?? LightState(availability: .noHardware)
     }
 
+    /// Re-read rather than remembered, for the same reason as the torch: whether
+    /// exposure can be driven at all depends on there being a capture session,
+    /// and a Viewer that connected while the Camera was idle would otherwise be
+    /// told "idle" for the rest of the night.
+    private func refreshSensitivityState() {
+        state.sensitivity = capture?.sensitivityState
+            ?? SensitivityState(availability: .cameraIdle, settings: sensitivityStore.load())
+    }
+
     private func startRefreshLoop() {
         stopRefreshLoop()
         guard isRunning else { return }
@@ -464,6 +575,7 @@ final class NurseryController {
                 guard let self, !Task.isCancelled, self.isRunning else { return }
                 await self.refreshMusicState()
                 self.refreshLightState()
+                self.refreshSensitivityState()
                 self.publish()
             }
         }

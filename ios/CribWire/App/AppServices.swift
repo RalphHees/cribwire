@@ -131,6 +131,26 @@ final class AppServices {
         DetectionSettingsStore(defaults: defaults).load()
     }
 
+    /// Records alert settings changed from somewhere other than the alerts
+    /// screen — in practice, a Viewer that changed them remotely.
+    ///
+    /// The screen's own view model writes through its store as before; this
+    /// exists so the streaming engine has somewhere to put a change that arrived
+    /// over the wire, rather than holding it only in memory and losing it the
+    /// next time the Camera starts.
+    func saveDetectionSettings(_ settings: DetectionSettings) {
+        DetectionSettingsStore(defaults: defaults).save(settings)
+    }
+
+    /// How much light the Camera makes its picture from.
+    var cameraSensitivity: CameraSensitivity {
+        CameraSensitivityStore(defaults: defaults).load()
+    }
+
+    func saveCameraSensitivity(_ sensitivity: CameraSensitivity) {
+        CameraSensitivityStore(defaults: defaults).save(sensitivity)
+    }
+
     // MARK: - API access
 
     /// Builds a client for a stored pairing, loading `K_auth` from the Keychain.

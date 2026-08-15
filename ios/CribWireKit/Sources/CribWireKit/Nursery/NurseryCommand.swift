@@ -1,6 +1,13 @@
 import Foundation
 
-/// What a Viewer asks the Camera to do to the room: the music, or the light.
+/// What a Viewer asks the Camera to do: the music, the light, the voice coming
+/// back, how much light the picture is made from, and what the Camera raises an
+/// alert about.
+///
+/// The last two are settings rather than actuators, and they are here for the
+/// same reason the others are: the person who finds out that the picture is too
+/// dark, or that the noise threshold is wrong, is the one watching — in another
+/// room, at night, holding the Viewer.
 ///
 /// This is the one place in CribWire where a Viewer *actuates* the Camera rather
 /// than observing it, so two rules apply to everything in this file:
@@ -20,15 +27,21 @@ public struct NurseryCommand: Codable, Equatable, Sendable {
     public var music: MusicCommand?
     public var light: LightCommand?
     public var talkback: TalkbackCommand?
+    public var sensitivity: SensitivityCommand?
+    public var alerts: AlertsCommand?
 
     public init(
         music: MusicCommand? = nil,
         light: LightCommand? = nil,
-        talkback: TalkbackCommand? = nil
+        talkback: TalkbackCommand? = nil,
+        sensitivity: SensitivityCommand? = nil,
+        alerts: AlertsCommand? = nil
     ) {
         self.music = music
         self.light = light
         self.talkback = talkback
+        self.sensitivity = sensitivity
+        self.alerts = alerts
     }
 
     /// Nothing to do. A command that decodes to this is dropped rather than
@@ -36,6 +49,7 @@ public struct NurseryCommand: Codable, Equatable, Sendable {
     /// command it has no field for.
     public var isEmpty: Bool {
         music == nil && light == nil && talkback == nil
+            && sensitivity == nil && alerts == nil
     }
 
     public static func music(_ command: MusicCommand) -> NurseryCommand {
@@ -50,10 +64,20 @@ public struct NurseryCommand: Codable, Equatable, Sendable {
         NurseryCommand(talkback: command)
     }
 
+    public static func sensitivity(_ command: SensitivityCommand) -> NurseryCommand {
+        NurseryCommand(sensitivity: command)
+    }
+
+    public static func alerts(_ settings: DetectionSettings) -> NurseryCommand {
+        NurseryCommand(alerts: .set(settings))
+    }
+
     enum CodingKeys: String, CodingKey {
         case music = "m"
         case light = "l"
         case talkback = "t"
+        case sensitivity = "s"
+        case alerts = "al"
     }
 
     public init(from decoder: Decoder) throws {
@@ -65,6 +89,11 @@ public struct NurseryCommand: Codable, Equatable, Sendable {
         self.music = try? container.decodeIfPresent(MusicCommand.self, forKey: .music)
         self.light = try? container.decodeIfPresent(LightCommand.self, forKey: .light)
         self.talkback = try? container.decodeIfPresent(TalkbackCommand.self, forKey: .talkback)
+        self.sensitivity = try? container.decodeIfPresent(
+            SensitivityCommand.self,
+            forKey: .sensitivity
+        )
+        self.alerts = try? container.decodeIfPresent(AlertsCommand.self, forKey: .alerts)
     }
 }
 

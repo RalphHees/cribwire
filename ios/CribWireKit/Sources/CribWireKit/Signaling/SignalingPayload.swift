@@ -49,7 +49,8 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         /// 12 %" is answering the question behind most failed nights — the Camera
         /// quietly went flat — which is worth a message type of its own.
         case status
-        /// Viewer → Camera: change the music or the light in the room.
+        /// Viewer → Camera: change the music, the light, how bright the picture
+        /// is, or what the Camera raises an alert about.
         ///
         /// The only message in the protocol that *acts* on the Camera rather than
         /// describing it, which is why the Camera checks two things before obeying
@@ -59,7 +60,8 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         /// secret; the session check means the sender is the peer this Camera is
         /// actually streaming to, not merely someone who once scanned the code.
         case control
-        /// Camera → Viewer: what the music and the light are currently doing.
+        /// Camera → Viewer: what the music, the light, the exposure and the
+        /// alert settings are currently set to.
         ///
         /// Sent on every change, and once to each Viewer as it verifies — exactly
         /// like `status`. The Viewer holds no independent notion of the state, it

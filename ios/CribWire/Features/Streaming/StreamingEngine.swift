@@ -389,7 +389,11 @@ final class StreamingEngine: ObservableObject {
         // capture controller's frame tap delivers straight into it.
         let detection = DetectionCoordinator(record: record, services: services)
         self.detection = detection
-        let capture = CameraCaptureController { frame in
+        // Started at the exposure this Camera was last left at, rather than at
+        // the phone's own idea of a correct picture: the setting is why the room
+        // is watchable, so it has to be in place before the first frame, not
+        // applied a moment after the Viewer has already seen black.
+        let capture = CameraCaptureController(sensitivity: services.cameraSensitivity) { frame in
             Task { @MainActor in
                 detection.ingest(frame)
             }
@@ -431,6 +435,15 @@ final class StreamingEngine: ObservableObject {
                 await self?.broadcastNursery(state)
             }
         }
+        // A Viewer changing the alert settings is the one command that has to
+        // reach the detectors rather than the room, and the detectors are this
+        // engine's. The controller has already stored the settings by the time
+        // this runs, so `services.detectionSettings` and what arrives here are
+        // the same value — it is passed anyway rather than re-read, so the
+        // detector cannot end up a step behind the store.
+        nursery?.onAlertSettingsChange = { [weak self] settings in
+            self?.applyDetectionSettings(settings)
+        }
         nursery?.start()
 
         connectTask = Task { [weak self] in
@@ -443,10 +456,33 @@ final class StreamingEngine: ObservableObject {
 
     /// Starts or stops each detector to match the alerts screen, and tells the
     /// capture tap whether to extract luma.
+    ///
+    /// The one path for a change from either end: the Camera's own alerts screen
+    /// calls it directly, and a Viewer's change arrives through the nursery
+    /// controller's callback. Whichever it was, Viewers are told afterwards — a
+    /// switch flipped on the camera phone has to move on the watching device too,
+    /// or the two screens disagree about what will wake somebody up tonight.
     func applyDetectionSettings(_ settings: DetectionSettings) {
         detection?.apply(settings)
         capture?.setMovementDetectionEnabled(settings.movement.isEnabled)
+        // After `apply`, which is what discovers a microphone it cannot open.
+        nursery?.reportAlerts(
+            settings,
+            isMicrophoneUnavailable: detection?.isNoiseDetectionUnavailable ?? false
+        )
         Task { await self.updateCaptureForViewerCount() }
+    }
+
+    /// Camera-side: apply a change made on this phone by the same path a
+    /// Viewer's takes.
+    ///
+    /// The camera screen's own controls send commands rather than reaching into
+    /// the controller, so there is exactly one place that clamps a value, stores
+    /// it and reports it — and a control cannot behave differently depending on
+    /// which end of the house it was touched from.
+    func applyLocally(_ command: NurseryCommand) {
+        guard role == .camera, let nursery else { return }
+        Task { await nursery.apply(command) }
     }
 
     /// Battery readings from the Camera screen.
@@ -515,6 +551,7 @@ final class StreamingEngine: ObservableObject {
         isAudioInterrupted = false
         detection?.stop()
         nursery?.onStateChange = nil
+        nursery?.onAlertSettingsChange = nil
         nursery?.stop()
         nurseryState = nil
 
