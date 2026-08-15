@@ -141,6 +141,24 @@ final class AppServices {
     /// the server derives the role from the device row it authenticated. Returns
     /// `nil` if this device has no stored identity — that means pairing never
     /// completed, and there is nothing it is entitled to call.
+    /// Refreshes the deployment configuration the backend can change between
+    /// releases, if the cached copy has aged out.
+    ///
+    /// Deliberately silent about failure. Every value it fetches has a built-in
+    /// fallback, so a Camera that cannot reach the backend behaves exactly as it
+    /// did before — and a monitor is not a thing to hold up, or to report an
+    /// error on, because a music service's client id could not be refreshed.
+    func refreshRemoteConfiguration(for record: PairingRecord) async {
+        let store = RemoteConfigurationStore(defaults: defaults)
+        guard store.load().isStale() else { return }
+        guard let client = (try? await makeAPIClient(for: record)) ?? nil,
+              let response = try? await client.appConfiguration()
+        else {
+            return
+        }
+        store.record(response)
+    }
+
     func makeAPIClient(for record: PairingRecord) async throws -> APIClient? {
         // A local-network pairing has no backend to call, by construction. Every
         // caller already treats `nil` as "nothing this pairing is entitled to

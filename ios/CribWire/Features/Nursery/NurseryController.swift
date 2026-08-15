@@ -59,6 +59,8 @@ final class NurseryController {
     private let defaults: UserDefaults
     /// Every provider this build knows about, whether or not it is usable here.
     private let allProviders: [any MusicProvider]
+    /// The music already playing on this phone, which is usually not ours.
+    private let systemRemote: any SystemMusicRemote
 
     private static let providerKey = "cribwire.musicProvider"
 
@@ -110,13 +112,15 @@ final class NurseryController {
         recentsStore: MusicRecentsStore = MusicRecentsStore(),
         volume: SystemVolumeController? = nil,
         defaults: UserDefaults = .standard,
-        providers: [any MusicProvider]? = nil
+        providers: [any MusicProvider]? = nil,
+        systemRemote: (any SystemMusicRemote)? = nil
     ) {
         self.capture = capture
         self.recentsStore = recentsStore
         self.volume = volume ?? SystemVolumeController()
         self.defaults = defaults
         self.allProviders = providers ?? [AppleMusicProvider(), TidalMusicProvider()]
+        self.systemRemote = systemRemote ?? MediaPlayerMusicRemote()
         // Straight to the backing store: going through `selectedKind` would
         // write the value it was just read from back into UserDefaults.
         self.storedSelectedKind = defaults.string(forKey: Self.providerKey)
@@ -138,6 +142,7 @@ final class NurseryController {
             self.publish()
         }
         volume.start()
+        systemRemote.start()
 
         Task { await self.reload() }
     }
@@ -150,6 +155,10 @@ final class NurseryController {
         broadcastTask = nil
         volume.onChange = nil
         volume.stop()
+        // Only the notifications are ended. The Music app is left exactly as it
+        // was found: whatever the parent had playing before CribWire started is
+        // not something a monitor shutting down gets to stop.
+        systemRemote.stop()
 
         // The light is the capture controller's to switch off — it does so as
         // part of stopping capture, which is the only ordering that can work.
@@ -189,6 +198,15 @@ final class NurseryController {
             return
         }
 
+        // Transport goes to whichever player is actually making the sound — see
+        // `transportTarget`. Everything below it is CribWire's own player by
+        // definition: only it has a catalogue to choose from.
+        if command.action.isTransport, case .system = transportTarget {
+            apply(transport: command.action)
+            await refreshMusicState()
+            return
+        }
+
         guard let provider else { return }
 
         switch command.action {
@@ -224,6 +242,53 @@ final class NurseryController {
         }
 
         await refreshMusicState()
+    }
+
+    /// Which player a transport command should reach.
+    ///
+    /// The Camera can be making sound two ways at once — a playlist a Viewer
+    /// started through CribWire, and whatever the parent left playing in the
+    /// Music app — and only one of them is the one a pause is meant for.
+    private enum TransportTarget {
+        /// CribWire's own queue.
+        case provider
+        /// The Music app.
+        case system
+    }
+
+    private var transportTarget: TransportTarget {
+        guard let provider, provider.canControlPlayback else { return .system }
+        // Ours wins whenever we have something: a Viewer that chose this playlist
+        // means this playlist, and CribWire's player is the only one that can
+        // resume it after a pause.
+        if provider.isPlaying || provider.currentPlaylistID != nil { return .provider }
+        // Nothing of ours is loaded, so anything the room can hear belongs to
+        // somebody else's player. Reaching for it is the only reading of the
+        // button that does what the parent meant.
+        return systemRemote.isAvailable ? .system : .provider
+    }
+
+    private func apply(transport action: MusicCommand.Action) {
+        switch action {
+        case .play:
+            systemRemote.play()
+        case .pause:
+            systemRemote.pause()
+        case .toggle:
+            // Against the Camera's own reading, for the same reason as the
+            // provider path: the Viewer's picture is a round trip old.
+            systemRemote.isPlaying ? systemRemote.pause() : systemRemote.play()
+        case .next:
+            systemRemote.next()
+        case .previous:
+            systemRemote.previous()
+        case .stop:
+            // There is no "stop" on a player this app does not own, and pausing
+            // is what a parent means by it anyway.
+            systemRemote.pause()
+        case .selectPlaylist, .setProvider, .refreshPlaylists, .setVolume, .unknown:
+            break
+        }
     }
 
     private func select(playlistID: String?, provider requested: MusicProviderKind?) async {
@@ -311,20 +376,43 @@ final class NurseryController {
     }
 
     private func refreshMusicState() async {
+        // What is playing, and whether it can be driven, are read from whichever
+        // player the buttons would actually reach — so the line under the header
+        // is the track those buttons would pause.
+        let target = transportTarget
+        let isSystem = target == .system
+        // Annotated: the ternary otherwise erases the labels off the tuple.
+        let playing: (title: String?, artist: String?) = isSystem
+            ? systemRemote.nowPlaying
+            : provider?.nowPlaying ?? (nil, nil)
+        let isPlaying = isSystem ? systemRemote.isPlaying : provider?.isPlaying ?? false
+        let canControlPlayback = isSystem
+            ? systemRemote.isAvailable
+            : provider?.canControlPlayback ?? false
+
         guard let provider else {
             state.music = MusicState(
                 provider: selectedKind,
                 availability: .notConfigured,
+                canControlPlayback: canControlPlayback,
+                isPlaying: isPlaying,
+                // Still reported with no music service at all: this is the
+                // *device's* output volume, so it turns down whatever is making
+                // sound in the nursery — including an app CribWire knows nothing
+                // about.
+                volume: volume.canSetVolume ? volume.volume : nil,
+                title: playing.title,
+                artist: playing.artist,
                 availableProviders: []
             )
             return
         }
         let availability = await provider.availability()
-        let playing = provider.nowPlaying
         state.music = MusicState(
             provider: provider.kind,
             availability: availability,
-            isPlaying: provider.isPlaying,
+            canControlPlayback: canControlPlayback,
+            isPlaying: isPlaying,
             // Reported only when it can be moved: a slider the Viewer can drag
             // and the Camera cannot honour is worse than no slider.
             volume: volume.canSetVolume ? volume.volume : nil,

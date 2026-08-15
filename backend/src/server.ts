@@ -10,6 +10,7 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type { AppContext } from './http/context.ts';
 import { sendError } from './http/errors.ts';
+import { registerConfigRoutes } from './routes/config.ts';
 import { registerDeviceRoutes } from './routes/devices.ts';
 import { registerEventRoutes } from './routes/events.ts';
 import { registerHealthRoutes } from './routes/health.ts';
@@ -103,6 +104,7 @@ export function buildServer(ctx: AppContext): FastifyInstance {
   registerDeviceRoutes(app, ctx);
   registerTurnRoutes(app, ctx);
   registerEventRoutes(app, ctx);
+  registerConfigRoutes(app, ctx);
 
   // A dedicated metrics port keeps the scrape endpoint off the public
   // listener; when they are the same port it is served here.

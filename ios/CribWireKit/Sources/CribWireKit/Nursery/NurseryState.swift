@@ -59,6 +59,17 @@ public struct MusicState: Codable, Equatable, Sendable {
     /// The provider the Camera is currently set to.
     public var provider: MusicProviderKind
     public var availability: Availability
+    /// Whether transport commands — play, pause, next, previous — actually reach
+    /// a player right now.
+    ///
+    /// A **lower bar than `availability == .ready`**, and deliberately separate
+    /// from it. `.ready` answers "can this Camera start a playlist from the
+    /// service's catalogue?", which is what a subscription buys. Driving music
+    /// that is already going needs no subscription at all: a lapsed account still
+    /// plays a downloaded library, and pause still means pause. Folding the two
+    /// questions together is what used to take the whole music card away from a
+    /// parent who only wanted to turn the lullaby off.
+    public var canControlPlayback: Bool
     public var isPlaying: Bool
     /// System output volume on the Camera device, `0...1`. `nil` while unknown.
     public var volume: Double?
@@ -76,6 +87,9 @@ public struct MusicState: Codable, Equatable, Sendable {
     public init(
         provider: MusicProviderKind = .appleMusic,
         availability: Availability = .unavailable,
+        /// `nil` means "work it out from `availability`", which is what a Camera
+        /// too old to send the field is effectively saying.
+        canControlPlayback: Bool? = nil,
         isPlaying: Bool = false,
         volume: Double? = nil,
         title: String? = nil,
@@ -86,6 +100,7 @@ public struct MusicState: Codable, Equatable, Sendable {
     ) {
         self.provider = provider
         self.availability = availability
+        self.canControlPlayback = canControlPlayback ?? (availability == .ready)
         self.isPlaying = isPlaying
         self.volume = volume.map { min(max($0, 0), 1) }
         self.title = title.map { PlaylistSummary.truncate($0, to: PlaylistSummary.maxNameLength) }
@@ -95,9 +110,12 @@ public struct MusicState: Codable, Equatable, Sendable {
         self.availableProviders = availableProviders
     }
 
-    /// Whether the transport controls should be live. A Camera that cannot play
-    /// gets a reason on screen instead of four buttons that do nothing.
-    public var isControllable: Bool {
+    /// Whether the Camera can be asked to start a playlist.
+    ///
+    /// The one part of the music card a subscription really does gate: choosing
+    /// something new to play means reaching the service's catalogue. Everything
+    /// else — the transport buttons and the volume — is offered regardless.
+    public var canChoosePlaylists: Bool {
         availability == .ready
     }
 
@@ -113,6 +131,7 @@ public struct MusicState: Codable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
         case provider = "p"
         case availability = "av"
+        case canControlPlayback = "ctl"
         case isPlaying = "pl"
         case volume = "v"
         case title = "ti"
@@ -136,6 +155,13 @@ public struct MusicState: Codable, Equatable, Sendable {
             String.self,
             forKey: .availability
         )
+        // Absent from a Camera that predates the split between "can play a
+        // playlist" and "can be told to pause". `nil` is passed through so the
+        // initialiser derives it from availability, exactly as that Camera meant.
+        let canControlPlayback: Bool? = try? container.decodeIfPresent(
+            Bool.self,
+            forKey: .canControlPlayback
+        )
         let isPlaying: Bool? = try? container.decodeIfPresent(Bool.self, forKey: .isPlaying)
         let volume: Double? = try? container.decodeIfPresent(Double.self, forKey: .volume)
         let title: String? = try? container.decodeIfPresent(String.self, forKey: .title)
@@ -156,6 +182,7 @@ public struct MusicState: Codable, Equatable, Sendable {
             // not as ready: the safe reading of "I do not understand the state of
             // your music session" is never "go ahead and press play".
             availability: availabilityRaw.map { Availability(rawValue: $0) ?? .unknown } ?? .unknown,
+            canControlPlayback: canControlPlayback,
             isPlaying: isPlaying ?? false,
             volume: volume,
             title: title,

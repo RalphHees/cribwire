@@ -206,9 +206,57 @@ final class NurseryTests: XCTestCase {
         let decoded = try JSONDecoder().decode(NurseryState.self, from: json)
 
         XCTAssertEqual(decoded.music.availability, .unknown)
-        XCTAssertFalse(decoded.music.isControllable)
+        XCTAssertFalse(decoded.music.canControlPlayback)
+        XCTAssertFalse(decoded.music.canChoosePlaylists)
         XCTAssertEqual(decoded.light.availability, .unknown)
         XCTAssertFalse(decoded.light.isControllable)
+    }
+
+    /// The point of the split: a lapsed subscription costs the parent the playlist
+    /// picker and nothing else. Pausing what is already playing, and turning the
+    /// room down, are not things anyone buys a subscription for.
+    func testALapsedSubscriptionKeepsTheTransportAndLosesOnlyThePlaylists() {
+        let music = MusicState(
+            provider: .appleMusic,
+            availability: .needsSubscription,
+            canControlPlayback: true,
+            isPlaying: true,
+            volume: 0.3
+        )
+        XCTAssertTrue(music.canControlPlayback)
+        XCTAssertFalse(music.canChoosePlaylists)
+        XCTAssertEqual(music.volume, 0.3)
+    }
+
+    /// A Camera too old to send `ctl` said everything with `availability`, and its
+    /// Viewer has to keep reading it that way — anything else would put live-looking
+    /// buttons in front of a player that cannot hear them.
+    func testAnOlderCameraStillDecidesTheTransportFromAvailability() throws {
+        let ready = try JSONDecoder().decode(
+            MusicState.self,
+            from: Data(#"{"av":"ready"}"#.utf8)
+        )
+        XCTAssertTrue(ready.canControlPlayback)
+
+        let lapsed = try JSONDecoder().decode(
+            MusicState.self,
+            from: Data(#"{"av":"needsSubscription"}"#.utf8)
+        )
+        XCTAssertFalse(lapsed.canControlPlayback)
+    }
+
+    func testTheTransportFlagSurvivesTheWire() throws {
+        let music = MusicState(
+            provider: .appleMusic,
+            availability: .needsSubscription,
+            canControlPlayback: true
+        )
+        let decoded = try JSONDecoder().decode(
+            MusicState.self,
+            from: try JSONEncoder().encode(music)
+        )
+        XCTAssertTrue(decoded.canControlPlayback)
+        XCTAssertEqual(decoded, music)
     }
 
     func testAStateMessageFitsInsideTheSignalingFrameCap() throws {

@@ -93,6 +93,21 @@ public struct MusicCommand: Codable, Equatable, Sendable {
         /// A command from a newer build. Decoded so the rest of the message
         /// survives, then ignored.
         case unknown
+
+        /// Whether this drives a player that is already loaded, rather than
+        /// choosing what to load.
+        ///
+        /// The distinction the Camera routes on: driving is something it can do
+        /// to whatever is playing on the phone, while choosing needs the music
+        /// service CribWire is signed in to.
+        public var isTransport: Bool {
+            switch self {
+            case .play, .pause, .toggle, .next, .previous, .stop:
+                return true
+            case .setVolume, .selectPlaylist, .setProvider, .refreshPlaylists, .unknown:
+                return false
+            }
+        }
     }
 
     public var action: Action

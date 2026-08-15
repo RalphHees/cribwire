@@ -45,16 +45,26 @@ struct NurseryControlsView: View {
 
                 if hasProviderChoice { providerPicker }
 
+                // Each row asks its own question, rather than the whole card
+                // standing or falling on `availability`. A parent who cannot
+                // start a new playlist can still very much want to turn the one
+                // that is playing down, or off.
+                if state.music.canControlPlayback {
+                    nowPlayingLine
+                    transportRow
+                }
+                // The volume is the camera phone's, not the player's: it moves
+                // whatever is making sound in that room, so it is offered
+                // whenever the Camera can move it — subscription, service and
+                // permission are all beside the point.
+                if state.music.volume != nil { volumeRow }
+                if state.music.canChoosePlaylists { playlistButton }
+
                 if let reason = musicUnavailableReason {
                     Text(reason)
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Palette.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    nowPlayingLine
-                    transportRow
-                    if state.music.volume != nil { volumeRow }
-                    playlistButton
                 }
             }
         }
@@ -80,11 +90,12 @@ struct NurseryControlsView: View {
         .accessibilityLabel(Text("Music service"))
     }
 
-    /// What to say instead of controls, when there is nothing the buttons could do.
+    /// What is missing, said under whatever controls are still live.
     ///
-    /// Each case is a different thing for the parent to do, which is exactly why
-    /// the Camera sends a case rather than a message: only the Viewer knows how to
-    /// phrase it, and only in the reader's own language.
+    /// A note now rather than a replacement for the card. Each case is a different
+    /// thing for the parent to do, which is exactly why the Camera sends a case
+    /// rather than a message: only the Viewer knows how to phrase it, and only in
+    /// the reader's own language.
     private var musicUnavailableReason: String? {
         switch state.music.availability {
         case .ready:
@@ -94,15 +105,23 @@ struct NurseryControlsView: View {
                 localized: "The camera has not been given access to music yet. Open CribWire on the camera phone to allow it."
             )
         case .needsSubscription:
+            // Names what is actually lost. Everything above this line still
+            // works, so "needs a subscription" on its own would read as "none of
+            // this does anything", which is what the parent already believed.
             return String(
-                localized: "\(state.music.provider.displayName) needs an active subscription on the camera phone."
+                localized: "Choosing a playlist needs an active \(state.music.provider.displayName) subscription on the camera phone."
             )
         case .notConfigured:
             return String(
                 localized: "\(state.music.provider.displayName) is not set up on this camera."
             )
         case .unavailable:
-            return String(localized: "The camera cannot reach \(state.music.provider.displayName) right now.")
+            // Same shape as the subscription case: it is the catalogue that is
+            // out of reach, and the controls above may still be driving music
+            // that is already playing in the room.
+            return String(
+                localized: "The camera cannot reach \(state.music.provider.displayName) right now, so there are no playlists to choose from."
+            )
         case .unknown:
             return String(localized: "This camera is running an older version of CribWire.")
         }

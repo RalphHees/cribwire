@@ -35,6 +35,28 @@ export interface TurnSettings {
 /** Which credential scheme the configured relay expects. */
 export type TurnScheme = 'hmac' | 'static' | 'none';
 
+/**
+ * TIDAL application credentials.
+ *
+ * The two halves are treated completely differently, and the difference is the
+ * whole reason this lives here rather than in the app's Info.plist.
+ *
+ * `clientId` is public by construction — every OAuth flow puts it on the wire —
+ * and it is what a Camera needs to sign a parent in. It is served to
+ * authenticated devices over `GET /v1/config` so it can be rotated without an
+ * App Store release.
+ *
+ * `clientSecret` **never leaves this process.** It belongs to the confidential
+ * client flows (`client_credentials`, for catalogue calls made by this server),
+ * and an app that shipped it would be publishing it: an IPA is a zip, and
+ * `Info.plist` inside it is plain text. There is deliberately no code path that
+ * puts it in a response — see the test that asserts exactly that.
+ */
+export interface TidalSettings {
+  readonly clientId: string;
+  readonly clientSecret: string;
+}
+
 export interface ApnsSettings {
   /** Contents of the `.p8` key. Empty when push is unconfigured. */
   readonly privateKeyPem: string;
@@ -73,8 +95,14 @@ export interface Config {
    * can stay invisible to this one.
    */
   readonly wsRosterTtlSeconds: number;
+  /**
+   * How long a client may cache `GET /v1/config` before asking again. The lever
+   * that decides how fast a rotated client id reaches the fleet.
+   */
+  readonly configTtlSeconds: number;
   readonly turn: TurnSettings;
   readonly apns: ApnsSettings;
+  readonly tidal: TidalSettings;
   readonly rateLimits: {
     readonly pairingCreatePerIp: RateLimitRule;
     readonly claimPerIp: RateLimitRule;
@@ -193,7 +221,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     wsHeartbeatSeconds: intFromEnv(env, 'WS_HEARTBEAT_SECONDS', 30),
     wsIdleTimeoutSeconds: intFromEnv(env, 'WS_IDLE_TIMEOUT_SECONDS', 300),
     wsRosterTtlSeconds: intFromEnv(env, 'WS_ROSTER_TTL_SECONDS', 30),
+    configTtlSeconds: intFromEnv(env, 'CONFIG_TTL_SECONDS', 3600),
     turn: turnFromEnv(env),
+    tidal: {
+      clientId: env['TIDAL_CLIENT_ID'] ?? '',
+      clientSecret: env['TIDAL_CLIENT_SECRET'] ?? '',
+    },
     apns: {
       privateKeyPem: env['APNS_KEY_P8'] ?? '',
       keyId: env['APNS_KEY_ID'] ?? '',
@@ -243,6 +276,18 @@ export function turnScheme(turn: TurnSettings): TurnScheme {
 /** True when TURN credentials can actually be issued. */
 export function turnConfigured(config: Config): boolean {
   return config.turn.uris.length > 0 && turnScheme(config.turn) !== 'none';
+}
+
+/**
+ * True when a Camera could actually sign a parent in to TIDAL.
+ *
+ * The id alone: the secret is not part of the answer, because the sign-in flows
+ * a phone uses (device login, authorization code + PKCE) are public-client
+ * flows that have no secret in them. A deployment holding only the secret can
+ * talk to TIDAL itself and still has nothing to offer a Camera.
+ */
+export function tidalConfigured(config: Config): boolean {
+  return config.tidal.clientId !== '';
 }
 
 /** True when the APNs provider credentials are complete. */

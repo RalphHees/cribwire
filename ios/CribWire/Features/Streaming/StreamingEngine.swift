@@ -501,6 +501,16 @@ final class StreamingEngine: ObservableObject {
             return await connectLocally(identity: identity, keys: keys)
         }
 
+        // Deployment configuration — a music service's client id, say — that the
+        // backend can change without a release. Detached: nothing in the
+        // connection waits on it, and what it feeds is read fresh each time, so
+        // an answer arriving after the stream is up is still in time.
+        if role == .camera {
+            Task { [services, record] in
+                await services.refreshRemoteConfiguration(for: record)
+            }
+        }
+
         // TURN before signaling: a relay candidate that arrives after the offer
         // is already gathered is a candidate the peer never sees.
         self.turn = await fetchTURNCredentials()

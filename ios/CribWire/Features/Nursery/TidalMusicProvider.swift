@@ -25,8 +25,12 @@ import Foundation
 ///
 /// ## Finishing it
 ///
-/// 1. Register the app at `developer.tidal.com` and put the client id in
-///    `ios/project.yml` under `CribWireTidalClientID` (see `TidalConfiguration`).
+/// 1. Register the app at `developer.tidal.com`, then set the client id either
+///    on the backend as `TIDAL_CLIENT_ID` — served to Cameras by `GET /v1/config`
+///    and rotatable without a release — or in `ios/project.yml` under
+///    `CribWireTidalClientID` as the built-in fallback (see
+///    `TidalConfiguration`). The client *secret*, if the backend ever needs one,
+///    stays there as `TIDAL_CLIENT_SECRET` and is never served to a device.
 /// 2. Add `https://github.com/tidal-music/tidal-sdk-ios` to `packages:` in
 ///    `ios/project.yml` and the `Player`, `Auth` and `EventProducer` products to
 ///    the `CribWire` target.
@@ -44,16 +48,29 @@ final class TidalMusicProvider: MusicProvider {
 
     let kind: MusicProviderKind = .tidal
 
-    /// Only offered when the build carries a client id. A CribWire built without
-    /// one — which is every build until someone completes the steps above — does
-    /// not show TIDAL in the Viewer's switcher at all, rather than showing a
-    /// service that can never work.
+    /// Only offered when a client id is available. A CribWire with none — which
+    /// is every build until someone completes the steps above — does not show
+    /// TIDAL in the Viewer's switcher at all, rather than showing a service that
+    /// can never work.
     var isConfigured: Bool { configuration != nil }
 
-    private let configuration: TidalConfiguration?
+    /// Resolved on each read rather than captured once.
+    ///
+    /// The id can now arrive from the backend after this object exists — a
+    /// Camera builds its providers at launch and hears from `/v1/config`
+    /// moments later — so a snapshot taken in `init` would mean a newly
+    /// configured deployment did nothing until the app was next restarted.
+    private let resolve: @MainActor () -> TidalConfiguration?
 
-    init(configuration: TidalConfiguration? = .current) {
-        self.configuration = configuration
+    private var configuration: TidalConfiguration? { resolve() }
+
+    init(resolve: @escaping @MainActor () -> TidalConfiguration? = { .current }) {
+        self.resolve = resolve
+    }
+
+    /// A fixed configuration, for tests and previews.
+    init(configuration: TidalConfiguration?) {
+        self.resolve = { configuration }
     }
 
     // MARK: - Authorisation
@@ -86,6 +103,13 @@ final class TidalMusicProvider: MusicProvider {
     var isPlaying: Bool { false }
     var nowPlaying: (title: String?, artist: String?) { (nil, nil) }
 
+    /// False until the `Player` adapter exists. Unlike a lapsed Apple Music
+    /// subscription — which still has a player to pause — there is nothing here
+    /// for a transport button to reach, and offering one would be the four dead
+    /// buttons this file is written to avoid. It becomes
+    /// "signed in to TIDAL" when step 3 above is done.
+    var canControlPlayback: Bool { false }
+
     @discardableResult
     func play(playlistID: String) async -> String? { nil }
     func play() async {}
@@ -95,22 +119,40 @@ final class TidalMusicProvider: MusicProvider {
     func stop() async {}
 }
 
-/// Build-time TIDAL credentials.
+/// TIDAL credentials — id only, and only ever the id.
 ///
-/// Read from Info.plist rather than compiled into a constant so the id can be set
-/// per configuration in `project.yml`, exactly like `CribWireAPIBaseURL`. A client
-/// id is not a secret — it is public in every OAuth flow — but it is still
-/// deployment configuration and does not belong in source.
+/// **There is no client secret here, and there must never be one.** A secret
+/// belongs to the confidential-client flows a *server* performs; the flows a
+/// phone uses to sign a parent in (device login, authorization code + PKCE) are
+/// public-client flows that have no secret in them. And an app cannot keep one
+/// anyway: an IPA is a zip, `Info.plist` inside it is plain text, and a constant
+/// in the binary falls out under `strings`. If TIDAL ever demands a secret for
+/// something CribWire needs, that call belongs on the backend, which is where
+/// `TIDAL_CLIENT_SECRET` already lives.
+///
+/// The id comes from two places, in order:
+///
+/// 1. **The backend**, via `GET /v1/config`, cached in `RemoteConfigurationStore`.
+///    This is what makes rotating — or issuing one for the first time — a
+///    configuration change rather than an App Store release.
+/// 2. **Info.plist**, set per configuration in `project.yml` exactly like
+///    `CribWireAPIBaseURL`. The floor: what a build works with before it has
+///    ever reached a backend, and what a local-network-only pairing uses, since
+///    that path never calls a server at all.
 struct TidalConfiguration: Equatable {
 
     static let clientIDKey = "CribWireTidalClientID"
 
     let clientID: String
 
-    /// `nil` when the key is absent or blank, which is what makes an
-    /// unconfigured build hide TIDAL rather than offer it.
+    /// `nil` when neither source has one, which is what makes an unconfigured
+    /// deployment hide TIDAL rather than offer it.
     static var current: TidalConfiguration? {
-        make(bundle: .main)
+        make(remote: RemoteConfigurationStore().load()) ?? make(bundle: .main)
+    }
+
+    static func make(remote: RemoteConfiguration) -> TidalConfiguration? {
+        make(rawClientID: remote.tidalClientID)
     }
 
     static func make(bundle: Bundle) -> TidalConfiguration? {

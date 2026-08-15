@@ -25,6 +25,18 @@ protocol MusicProvider: AnyObject {
     /// Current availability, without prompting for anything.
     func availability() async -> MusicState.Availability
 
+    /// Whether play, pause, next and previous reach a player right now.
+    ///
+    /// Separate from `availability` because the two questions have different
+    /// answers, and the difference is a parent's whole experience of this
+    /// feature: playing something *new* from a catalogue is what a subscription
+    /// buys, while pausing what is already going needs nothing but permission to
+    /// talk to the player. Answering both with `availability == .ready` took the
+    /// pause button away from exactly the people most likely to want it.
+    ///
+    /// Synchronous and cheap: it is read on every refresh tick.
+    var canControlPlayback: Bool { get }
+
     /// Asks for whatever authorisation the service needs.
     ///
     /// Only ever called from the **Camera's own screen**, never from a remote

@@ -211,6 +211,20 @@ public actor APIClient {
         )
     }
 
+    /// `GET /v1/config` — deployment configuration this build could not carry.
+    ///
+    /// Either role may ask, and the answer is the same for everyone: it
+    /// describes the deployment, not the caller.
+    public func appConfiguration() async throws -> API.AppConfigurationResponse {
+        try requireDeviceCredentials()
+        return try await send(
+            method: .get,
+            path: "/v1/config",
+            body: Data(),
+            decoding: API.AppConfigurationResponse.self
+        )
+    }
+
     /// `POST /v1/events` — camera posts a sealed detection event.
     ///
     /// The argument is already a `SealedEnvelope` under `K_evt`; this client

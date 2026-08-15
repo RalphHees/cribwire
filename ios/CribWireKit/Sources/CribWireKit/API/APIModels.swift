@@ -167,6 +167,43 @@ public enum API {
         }
     }
 
+    // MARK: - GET /v1/config
+
+    /// Deployment configuration a build cannot carry, because it changes faster
+    /// than releases ship (`backend.md` §4).
+    ///
+    /// Nothing here is a secret, and nothing here may become one. The server
+    /// serves only values that are public by construction — a client id travels
+    /// in the clear in every OAuth exchange — because whatever this decodes is
+    /// on a phone, and a value on a phone is a published value.
+    ///
+    /// Absent sections mean this deployment has no such service, which is the
+    /// client's cue to fall back to what it was built with rather than to a
+    /// blank id.
+    public struct AppConfigurationResponse: Codable, Equatable, Sendable {
+
+        public struct Tidal: Codable, Equatable, Sendable {
+            public let clientID: String
+
+            public init(clientID: String) {
+                self.clientID = clientID
+            }
+
+            enum CodingKeys: String, CodingKey {
+                case clientID = "clientId"
+            }
+        }
+
+        /// How long this may be cached before asking again.
+        public let ttlSeconds: Int
+        public let tidal: Tidal?
+
+        public init(ttlSeconds: Int, tidal: Tidal? = nil) {
+            self.ttlSeconds = ttlSeconds
+            self.tidal = tidal
+        }
+    }
+
     // MARK: - POST /v1/events
 
     /// A sealed detection event. The server fans the ciphertext out to the

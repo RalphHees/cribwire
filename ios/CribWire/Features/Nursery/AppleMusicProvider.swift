@@ -48,6 +48,16 @@ final class AppleMusicProvider: MusicProvider {
         player.state.playbackStatus == .playing
     }
 
+    /// Permission, and nothing else.
+    ///
+    /// Not the subscription: `ApplicationMusicPlayer` plays a downloaded or
+    /// matched library without one, and even where it plays nothing, pausing and
+    /// skipping a queue this app owns still works. The subscription decides what
+    /// can be *started* from the catalogue, which is `availability`'s business.
+    var canControlPlayback: Bool {
+        MusicAuthorization.currentStatus == .authorized
+    }
+
     var nowPlaying: (title: String?, artist: String?) {
         guard let entry = player.queue.currentEntry else { return (nil, nil) }
         return (entry.title, entry.subtitle)
@@ -223,6 +233,7 @@ final class AppleMusicProvider: MusicProvider {
 
     var isPlaying: Bool { false }
     var nowPlaying: (title: String?, artist: String?) { (nil, nil) }
+    var canControlPlayback: Bool { false }
 
     func availability() async -> MusicState.Availability { .notConfigured }
 
