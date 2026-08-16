@@ -4,6 +4,12 @@
     "CFBundleDisplayName" : {
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire"
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
@@ -21,6 +27,12 @@
             "state" : "new",
             "value" : "CribWire"
           }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire"
+          }
         }
       }
     },
@@ -33,12 +45,24 @@
             "state" : "new",
             "value" : "CribWire plays music through this phone's speaker so you can soothe your child from the paired device. It reads your playlists to offer them, and never sends your library or listening history to a server."
           }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire speelt muziek af via de luidspreker van deze telefoon, zodat je je kind kunt sussen vanaf het gekoppelde apparaat. De app leest je afspeellijsten om ze aan te bieden, en stuurt je bibliotheek of luistergeschiedenis nooit naar een server."
+          }
         }
       }
     },
     "NSCameraUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire uses the camera to stream your child's room to your paired device, and to scan the pairing QR code. Video never leaves your devices unencrypted."
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
@@ -50,6 +74,12 @@
     "NSLocalNetworkUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire connects directly to your paired device over your local network, so video stays in your home whenever possible."
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
@@ -61,6 +91,12 @@
     "NSMicrophoneUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire uses the microphone to stream room audio and to detect noise on this device. Audio is end-to-end encrypted and is never sent to a server in the clear."
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
@@ -72,6 +108,12 @@
     "NSPhotoLibraryAddUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CribWire saves the snapshots you take of the live view to your photo library. It never reads your existing photos."
+          }
+        },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
