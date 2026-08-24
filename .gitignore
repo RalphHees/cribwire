@@ -7,7 +7,7 @@
 # --- Xcode / Swift ----------------------------------------------------------
 # The .xcodeproj is generated from ios/project.yml by XcodeGen and is never
 # committed (see ios/project.yml).
-*.xcodeproj/
+# *.xcodeproj/
 *.xcworkspace/
 xcuserdata/
 *.xcuserstate

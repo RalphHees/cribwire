@@ -1,0 +1,1064 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0159CC428162C3D59DCCE393 /* TidalAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 7C488BD16A0EDA438EF7B97E /* TidalAPI */; };
+		04FB541A738CE0ABB55C1670 /* QRCodeRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65EDC8FC55B35888487A73C0 /* QRCodeRenderer.swift */; };
+		06511A62E5D0BDC9E2B93D26 /* CameraPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E75044C49E33EB5EE8D8D1 /* CameraPairingView.swift */; };
+		07342ABFCC7EC36B01A9EDFD /* DetectionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E954A0E25419AFB46747812 /* DetectionCoordinator.swift */; };
+		0F022D895E5D870225CF8584 /* CameraPairingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0026C8F9C85642C47963767F /* CameraPairingViewModel.swift */; };
+		126B30D4B12E3B5AE4C75532 /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1860B164ABABCA62C64DC893 /* AppServices.swift */; };
+		12A60073BDA7347E02357831 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF6BC90E8FEECE9A8CD0E28C /* QRScannerView.swift */; };
+		1592F978A1FA9D6EE8EF202E /* CribWireActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D340A459AF0177A95533CC4 /* CribWireActivityAttributes.swift */; };
+		1777443C93A5EDC7D5FF3455 /* AlertsControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */; };
+		1F134FF588AF337B56FC5777 /* NurseryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2334CE4099A16161760F45B9 /* NurseryTests.swift */; };
+		1FDB2A39C4CDB036F4EE554B /* PairingSecretsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5494D568D7D41D311E8C7457 /* PairingSecretsStore.swift */; };
+		30E2910F2471D3EFC627B2EA /* PairingSignalingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CEB8F8082C2F5106E7DAB64 /* PairingSignalingLink.swift */; };
+		31A7F57A19BA775354B9602D /* StreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048131BC64017E20397431AB /* StreamingTests.swift */; };
+		31FD81EDDCF48264D020AD81 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D2E7638B74F3FF3067608AB2 /* Assets.xcassets */; };
+		321D4AF47D486E6AD68CDF17 /* cribwire-v1.json in Resources */ = {isa = PBXBuildFile; fileRef = CDD874325F3DC50226416588 /* cribwire-v1.json */; };
+		399762BCFFA86D8C7412CAE5 /* CribWireActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D340A459AF0177A95533CC4 /* CribWireActivityAttributes.swift */; };
+		3C6D08D7A72234131CEAAE3A /* SystemMusicRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CF2504A1782330BB24EB7A /* SystemMusicRemote.swift */; };
+		3E74681900C9A9F38B726AA4 /* CameraBackgroundSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E51DC6DED495FF681E1E1F /* CameraBackgroundSession.swift */; };
+		3F7216A114B735D5B3BE38E3 /* NurseryControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69DF0C7AD93B423D8E602D47 /* NurseryControlsView.swift */; };
+		414605D5E2B563411EE0FA5D /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9FF7EA653DFF1D89997299 /* CameraPreviewView.swift */; };
+		50ED10582991616A4F00F597 /* MusicRecentsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CEBBB0FEAF1CB86AAE225A9 /* MusicRecentsStore.swift */; };
+		51CC0EB9997D6286BA59C66A /* RemoteConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFBFD2EED4595D9AFD20068 /* RemoteConfigurationStore.swift */; };
+		534D9CC7F29F91A3FEBFF99F /* CribWireLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C744CAD09878329B76742A /* CribWireLiveActivity.swift */; };
+		60EE65AA4E1A2377A5612BBD /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210705C17F09F1C8B839F16E /* Components.swift */; };
+		6738AAA51A947F3D0B90D38E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 130D70AE04DB2EB49AD923CA /* Localizable.xcstrings */; };
+		6D259279CCA57623C03D642A /* CameraSensitivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4A27E54CDA952034715F84 /* CameraSensitivityStore.swift */; };
+		6F3DF90824FD51CFA0540856 /* AudioInterruptionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C113A01E6B64954AF0DE5D /* AudioInterruptionMonitor.swift */; };
+		6FFD9CAFD5EE80F35B919383 /* CameraCaptureController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B35ECCBEEB19514950FDE59B /* CameraCaptureController.swift */; };
+		72A9C174DB2BDAFC6356891C /* TidalCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B8E845C0C729BC52A8EB9D /* TidalCatalog.swift */; };
+		7461842A1D6CC1D763E62F6E /* EventNotificationDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37790A1BCC12609F80A7B3C /* EventNotificationDecoder.swift */; };
+		77D74FD465650B27ABD8E490 /* RoleSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA51949C8A9DA9D78698BBF2 /* RoleSelectionView.swift */; };
+		7C3690FC4E57B3EE75AF42F1 /* SensitivityControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C765864CC197DFDDF55B9C6 /* SensitivityControlsView.swift */; };
+		7CE8B61D4A269A523A804C34 /* AudioLevelMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAD3D59C058DDC1670BCD3D4 /* AudioLevelMonitor.swift */; };
+		7E2E82B5475296097CA8119A /* MicrophoneAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F54D8108D7A047F04DA16C6 /* MicrophoneAccess.swift */; };
+		7F27719219AE94916C200AD4 /* VideoRenderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4C315B47E8059EF3F2269D /* VideoRenderView.swift */; };
+		83CED7C639E675E8A01F56EC /* TidalMusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1F1A8424ABDB1C3C24802E /* TidalMusicProvider.swift */; };
+		8421970FA7A7FB361B1100BF /* TidalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0072B46BE14F93825920CF11 /* TidalSession.swift */; };
+		90AD3E9F50CFF4C368D6A6F2 /* SASConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014B9018A45B559D0F411117 /* SASConfirmationView.swift */; };
+		922D16DB34A12D6CCE5FDAE9 /* SystemVolumeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A573DBD0C6937CD432CD6E51 /* SystemVolumeController.swift */; };
+		94B6DBFE143AE9EF30E76588 /* DetectionSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF61C405F3C3B740F018C7F /* DetectionSettingsStore.swift */; };
+		94BDFB693F337A7578571D02 /* LocalPairingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538522365CE1671F80557DD8 /* LocalPairingCoordinator.swift */; };
+		94E58DAC7F42B4A226185EFD /* CribWireKit in Frameworks */ = {isa = PBXBuildFile; productRef = 95A5FAD3A7E8D969719457D4 /* CribWireKit */; };
+		970A65DAEC00F35FA7618BB5 /* AppLayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD6F94910A5ECF240621526 /* AppLayerTests.swift */; };
+		984BD035029C428D787EB979 /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 2E9667BE84BDF8AC73C545AF /* WebRTC */; };
+		9C5A8D63D742E0DB3B11FFFC /* LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41CD3A420C36A9183A681943 /* LiveActivityController.swift */; };
+		9DC754A831B21188753AD922 /* WebRTCStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E0C05C27B1529DF1D07E53F /* WebRTCStack.swift */; };
+		A0664A35BFB5F7A071A7C8AF /* PushNotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A8F76F8B7770CFE1779514 /* PushNotificationCoordinator.swift */; };
+		A08480FBD1FA5B43185930AE /* CameraStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E96BDB312DFB474C51A1E702 /* CameraStatusView.swift */; };
+		A151236D3648575B9C189CF3 /* Player in Frameworks */ = {isa = PBXBuildFile; productRef = 00269FA16D88D237DEFE4A7B /* Player */; };
+		A1B9AF9BE173A74FD380A8CC /* PairingRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6401961C808AFE0D53A8274 /* PairingRegistry.swift */; };
+		A3A8B1DA144EEB75C8CCCB9C /* HomeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8118E93530AD0476715A28 /* HomeViews.swift */; };
+		A9294E7881E4AC2C240711E0 /* LocalPeerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1CC168C3F746C5DEC987A8D /* LocalPeerTransport.swift */; };
+		ADBFD7DAF3646A477B6D6B89 /* ViewerScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46C194775B7AF46C1CE35F8 /* ViewerScanView.swift */; };
+		B75C439E371ECB0E0807DF4B /* DetectionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD22DB95953EE3A36B821EAB /* DetectionSettingsView.swift */; };
+		BA403EEEF1353AC24590705C /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70485E5A464C87D0AA869EB3 /* AppConfiguration.swift */; };
+		BEAA96F474961E8F273863EE /* MusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41844D2454AB5F7639CDEC49 /* MusicProvider.swift */; };
+		C0BCBCDF1C0EA54F9807BC56 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = D3DB807445B46D28FDAE7D40 /* Auth */; };
+		C4510C6718EA97DF13B12F5C /* ViewerPairingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C340DBD66038B48C21531850 /* ViewerPairingViewModel.swift */; };
+		C9ADCA9F9BD84662B65690E3 /* CribWireWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 92C4C3549B8729B246E1A02E /* CribWireWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D018625AF815444E860A0E6E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1B49B2E1F8F141CCF76E9B /* Theme.swift */; };
+		D18B9023F28320FEDAC03C59 /* DetectionSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2596F46E65EDAA1E23F35BF /* DetectionSettingsViewModel.swift */; };
+		E414EEE6B44002D501DA8C19 /* CribWireApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F7F345197567E229AEE6D3 /* CribWireApp.swift */; };
+		E5F2867CE880436E3ACBCC41 /* ScreenCaptureProtection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C02CD746E4FA605A02EC51B /* ScreenCaptureProtection.swift */; };
+		E76676F46047B1F771FE5336 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */; };
+		E887DB34824801DF5F517716 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A4D342A35642A709B59D5840 /* InfoPlist.xcstrings */; };
+		EA3E6BF3B96BDC575F4EE554 /* PeerSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32664096C9EE8CE5D1A2F0EB /* PeerSession.swift */; };
+		EE1675BB150828DFD16A6E86 /* AppleMusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1413B194806564E09A2CF1 /* AppleMusicProvider.swift */; };
+		EEF99E02A13974AF34B92B80 /* LumaFrameExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E6C2E57C43C60B916C97B37 /* LumaFrameExtractor.swift */; };
+		EF22DFA6E9DDEDE3D78AAC8F /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9E93FE735505130BB918DA /* KeychainStore.swift */; };
+		F3B957B4572666829579A452 /* ViewerLiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC89D98527433BB8CCE1E436 /* ViewerLiveView.swift */; };
+		F627169BA3369F4A05B299E4 /* CribWireKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3BAC984B93FB6BB813B59E26 /* CribWireKit */; };
+		F687549749D348F8093FB243 /* NetworkPathMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 941317194A6B555F77E8CA83 /* NetworkPathMonitor.swift */; };
+		F8DCAC6BF96D2C10DD603C4E /* PairedDevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97E33A0F11A1BAE903222692 /* PairedDevicesView.swift */; };
+		F911E9604A522FBC5C8FDF69 /* StreamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C898CAA3A69AF8A7380CF7F /* StreamingEngine.swift */; };
+		F939EDCD4A80EE55C6F0D21B /* NurseryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FB23CB7A54D092FF88428 /* NurseryController.swift */; };
+		FA81BCE148307D62299F70CF /* EventProducer in Frameworks */ = {isa = PBXBuildFile; productRef = 3F7DD5B4CD9165EAE771F685 /* EventProducer */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		47317B5C1FEFBBD6B16B0895 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4F57A5FE54A13CD809A090AA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 15AE0DA6C29FDD4469A1B13E;
+			remoteInfo = CribWireWidgets;
+		};
+		C8891BC794223FD62E6066A2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4F57A5FE54A13CD809A090AA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D99F2C199360BCAA8CBDC778;
+			remoteInfo = CribWire;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		36C0A856F20D3C6D0D182E67 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C9ADCA9F9BD84662B65690E3 /* CribWireWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0026C8F9C85642C47963767F /* CameraPairingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPairingViewModel.swift; sourceTree = "<group>"; };
+		0072B46BE14F93825920CF11 /* TidalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidalSession.swift; sourceTree = "<group>"; };
+		014B9018A45B559D0F411117 /* SASConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SASConfirmationView.swift; sourceTree = "<group>"; };
+		048131BC64017E20397431AB /* StreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTests.swift; sourceTree = "<group>"; };
+		0C02CD746E4FA605A02EC51B /* ScreenCaptureProtection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureProtection.swift; sourceTree = "<group>"; };
+		0CEB8F8082C2F5106E7DAB64 /* PairingSignalingLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSignalingLink.swift; sourceTree = "<group>"; };
+		0CEBBB0FEAF1CB86AAE225A9 /* MusicRecentsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicRecentsStore.swift; sourceTree = "<group>"; };
+		0EFBFD2EED4595D9AFD20068 /* RemoteConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConfigurationStore.swift; sourceTree = "<group>"; };
+		130D70AE04DB2EB49AD923CA /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		17176227CCEF4FBA1B6F457B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		17C113A01E6B64954AF0DE5D /* AudioInterruptionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInterruptionMonitor.swift; sourceTree = "<group>"; };
+		1860B164ABABCA62C64DC893 /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
+		210705C17F09F1C8B839F16E /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		2334CE4099A16161760F45B9 /* NurseryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NurseryTests.swift; sourceTree = "<group>"; };
+		27F7F345197567E229AEE6D3 /* CribWireApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CribWireApp.swift; sourceTree = "<group>"; };
+		28B8E845C0C729BC52A8EB9D /* TidalCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidalCatalog.swift; sourceTree = "<group>"; };
+		2E954A0E25419AFB46747812 /* DetectionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionCoordinator.swift; sourceTree = "<group>"; };
+		2F4C315B47E8059EF3F2269D /* VideoRenderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRenderView.swift; sourceTree = "<group>"; };
+		32664096C9EE8CE5D1A2F0EB /* PeerSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeerSession.swift; sourceTree = "<group>"; };
+		3E0C05C27B1529DF1D07E53F /* WebRTCStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCStack.swift; sourceTree = "<group>"; };
+		41844D2454AB5F7639CDEC49 /* MusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicProvider.swift; sourceTree = "<group>"; };
+		41CD3A420C36A9183A681943 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
+		47E75044C49E33EB5EE8D8D1 /* CameraPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPairingView.swift; sourceTree = "<group>"; };
+		4C3949594ABA35389F7FF6E2 /* CribWireKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CribWireKit; path = CribWireKit; sourceTree = SOURCE_ROOT; };
+		4E6C2E57C43C60B916C97B37 /* LumaFrameExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaFrameExtractor.swift; sourceTree = "<group>"; };
+		4ECDC27E0C6E064796ED91BA /* CribWire.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CribWire.entitlements; sourceTree = "<group>"; };
+		538522365CE1671F80557DD8 /* LocalPairingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPairingCoordinator.swift; sourceTree = "<group>"; };
+		5494D568D7D41D311E8C7457 /* PairingSecretsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSecretsStore.swift; sourceTree = "<group>"; };
+		65EDC8FC55B35888487A73C0 /* QRCodeRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeRenderer.swift; sourceTree = "<group>"; };
+		69DF0C7AD93B423D8E602D47 /* NurseryControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NurseryControlsView.swift; sourceTree = "<group>"; };
+		6C898CAA3A69AF8A7380CF7F /* StreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingEngine.swift; sourceTree = "<group>"; };
+		6F1B49B2E1F8F141CCF76E9B /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		70485E5A464C87D0AA869EB3 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		7D340A459AF0177A95533CC4 /* CribWireActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CribWireActivityAttributes.swift; sourceTree = "<group>"; };
+		7F54D8108D7A047F04DA16C6 /* MicrophoneAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneAccess.swift; sourceTree = "<group>"; };
+		81CF2504A1782330BB24EB7A /* SystemMusicRemote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemMusicRemote.swift; sourceTree = "<group>"; };
+		893BF01A3798D5BE71159B75 /* CribWireTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CribWireTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BD6F94910A5ECF240621526 /* AppLayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLayerTests.swift; sourceTree = "<group>"; };
+		8C765864CC197DFDDF55B9C6 /* SensitivityControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensitivityControlsView.swift; sourceTree = "<group>"; };
+		8E1413B194806564E09A2CF1 /* AppleMusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicProvider.swift; sourceTree = "<group>"; };
+		92C4C3549B8729B246E1A02E /* CribWireWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CribWireWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		93E51DC6DED495FF681E1E1F /* CameraBackgroundSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraBackgroundSession.swift; sourceTree = "<group>"; };
+		941317194A6B555F77E8CA83 /* NetworkPathMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkPathMonitor.swift; sourceTree = "<group>"; };
+		97E33A0F11A1BAE903222692 /* PairedDevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairedDevicesView.swift; sourceTree = "<group>"; };
+		9C1F1A8424ABDB1C3C24802E /* TidalMusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidalMusicProvider.swift; sourceTree = "<group>"; };
+		A4D342A35642A709B59D5840 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		A573DBD0C6937CD432CD6E51 /* SystemVolumeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemVolumeController.swift; sourceTree = "<group>"; };
+		A6401961C808AFE0D53A8274 /* PairingRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingRegistry.swift; sourceTree = "<group>"; };
+		A9A8F76F8B7770CFE1779514 /* PushNotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationCoordinator.swift; sourceTree = "<group>"; };
+		AE9E93FE735505130BB918DA /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		AE9FF7EA653DFF1D89997299 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		B1CC168C3F746C5DEC987A8D /* LocalPeerTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeerTransport.swift; sourceTree = "<group>"; };
+		B35ECCBEEB19514950FDE59B /* CameraCaptureController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCaptureController.swift; sourceTree = "<group>"; };
+		B37790A1BCC12609F80A7B3C /* EventNotificationDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventNotificationDecoder.swift; sourceTree = "<group>"; };
+		BC89D98527433BB8CCE1E436 /* ViewerLiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerLiveView.swift; sourceTree = "<group>"; };
+		BD3FB23CB7A54D092FF88428 /* NurseryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NurseryController.swift; sourceTree = "<group>"; };
+		C340DBD66038B48C21531850 /* ViewerPairingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerPairingViewModel.swift; sourceTree = "<group>"; };
+		CDD874325F3DC50226416588 /* cribwire-v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "cribwire-v1.json"; sourceTree = "<group>"; };
+		CDF61C405F3C3B740F018C7F /* DetectionSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionSettingsStore.swift; sourceTree = "<group>"; };
+		D2596F46E65EDAA1E23F35BF /* DetectionSettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionSettingsViewModel.swift; sourceTree = "<group>"; };
+		D2E7638B74F3FF3067608AB2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D46C194775B7AF46C1CE35F8 /* ViewerScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerScanView.swift; sourceTree = "<group>"; };
+		D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsControlsView.swift; sourceTree = "<group>"; };
+		E96BDB312DFB474C51A1E702 /* CameraStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStatusView.swift; sourceTree = "<group>"; };
+		E9F2318ED98E1005A061D891 /* CribWire.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CribWire.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EA51949C8A9DA9D78698BBF2 /* RoleSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoleSelectionView.swift; sourceTree = "<group>"; };
+		EC8118E93530AD0476715A28 /* HomeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViews.swift; sourceTree = "<group>"; };
+		F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F3D768942313EE980CA1E59D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F7C744CAD09878329B76742A /* CribWireLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CribWireLiveActivity.swift; sourceTree = "<group>"; };
+		FAD3D59C058DDC1670BCD3D4 /* AudioLevelMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMonitor.swift; sourceTree = "<group>"; };
+		FB4A27E54CDA952034715F84 /* CameraSensitivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraSensitivityStore.swift; sourceTree = "<group>"; };
+		FD22DB95953EE3A36B821EAB /* DetectionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionSettingsView.swift; sourceTree = "<group>"; };
+		FF6BC90E8FEECE9A8CD0E28C /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		737F96A5F6C5AEF8AC3BFFDF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F627169BA3369F4A05B299E4 /* CribWireKit in Frameworks */,
+				984BD035029C428D787EB979 /* WebRTC in Frameworks */,
+				C0BCBCDF1C0EA54F9807BC56 /* Auth in Frameworks */,
+				A151236D3648575B9C189CF3 /* Player in Frameworks */,
+				FA81BCE148307D62299F70CF /* EventProducer in Frameworks */,
+				0159CC428162C3D59DCCE393 /* TidalAPI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C3392DDBE98195A6D2FEF101 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94E58DAC7F42B4A226185EFD /* CribWireKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		017A99C15423DCB7F315DA5B /* Streaming */ = {
+			isa = PBXGroup;
+			children = (
+				17C113A01E6B64954AF0DE5D /* AudioInterruptionMonitor.swift */,
+				93E51DC6DED495FF681E1E1F /* CameraBackgroundSession.swift */,
+				B35ECCBEEB19514950FDE59B /* CameraCaptureController.swift */,
+				FB4A27E54CDA952034715F84 /* CameraSensitivityStore.swift */,
+				E96BDB312DFB474C51A1E702 /* CameraStatusView.swift */,
+				B1CC168C3F746C5DEC987A8D /* LocalPeerTransport.swift */,
+				941317194A6B555F77E8CA83 /* NetworkPathMonitor.swift */,
+				32664096C9EE8CE5D1A2F0EB /* PeerSession.swift */,
+				6C898CAA3A69AF8A7380CF7F /* StreamingEngine.swift */,
+				2F4C315B47E8059EF3F2269D /* VideoRenderView.swift */,
+				BC89D98527433BB8CCE1E436 /* ViewerLiveView.swift */,
+				3E0C05C27B1529DF1D07E53F /* WebRTCStack.swift */,
+			);
+			path = Streaming;
+			sourceTree = "<group>";
+		};
+		26CCC3C4BA2ED800FEF2122C /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A36D6DB3DCE03605DCFF782A /* Detection */,
+				B57F207967A29495CADBC13B /* LiveActivity */,
+				29D7C936A575B84C43209B8D /* Notifications */,
+				38B82229A17F6604EEA9474C /* Nursery */,
+				E2D0B4FE0AA71EBD5DCB6241 /* Pairing */,
+				F37C9F1F5FA2DD2BFA478A19 /* Pairings */,
+				6883912B41733DC48C1A40A3 /* RoleSelection */,
+				017A99C15423DCB7F315DA5B /* Streaming */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		29D7C936A575B84C43209B8D /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				B37790A1BCC12609F80A7B3C /* EventNotificationDecoder.swift */,
+				A9A8F76F8B7770CFE1779514 /* PushNotificationCoordinator.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		30DDD97BAC5A44744BD8CDA9 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				70485E5A464C87D0AA869EB3 /* AppConfiguration.swift */,
+				F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */,
+				1860B164ABABCA62C64DC893 /* AppServices.swift */,
+				27F7F345197567E229AEE6D3 /* CribWireApp.swift */,
+				7F54D8108D7A047F04DA16C6 /* MicrophoneAccess.swift */,
+				A6401961C808AFE0D53A8274 /* PairingRegistry.swift */,
+				0EFBFD2EED4595D9AFD20068 /* RemoteConfigurationStore.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		38B82229A17F6604EEA9474C /* Nursery */ = {
+			isa = PBXGroup;
+			children = (
+				D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */,
+				8E1413B194806564E09A2CF1 /* AppleMusicProvider.swift */,
+				41844D2454AB5F7639CDEC49 /* MusicProvider.swift */,
+				0CEBBB0FEAF1CB86AAE225A9 /* MusicRecentsStore.swift */,
+				BD3FB23CB7A54D092FF88428 /* NurseryController.swift */,
+				69DF0C7AD93B423D8E602D47 /* NurseryControlsView.swift */,
+				8C765864CC197DFDDF55B9C6 /* SensitivityControlsView.swift */,
+				81CF2504A1782330BB24EB7A /* SystemMusicRemote.swift */,
+				A573DBD0C6937CD432CD6E51 /* SystemVolumeController.swift */,
+				28B8E845C0C729BC52A8EB9D /* TidalCatalog.swift */,
+				9C1F1A8424ABDB1C3C24802E /* TidalMusicProvider.swift */,
+				0072B46BE14F93825920CF11 /* TidalSession.swift */,
+			);
+			path = Nursery;
+			sourceTree = "<group>";
+		};
+		38C0791EB44AFE049C343DAB /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				4C3949594ABA35389F7FF6E2 /* CribWireKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		4A079D54E6CC95DC3E9615DC /* CribWireTests */ = {
+			isa = PBXGroup;
+			children = (
+				8BD6F94910A5ECF240621526 /* AppLayerTests.swift */,
+				2334CE4099A16161760F45B9 /* NurseryTests.swift */,
+				048131BC64017E20397431AB /* StreamingTests.swift */,
+			);
+			path = CribWireTests;
+			sourceTree = "<group>";
+		};
+		51A667FB59FAFC3F03777831 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E9F2318ED98E1005A061D891 /* CribWire.app */,
+				893BF01A3798D5BE71159B75 /* CribWireTests.xctest */,
+				92C4C3549B8729B246E1A02E /* CribWireWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		55FA72E90D26AF08997D0BF6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A4D342A35642A709B59D5840 /* InfoPlist.xcstrings */,
+				130D70AE04DB2EB49AD923CA /* Localizable.xcstrings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		56CE56888746932E30EB47F1 /* CribWire */ = {
+			isa = PBXGroup;
+			children = (
+				30DDD97BAC5A44744BD8CDA9 /* App */,
+				A5ECDBB3FA3DA10A2184343C /* Design */,
+				26CCC3C4BA2ED800FEF2122C /* Features */,
+				55FA72E90D26AF08997D0BF6 /* Resources */,
+				82EFF039E8F784EA250D7849 /* Security */,
+				D2E7638B74F3FF3067608AB2 /* Assets.xcassets */,
+				4ECDC27E0C6E064796ED91BA /* CribWire.entitlements */,
+				F3D768942313EE980CA1E59D /* Info.plist */,
+			);
+			path = CribWire;
+			sourceTree = "<group>";
+		};
+		6883912B41733DC48C1A40A3 /* RoleSelection */ = {
+			isa = PBXGroup;
+			children = (
+				EC8118E93530AD0476715A28 /* HomeViews.swift */,
+				EA51949C8A9DA9D78698BBF2 /* RoleSelectionView.swift */,
+			);
+			path = RoleSelection;
+			sourceTree = "<group>";
+		};
+		74F62E932ED250E32D0A8BCD /* shared */ = {
+			isa = PBXGroup;
+			children = (
+				FF9E8DF40153D263662A5CD2 /* test-vectors */,
+			);
+			path = shared;
+			sourceTree = "<group>";
+		};
+		82EFF039E8F784EA250D7849 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				AE9E93FE735505130BB918DA /* KeychainStore.swift */,
+				5494D568D7D41D311E8C7457 /* PairingSecretsStore.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		A1DB9615BE732E29BCAC2C89 /* CribWire */ = {
+			isa = PBXGroup;
+			children = (
+				74F62E932ED250E32D0A8BCD /* shared */,
+			);
+			name = CribWire;
+			path = ..;
+			sourceTree = "<group>";
+		};
+		A36D6DB3DCE03605DCFF782A /* Detection */ = {
+			isa = PBXGroup;
+			children = (
+				FAD3D59C058DDC1670BCD3D4 /* AudioLevelMonitor.swift */,
+				AE9FF7EA653DFF1D89997299 /* CameraPreviewView.swift */,
+				2E954A0E25419AFB46747812 /* DetectionCoordinator.swift */,
+				CDF61C405F3C3B740F018C7F /* DetectionSettingsStore.swift */,
+				FD22DB95953EE3A36B821EAB /* DetectionSettingsView.swift */,
+				D2596F46E65EDAA1E23F35BF /* DetectionSettingsViewModel.swift */,
+				4E6C2E57C43C60B916C97B37 /* LumaFrameExtractor.swift */,
+			);
+			path = Detection;
+			sourceTree = "<group>";
+		};
+		A5ECDBB3FA3DA10A2184343C /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				210705C17F09F1C8B839F16E /* Components.swift */,
+				6F1B49B2E1F8F141CCF76E9B /* Theme.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		AF889F4DB6B6E6C81EB7C3CF = {
+			isa = PBXGroup;
+			children = (
+				56CE56888746932E30EB47F1 /* CribWire */,
+				A1DB9615BE732E29BCAC2C89 /* CribWire */,
+				4A079D54E6CC95DC3E9615DC /* CribWireTests */,
+				E7189EEBF8FB00FE418DD699 /* CribWireWidgets */,
+				38C0791EB44AFE049C343DAB /* Packages */,
+				51A667FB59FAFC3F03777831 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B57F207967A29495CADBC13B /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				7D340A459AF0177A95533CC4 /* CribWireActivityAttributes.swift */,
+				41CD3A420C36A9183A681943 /* LiveActivityController.swift */,
+			);
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		E2D0B4FE0AA71EBD5DCB6241 /* Pairing */ = {
+			isa = PBXGroup;
+			children = (
+				47E75044C49E33EB5EE8D8D1 /* CameraPairingView.swift */,
+				0026C8F9C85642C47963767F /* CameraPairingViewModel.swift */,
+				538522365CE1671F80557DD8 /* LocalPairingCoordinator.swift */,
+				0CEB8F8082C2F5106E7DAB64 /* PairingSignalingLink.swift */,
+				65EDC8FC55B35888487A73C0 /* QRCodeRenderer.swift */,
+				FF6BC90E8FEECE9A8CD0E28C /* QRScannerView.swift */,
+				014B9018A45B559D0F411117 /* SASConfirmationView.swift */,
+				0C02CD746E4FA605A02EC51B /* ScreenCaptureProtection.swift */,
+				C340DBD66038B48C21531850 /* ViewerPairingViewModel.swift */,
+				D46C194775B7AF46C1CE35F8 /* ViewerScanView.swift */,
+			);
+			path = Pairing;
+			sourceTree = "<group>";
+		};
+		E7189EEBF8FB00FE418DD699 /* CribWireWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				F7C744CAD09878329B76742A /* CribWireLiveActivity.swift */,
+				17176227CCEF4FBA1B6F457B /* Info.plist */,
+			);
+			path = CribWireWidgets;
+			sourceTree = "<group>";
+		};
+		F37C9F1F5FA2DD2BFA478A19 /* Pairings */ = {
+			isa = PBXGroup;
+			children = (
+				97E33A0F11A1BAE903222692 /* PairedDevicesView.swift */,
+			);
+			path = Pairings;
+			sourceTree = "<group>";
+		};
+		FF9E8DF40153D263662A5CD2 /* test-vectors */ = {
+			isa = PBXGroup;
+			children = (
+				CDD874325F3DC50226416588 /* cribwire-v1.json */,
+			);
+			path = "test-vectors";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		15AE0DA6C29FDD4469A1B13E /* CribWireWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3FFD29D08BC70000348A1BB3 /* Build configuration list for PBXNativeTarget "CribWireWidgets" */;
+			buildPhases = (
+				E7AC506BDC01C09966F72F40 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CribWireWidgets;
+			packageProductDependencies = (
+			);
+			productName = CribWireWidgets;
+			productReference = 92C4C3549B8729B246E1A02E /* CribWireWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		35D76FF7188CEDEFD0B0BB10 /* CribWireTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A23CB22BDA8088B985F13C6E /* Build configuration list for PBXNativeTarget "CribWireTests" */;
+			buildPhases = (
+				1591719686C02980E03902BE /* Sources */,
+				9B620D529592B4E89A6E436C /* Resources */,
+				C3392DDBE98195A6D2FEF101 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				17A6182108F3345557639352 /* PBXTargetDependency */,
+			);
+			name = CribWireTests;
+			packageProductDependencies = (
+				95A5FAD3A7E8D969719457D4 /* CribWireKit */,
+			);
+			productName = CribWireTests;
+			productReference = 893BF01A3798D5BE71159B75 /* CribWireTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		D99F2C199360BCAA8CBDC778 /* CribWire */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 05B895C04C3CF40CCE6E7889 /* Build configuration list for PBXNativeTarget "CribWire" */;
+			buildPhases = (
+				AB83D1DDCCBEC0508B903EE8 /* Sources */,
+				0AAFC4266D7EEC60C0FF3C5C /* Resources */,
+				737F96A5F6C5AEF8AC3BFFDF /* Frameworks */,
+				36C0A856F20D3C6D0D182E67 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C15E700278FB0E63D35854BD /* PBXTargetDependency */,
+			);
+			name = CribWire;
+			packageProductDependencies = (
+				3BAC984B93FB6BB813B59E26 /* CribWireKit */,
+				2E9667BE84BDF8AC73C545AF /* WebRTC */,
+				D3DB807445B46D28FDAE7D40 /* Auth */,
+				00269FA16D88D237DEFE4A7B /* Player */,
+				3F7DD5B4CD9165EAE771F685 /* EventProducer */,
+				7C488BD16A0EDA438EF7B97E /* TidalAPI */,
+			);
+			productName = CribWire;
+			productReference = E9F2318ED98E1005A061D891 /* CribWire.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4F57A5FE54A13CD809A090AA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					15AE0DA6C29FDD4469A1B13E = {
+						DevelopmentTeam = NRV7K64R87;
+						ProvisioningStyle = Automatic;
+					};
+					35D76FF7188CEDEFD0B0BB10 = {
+						DevelopmentTeam = NRV7K64R87;
+						ProvisioningStyle = Automatic;
+					};
+					D99F2C199360BCAA8CBDC778 = {
+						DevelopmentTeam = NRV7K64R87;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 00A5DDAE7C977A9FF41AD8AB /* Build configuration list for PBXProject "CribWire" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+				nl,
+			);
+			mainGroup = AF889F4DB6B6E6C81EB7C3CF;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */,
+				907B176C976B3E532173EB08 /* XCRemoteSwiftPackageReference "WebRTC" */,
+				08C765DB5AB087038BBB42D6 /* XCLocalSwiftPackageReference "CribWireKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 51A667FB59FAFC3F03777831 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D99F2C199360BCAA8CBDC778 /* CribWire */,
+				15AE0DA6C29FDD4469A1B13E /* CribWireWidgets */,
+				35D76FF7188CEDEFD0B0BB10 /* CribWireTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0AAFC4266D7EEC60C0FF3C5C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31FD81EDDCF48264D020AD81 /* Assets.xcassets in Resources */,
+				E887DB34824801DF5F517716 /* InfoPlist.xcstrings in Resources */,
+				6738AAA51A947F3D0B90D38E /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9B620D529592B4E89A6E436C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				321D4AF47D486E6AD68CDF17 /* cribwire-v1.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1591719686C02980E03902BE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				970A65DAEC00F35FA7618BB5 /* AppLayerTests.swift in Sources */,
+				1F134FF588AF337B56FC5777 /* NurseryTests.swift in Sources */,
+				31A7F57A19BA775354B9602D /* StreamingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB83D1DDCCBEC0508B903EE8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1777443C93A5EDC7D5FF3455 /* AlertsControlsView.swift in Sources */,
+				BA403EEEF1353AC24590705C /* AppConfiguration.swift in Sources */,
+				E76676F46047B1F771FE5336 /* AppDelegate.swift in Sources */,
+				126B30D4B12E3B5AE4C75532 /* AppServices.swift in Sources */,
+				EE1675BB150828DFD16A6E86 /* AppleMusicProvider.swift in Sources */,
+				6F3DF90824FD51CFA0540856 /* AudioInterruptionMonitor.swift in Sources */,
+				7CE8B61D4A269A523A804C34 /* AudioLevelMonitor.swift in Sources */,
+				3E74681900C9A9F38B726AA4 /* CameraBackgroundSession.swift in Sources */,
+				6FFD9CAFD5EE80F35B919383 /* CameraCaptureController.swift in Sources */,
+				06511A62E5D0BDC9E2B93D26 /* CameraPairingView.swift in Sources */,
+				0F022D895E5D870225CF8584 /* CameraPairingViewModel.swift in Sources */,
+				414605D5E2B563411EE0FA5D /* CameraPreviewView.swift in Sources */,
+				6D259279CCA57623C03D642A /* CameraSensitivityStore.swift in Sources */,
+				A08480FBD1FA5B43185930AE /* CameraStatusView.swift in Sources */,
+				60EE65AA4E1A2377A5612BBD /* Components.swift in Sources */,
+				1592F978A1FA9D6EE8EF202E /* CribWireActivityAttributes.swift in Sources */,
+				E414EEE6B44002D501DA8C19 /* CribWireApp.swift in Sources */,
+				07342ABFCC7EC36B01A9EDFD /* DetectionCoordinator.swift in Sources */,
+				94B6DBFE143AE9EF30E76588 /* DetectionSettingsStore.swift in Sources */,
+				B75C439E371ECB0E0807DF4B /* DetectionSettingsView.swift in Sources */,
+				D18B9023F28320FEDAC03C59 /* DetectionSettingsViewModel.swift in Sources */,
+				7461842A1D6CC1D763E62F6E /* EventNotificationDecoder.swift in Sources */,
+				A3A8B1DA144EEB75C8CCCB9C /* HomeViews.swift in Sources */,
+				EF22DFA6E9DDEDE3D78AAC8F /* KeychainStore.swift in Sources */,
+				9C5A8D63D742E0DB3B11FFFC /* LiveActivityController.swift in Sources */,
+				94BDFB693F337A7578571D02 /* LocalPairingCoordinator.swift in Sources */,
+				A9294E7881E4AC2C240711E0 /* LocalPeerTransport.swift in Sources */,
+				EEF99E02A13974AF34B92B80 /* LumaFrameExtractor.swift in Sources */,
+				7E2E82B5475296097CA8119A /* MicrophoneAccess.swift in Sources */,
+				BEAA96F474961E8F273863EE /* MusicProvider.swift in Sources */,
+				50ED10582991616A4F00F597 /* MusicRecentsStore.swift in Sources */,
+				F687549749D348F8093FB243 /* NetworkPathMonitor.swift in Sources */,
+				F939EDCD4A80EE55C6F0D21B /* NurseryController.swift in Sources */,
+				3F7216A114B735D5B3BE38E3 /* NurseryControlsView.swift in Sources */,
+				F8DCAC6BF96D2C10DD603C4E /* PairedDevicesView.swift in Sources */,
+				A1B9AF9BE173A74FD380A8CC /* PairingRegistry.swift in Sources */,
+				1FDB2A39C4CDB036F4EE554B /* PairingSecretsStore.swift in Sources */,
+				30E2910F2471D3EFC627B2EA /* PairingSignalingLink.swift in Sources */,
+				EA3E6BF3B96BDC575F4EE554 /* PeerSession.swift in Sources */,
+				A0664A35BFB5F7A071A7C8AF /* PushNotificationCoordinator.swift in Sources */,
+				04FB541A738CE0ABB55C1670 /* QRCodeRenderer.swift in Sources */,
+				12A60073BDA7347E02357831 /* QRScannerView.swift in Sources */,
+				51CC0EB9997D6286BA59C66A /* RemoteConfigurationStore.swift in Sources */,
+				77D74FD465650B27ABD8E490 /* RoleSelectionView.swift in Sources */,
+				90AD3E9F50CFF4C368D6A6F2 /* SASConfirmationView.swift in Sources */,
+				E5F2867CE880436E3ACBCC41 /* ScreenCaptureProtection.swift in Sources */,
+				7C3690FC4E57B3EE75AF42F1 /* SensitivityControlsView.swift in Sources */,
+				F911E9604A522FBC5C8FDF69 /* StreamingEngine.swift in Sources */,
+				3C6D08D7A72234131CEAAE3A /* SystemMusicRemote.swift in Sources */,
+				922D16DB34A12D6CCE5FDAE9 /* SystemVolumeController.swift in Sources */,
+				D018625AF815444E860A0E6E /* Theme.swift in Sources */,
+				72A9C174DB2BDAFC6356891C /* TidalCatalog.swift in Sources */,
+				83CED7C639E675E8A01F56EC /* TidalMusicProvider.swift in Sources */,
+				8421970FA7A7FB361B1100BF /* TidalSession.swift in Sources */,
+				7F27719219AE94916C200AD4 /* VideoRenderView.swift in Sources */,
+				F3B957B4572666829579A452 /* ViewerLiveView.swift in Sources */,
+				C4510C6718EA97DF13B12F5C /* ViewerPairingViewModel.swift in Sources */,
+				ADBFD7DAF3646A477B6D6B89 /* ViewerScanView.swift in Sources */,
+				9DC754A831B21188753AD922 /* WebRTCStack.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E7AC506BDC01C09966F72F40 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				399762BCFFA86D8C7412CAE5 /* CribWireActivityAttributes.swift in Sources */,
+				534D9CC7F29F91A3FEBFF99F /* CribWireLiveActivity.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		17A6182108F3345557639352 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D99F2C199360BCAA8CBDC778 /* CribWire */;
+			targetProxy = C8891BC794223FD62E6066A2 /* PBXContainerItemProxy */;
+		};
+		C15E700278FB0E63D35854BD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 15AE0DA6C29FDD4469A1B13E /* CribWireWidgets */;
+			targetProxy = 47317B5C1FEFBBD6B16B0895 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		04616851A0DBEE31647E5B85 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CRIBWIRE_API_BASE_URL = "https://apicribwire.ralphhees.nl";
+				CRIBWIRE_APS_ENVIRONMENT = production;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = NRV7K64R87;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZED_STRING_SWIFTUI_SUPPORT = YES;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		083A1B84B736AFE0DEC64F18 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ralphhees.cribwire.CribWireTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CribWire.app/CribWire";
+			};
+			name = Release;
+		};
+		2E57660C567C1DD4099ED60E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ralphhees.cribwire.CribWireTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CribWire.app/CribWire";
+			};
+			name = Debug;
+		};
+		7804F7C29221B7B43EBAD8B0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CRIBWIRE_API_BASE_URL = "https://apicribwire.ralphhees.nl";
+				CRIBWIRE_APS_ENVIRONMENT = development;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = NRV7K64R87;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_TREAT_WARNINGS_AS_ERRORS = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZED_STRING_SWIFTUI_SUPPORT = YES;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		93D2865D4A0F1676663C3743 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CribWire/CribWire.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = CribWire/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ralphhees.cribwire.CribWire;
+				PRODUCT_NAME = CribWire;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BD3AA070F5279AE398B0C0BD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = CribWireWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ralphhees.cribwire.CribWire.Widgets;
+				PRODUCT_NAME = CribWireWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		EAF5D5A7A74DFB49A2138087 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = CribWireWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ralphhees.cribwire.CribWire.Widgets;
+				PRODUCT_NAME = CribWireWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F5A6C73F351B55A297788780 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CribWire/CribWire.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = CribWire/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ralphhees.cribwire.CribWire;
+				PRODUCT_NAME = CribWire;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		00A5DDAE7C977A9FF41AD8AB /* Build configuration list for PBXProject "CribWire" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7804F7C29221B7B43EBAD8B0 /* Debug */,
+				04616851A0DBEE31647E5B85 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		05B895C04C3CF40CCE6E7889 /* Build configuration list for PBXNativeTarget "CribWire" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93D2865D4A0F1676663C3743 /* Debug */,
+				F5A6C73F351B55A297788780 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3FFD29D08BC70000348A1BB3 /* Build configuration list for PBXNativeTarget "CribWireWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EAF5D5A7A74DFB49A2138087 /* Debug */,
+				BD3AA070F5279AE398B0C0BD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A23CB22BDA8088B985F13C6E /* Build configuration list for PBXNativeTarget "CribWireTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2E57660C567C1DD4099ED60E /* Debug */,
+				083A1B84B736AFE0DEC64F18 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		08C765DB5AB087038BBB42D6 /* XCLocalSwiftPackageReference "CribWireKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = CribWireKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		907B176C976B3E532173EB08 /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC";
+			requirement = {
+				kind = versionRange;
+				maximumVersion = 200.0.0;
+				minimumVersion = 120.0.0;
+			};
+		};
+		ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tidal-music/tidal-sdk-ios";
+			requirement = {
+				kind = versionRange;
+				maximumVersion = 0.13.0;
+				minimumVersion = 0.12.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		00269FA16D88D237DEFE4A7B /* Player */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */;
+			productName = Player;
+		};
+		2E9667BE84BDF8AC73C545AF /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 907B176C976B3E532173EB08 /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+		3BAC984B93FB6BB813B59E26 /* CribWireKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CribWireKit;
+		};
+		3F7DD5B4CD9165EAE771F685 /* EventProducer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */;
+			productName = EventProducer;
+		};
+		7C488BD16A0EDA438EF7B97E /* TidalAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */;
+			productName = TidalAPI;
+		};
+		95A5FAD3A7E8D969719457D4 /* CribWireKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CribWireKit;
+		};
+		D3DB807445B46D28FDAE7D40 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */;
+			productName = Auth;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 4F57A5FE54A13CD809A090AA /* Project object */;
+}
