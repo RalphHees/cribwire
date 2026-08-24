@@ -1,0 +1,96 @@
+{
+  "originHash" : "8939fa98820f49743f1710eaebf09b40298a5f99c532bfe5ab54730122265687",
+  "pins" : [
+    {
+      "identity" : "anycodable",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Flight-School/AnyCodable",
+      "state" : {
+        "revision" : "862808b2070cd908cb04f9aafe7de83d35f81b05",
+        "version" : "0.6.7"
+      }
+    },
+    {
+      "identity" : "grdb.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/groue/GRDB.swift.git",
+      "state" : {
+        "revision" : "2cf6c756e1e5ef6901ebae16576a7e4e4b834622",
+        "version" : "6.29.3"
+      }
+    },
+    {
+      "identity" : "keychainaccess",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kishikawakatsumi/KeychainAccess.git",
+      "state" : {
+        "revision" : "84e546727d66f1adc5439debad16270d0fdd04e7",
+        "version" : "4.2.2"
+      }
+    },
+    {
+      "identity" : "kronos",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/MobileNativeFoundation/Kronos.git",
+      "state" : {
+        "revision" : "a46542ce639581af2a85ab9ec1616a507a5d4ae2",
+        "version" : "4.2.2"
+      }
+    },
+    {
+      "identity" : "swift-asn1",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-asn1.git",
+      "state" : {
+        "revision" : "a9a5efd40eaf558a2bcd48d64b1d1646be686008",
+        "version" : "1.7.1"
+      }
+    },
+    {
+      "identity" : "swift-crypto",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-crypto.git",
+      "state" : {
+        "revision" : "95ba0316a9b733e92bb6b071255ff46263bbe7dc",
+        "version" : "3.15.1"
+      }
+    },
+    {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log.git",
+      "state" : {
+        "revision" : "3ffafb9722d5d918c614feb496c8789a3b59d222",
+        "version" : "1.15.0"
+      }
+    },
+    {
+      "identity" : "swxmlhash",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/drmohundro/SWXMLHash.git",
+      "state" : {
+        "revision" : "a853604c9e9a83ad9954c7e3d2a565273982471f",
+        "version" : "7.0.2"
+      }
+    },
+    {
+      "identity" : "tidal-sdk-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tidal-music/tidal-sdk-ios",
+      "state" : {
+        "revision" : "268cde75f6196cb7811d6cc14ef81f6ae31f46d3",
+        "version" : "0.12.4"
+      }
+    },
+    {
+      "identity" : "webrtc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stasel/WebRTC",
+      "state" : {
+        "revision" : "19aa8c1fc7120d50df987b7111f42d5024df3d54",
+        "version" : "151.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
