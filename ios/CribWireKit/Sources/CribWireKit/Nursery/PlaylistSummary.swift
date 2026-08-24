@@ -19,6 +19,9 @@ public struct PlaylistSummary: Codable, Equatable, Identifiable, Sendable {
     /// `MusicCommand.selectPlaylist`.
     public var playlistID: String
     public var provider: MusicProviderKind
+    /// Whether this is a playlist or an album. Read by the Viewer for the row's
+    /// icon; the same fact is in `playlistID` for the Camera to route on.
+    public var kind: MusicItemKind
     public var name: String
     /// Second line: track count, curator, whatever the provider offers.
     public var detail: String?
@@ -35,6 +38,7 @@ public struct PlaylistSummary: Codable, Equatable, Identifiable, Sendable {
     public init(
         playlistID: String,
         provider: MusicProviderKind,
+        kind: MusicItemKind = .playlist,
         name: String,
         detail: String? = nil,
         isFavorite: Bool = false,
@@ -42,6 +46,7 @@ public struct PlaylistSummary: Codable, Equatable, Identifiable, Sendable {
     ) {
         self.playlistID = playlistID
         self.provider = provider
+        self.kind = kind
         self.name = Self.truncate(name, to: Self.maxNameLength)
         self.detail = detail.map { Self.truncate($0, to: Self.maxNameLength) }
         self.isFavorite = isFavorite
@@ -58,6 +63,7 @@ public struct PlaylistSummary: Codable, Equatable, Identifiable, Sendable {
     enum CodingKeys: String, CodingKey {
         case playlistID = "i"
         case provider = "p"
+        case kind = "k"
         case name = "n"
         case detail = "d"
         case isFavorite = "f"
@@ -68,6 +74,9 @@ public struct PlaylistSummary: Codable, Equatable, Identifiable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.playlistID = try container.decode(String.self, forKey: .playlistID)
         self.provider = try container.decode(MusicProviderKind.self, forKey: .provider)
+        // Absent from anything a build before albums wrote, and from any Viewer
+        // that predates them: a missing kind is a playlist.
+        self.kind = (try? container.decodeIfPresent(MusicItemKind.self, forKey: .kind)) ?? .playlist
         self.name = Self.truncate(
             try container.decode(String.self, forKey: .name),
             to: Self.maxNameLength
@@ -102,9 +111,16 @@ public struct PlaylistSummary: Codable, Equatable, Identifiable, Sendable {
 /// and the last one played keeps its star *and* its position at the top.
 public enum PlaylistShortlist {
 
-    /// How many entries the Viewer is offered. Small on purpose — see above — and
-    /// the bound that keeps the state message inside the signaling frame cap.
-    public static let limit = 12
+    /// How many entries the Viewer is offered, and the bound that keeps the
+    /// state message inside the signaling frame cap.
+    ///
+    /// Still a shortlist rather than a library — see above — but a dozen was too
+    /// short to be one: an ordinary TIDAL collection is several times that, so
+    /// the cap was doing the same thing to the list that a failed read does,
+    /// which is hide most of it. Thirty leaves the history and the favourites
+    /// room to coexist and still fits the frame with the worst case of
+    /// maximum-length names and details (`NurseryStateTests`).
+    public static let limit = 30
 
     public static func build(
         cameraRecents: [PlaylistSummary],
@@ -127,13 +143,22 @@ public enum PlaylistShortlist {
         return Array(ordered.prefix(max(limit, 0)))
     }
 
-    /// Keeps the position and name of the earlier (higher-priority) entry, and
-    /// takes any fact the later one knows and it does not.
+    /// Keeps the position of the earlier (higher-priority) entry and takes any
+    /// fact the later one knows and it does not — including, in one narrow
+    /// case, its name.
     private static func merge(
         _ kept: PlaylistSummary,
         with other: PlaylistSummary
     ) -> PlaylistSummary {
         var merged = kept
+        // A history entry whose name is its own id — recorded on a night when
+        // the name request was the one call that failed — must not outrank a
+        // listing that knows what the playlist is called. Nothing else may
+        // replace the kept name: the history's copy is the one the parent has
+        // been reading at the top of the list.
+        if kept.name == kept.playlistID, other.name != other.playlistID {
+            merged.name = other.name
+        }
         merged.isFavorite = kept.isFavorite || other.isFavorite
         merged.detail = kept.detail ?? other.detail
         switch (kept.lastPlayedAt, other.lastPlayedAt) {

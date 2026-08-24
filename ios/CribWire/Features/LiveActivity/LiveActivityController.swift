@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import UIKit
 
 /// Starts, updates and ends the Viewer's Live Activity.
 ///
@@ -32,6 +33,35 @@ final class LiveActivityController {
     /// (battery, connection) change far more often than a Lock Screen needs.
     private var lastUpdate = Date.distantPast
     private static let minimumUpdateInterval: TimeInterval = 10
+
+    /// `nonisolated(unsafe)` so `deinit` — which is not actor-isolated — can
+    /// still unregister it. Safe by construction rather than by the compiler's
+    /// reasoning: it is written once in `init` and read once in `deinit`, and
+    /// there is no third moment for the two to race in.
+    private nonisolated(unsafe) var terminationObserver: (any NSObjectProtocol)?
+
+    /// Watches for the app being closed.
+    ///
+    /// Termination is the one way out of this screen that runs none of the
+    /// app's own teardown — no `onDisappear`, no scene phase change — so the
+    /// activity has to be ended from here or it is not ended at all. Delivery
+    /// is not guaranteed (a suspended app swiped out of the switcher is killed
+    /// silently), which is why `endStale()` exists as the backstop.
+    init() {
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    deinit {
+        if let terminationObserver {
+            NotificationCenter.default.removeObserver(terminationObserver)
+        }
+    }
 
     /// Wraps a state in the `ActivityContent` the modern ActivityKit API takes.
     ///
@@ -76,6 +106,25 @@ final class LiveActivityController {
         guard let activity else { return }
         self.activity = nil
         Task {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
+    /// Clears a card left behind by a previous run of the app.
+    ///
+    /// ActivityKit deliberately outlives the process that requested it, so a
+    /// force-quit — the ordinary way people close an app — leaves "Watching" on
+    /// the Lock Screen of a phone that is watching nothing. Nothing in the app
+    /// runs at that moment to say otherwise, so the next launch does it: any
+    /// activity found before this process has started one belongs to a Viewer
+    /// that no longer exists.
+    ///
+    /// `.immediate` for the same reason `end()` uses it: the card has to leave
+    /// the Lock Screen list itself, not settle into the dismissed-but-still-
+    /// there state that a default policy leaves behind for hours.
+    @MainActor
+    static func endStale() async {
+        for activity in Activity<CribWireActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
     }

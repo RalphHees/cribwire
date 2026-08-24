@@ -1,7 +1,263 @@
 import AVFoundation
 import CribWireKit
+import TidalAPI
 import XCTest
 @testable import CribWire
+
+/// How a page of a TIDAL playlist becomes a queue.
+///
+/// This exists because of a bug that read as "TIDAL does not play". The sift used
+/// to require every item to come back **sideloaded** in `included` and silently
+/// dropped the rest, so a server that declined the `include` — which is its right,
+/// sideloading being an optimisation rather than a promise — turned a full
+/// playlist into an empty one. `NurseryController` then read "empty" as "deleted
+/// on the account" and erased the playlist from the parent's history. One
+/// unhonoured query parameter, and the playlist a family fell asleep to every
+/// night both refused to play and disappeared.
+final class TidalPlaylistPageTests: XCTestCase {
+
+    /// Built by decoding JSON rather than by calling the generated model's
+    /// initialiser. It is the shape TIDAL actually sends that this code has to
+    /// survive, and `TracksAttributes` demands eight unrelated fields — `isrc`,
+    /// `key`, `popularity` — that say nothing about the rule under test.
+    private func page(json: String) throws -> PlaylistsItemsMultiRelationshipDataDocument {
+        try JSONDecoder().decode(
+            PlaylistsItemsMultiRelationshipDataDocument.self,
+            from: XCTUnwrap(json.data(using: .utf8))
+        )
+    }
+
+    private func trackJSON(id: String, title: String) -> String {
+        """
+        {"id":"\(id)","type":"tracks","attributes":{"title":"\(title)",\
+        "duration":"PT3M","explicit":false,"isrc":"US0000000000",\
+        "key":"C","keyScale":"MAJOR","mediaTags":[],"popularity":0.5}}
+        """
+    }
+
+    /// The regression, and the exact response the Camera was getting: the
+    /// relationship's ids with no `included` at all. It has to yield a playable
+    /// queue.
+    func testTracksSurviveAPageThatSideloadsNothing() throws {
+        let document = try page(json: """
+        {"data":[{"id":"t1","type":"tracks"},{"id":"t2","type":"tracks"}],
+         "links":{"self":"/playlists/x/relationships/items"}}
+        """)
+
+        let result = TidalCatalog.playableTracks(in: document)
+
+        XCTAssertEqual(result.tracks.map(\.id), ["t1", "t2"])
+        XCTAssertEqual(
+            result.tracks.map(\.title),
+            [nil, nil],
+            "a missing title costs a title, never the track"
+        )
+    }
+
+    /// Titles are still used where they do arrive — the fallback must not have
+    /// replaced the fast path.
+    func testSideloadedTitlesAreKept() throws {
+        let document = try page(json: """
+        {"data":[{"id":"t1","type":"tracks"}],
+         "included":[\(trackJSON(id: "t1", title: "Rain on a Tin Roof"))],
+         "links":{"self":"/playlists/x/relationships/items"}}
+        """)
+
+        let result = TidalCatalog.playableTracks(in: document)
+
+        XCTAssertEqual(result.tracks.map(\.title), ["Rain on a Tin Roof"])
+        XCTAssertEqual(result.sideloadedCount, 1)
+    }
+
+    /// Videos still go. A music video in the middle of a sleep playlist is a
+    /// jarring thing to wake up to, and that sift is by `type` — which is on the
+    /// identifier, so it survives the change.
+    func testVideosAreStillDropped() throws {
+        let document = try page(json: """
+        {"data":[{"id":"t1","type":"tracks"},{"id":"v1","type":"videos"},
+                 {"id":"t2","type":"tracks"}],
+         "links":{"self":"/playlists/x/relationships/items"}}
+        """)
+
+        XCTAssertEqual(TidalCatalog.playableTracks(in: document).tracks.map(\.id), ["t1", "t2"])
+    }
+}
+
+/// What happens when the generated models refuse a response the server was happy
+/// with.
+///
+/// The second half of the same bug: `TracksAttributes` makes `isrc`, `key`,
+/// `keyScale`, `popularity` and four others mandatory, `JSONDecoder` is
+/// all-or-nothing, and so a single sideloaded track without an ISRC fails the
+/// whole page. The generated client reports that as `HTTPErrorResponse` carrying
+/// **status 200** — a decoding failure dressed as a transport one — and the
+/// playlist a family fell asleep to stopped playing with "play failed: could not
+/// read <id>" in the log.
+final class TidalSalvagedPageTests: XCTestCase {
+
+    private func salvage(_ json: String) throws -> TidalCatalog.ItemsPage {
+        try XCTUnwrap(TidalCatalog.salvagedPage(from: XCTUnwrap(json.data(using: .utf8))))
+    }
+
+    /// The regression: one sideloaded track missing everything `TracksAttributes`
+    /// demands must not cost the other track, let alone the playlist.
+    func testATrackTheGeneratedModelsRejectCostsOnlyItsOwnTitle() throws {
+        let page = try salvage("""
+        {"data":[{"id":"t1","type":"tracks"},{"id":"t2","type":"tracks"}],
+         "included":[{"id":"t1","type":"tracks","attributes":{"title":"Rain on a Tin Roof"}},
+                     {"id":"t2","type":"tracks","attributes":{"duration":"PT3M"}}],
+         "links":{"self":"/playlists/x/relationships/items"}}
+        """)
+
+        XCTAssertEqual(page.tracks.map(\.id), ["t1", "t2"])
+        XCTAssertEqual(page.tracks.map(\.title), ["Rain on a Tin Roof", nil])
+    }
+
+    /// Paging survives the salvage. A page read this way that stopped at its
+    /// first page would silently truncate every playlist to twenty tracks.
+    func testTheNextCursorIsStillRead() throws {
+        let page = try salvage("""
+        {"data":[{"id":"t1","type":"tracks"}],
+         "links":{"self":"/playlists/x/relationships/items",
+                  "next":"/playlists/x/relationships/items?page%5Bcursor%5D=abc123"}}
+        """)
+
+        XCTAssertEqual(page.nextCursor, "abc123")
+    }
+
+    func testVideosAreDroppedHereToo() throws {
+        let page = try salvage("""
+        {"data":[{"id":"v1","type":"videos"},{"id":"t1","type":"tracks"}],
+         "links":{"self":"/playlists/x/relationships/items"}}
+        """)
+
+        XCTAssertEqual(page.tracks.map(\.id), ["t1"])
+    }
+
+    /// The safety rail on the whole idea. A lenient reader will happily parse an
+    /// error document — or any other JSON object — as "a page with no items", and
+    /// an empty page is what makes `NurseryController` erase the playlist from
+    /// the parent's history. Understanding nothing has to stay distinguishable
+    /// from finding nothing.
+    func testABodyThatIsNotARelationshipPageSalvagesNothingRatherThanAnEmptyQueue() throws {
+        let errors = try XCTUnwrap(#"{"errors":[{"status":"451","code":"UNAVAILABLE"}]}"#.data(using: .utf8))
+
+        let page = TidalCatalog.salvagedPage(from: errors)
+
+        XCTAssertEqual(page?.tracks.count, 0, "no items is what the caller must reject")
+        XCTAssertNil(TidalCatalog.salvagedPage(from: nil))
+        XCTAssertNil(TidalCatalog.salvagedPage(from: try XCTUnwrap("<html>".data(using: .utf8))))
+    }
+}
+
+/// The same salvage, on the reads that answer with playlists rather than tracks.
+///
+/// `PlaylistsAttributes` makes seven fields mandatory — among them `createdAt`,
+/// `numberOfFollowers` and a `playlistType` whose four cases are whatever TIDAL
+/// had the day the client was generated. One saved playlist the generated model
+/// will not decode used to empty the whole collection read, and an empty
+/// collection falls back to the playlists the user *owns* — which is why a
+/// library full of saved and followed lists showed up on the Viewer as a handful
+/// of the parent's own.
+final class TidalSalvagedPlaylistsTests: XCTestCase {
+
+    private func salvage(_ json: String) throws -> TidalCatalog.EntryPage {
+        try XCTUnwrap(TidalCatalog.salvagedEntries(from: XCTUnwrap(json.data(using: .utf8))))
+    }
+
+    /// A collection page whose sideloaded playlists are unreadable. The ids are
+    /// what the collection is; the names are looked up separately, so losing
+    /// them here must not lose the playlists.
+    func testCollectionIdsSurviveSideloadedPlaylistsThatWillNotDecode() throws {
+        let page = try salvage("""
+        {"data":[{"id":"p1","type":"playlists"},{"id":"p2","type":"playlists"}],
+         "included":[{"id":"p1","type":"playlists","attributes":{"name":"Bedtime","description":"20 songs"}}],
+         "links":{"self":"/userCollections/1/relationships/playlists",
+                  "next":"/userCollections/1/relationships/playlists?page%5Bcursor%5D=next2"}}
+        """)
+
+        XCTAssertEqual(page.entries.map(\.id), ["p1", "p2"])
+        XCTAssertEqual(page.entries.map(\.name), ["Bedtime", nil])
+        XCTAssertEqual(page.entries.first?.detail, "20 songs")
+        XCTAssertEqual(page.nextCursor, "next2")
+    }
+
+    /// The other shape: a filtered list, where the names are on `data` itself.
+    func testAListOfFullResourcesIsReadFromDataAlone() throws {
+        let page = try salvage("""
+        {"data":[{"id":"p1","type":"playlists","attributes":{"name":"White Noise"}},
+                 {"id":"p2","type":"playlists","attributes":{"name":"Lullabies","playlistType":"SOMETHING_NEW"}}],
+         "links":{"self":"/playlists"}}
+        """)
+
+        XCTAssertEqual(page.entries.map(\.name), ["White Noise", "Lullabies"])
+        XCTAssertNil(page.nextCursor, "no next link is the end of the walk, not a repeat of this page")
+    }
+
+    /// And the third: one resource on its own, which is how a playlist is named
+    /// for the Camera's history. `data` is an object here, not an array.
+    func testASingleResourceDocumentIsReadToo() throws {
+        let page = try salvage("""
+        {"data":{"id":"p1","type":"playlists","attributes":{"name":"Rain on a Tin Roof"}},
+         "links":{"self":"/playlists/p1"}}
+        """)
+
+        XCTAssertEqual(page.entries.map(\.name), ["Rain on a Tin Roof"])
+    }
+
+    /// The now-playing line's fallback. These are the tracks the generated model
+    /// rejects, so they are exactly the ones with no sideloaded title either —
+    /// without the salvage they are the only tracks that show nothing at all.
+    func testATracksTitleAndArtistsAreSalvagedForTheNowPlayingLine() throws {
+        let body = try XCTUnwrap("""
+        {"data":{"id":"t1","type":"tracks","attributes":{"title":"Sleepy Hollow"}},
+         "included":[{"id":"a1","type":"artists","attributes":{"name":"Ann"}},
+                     {"id":"a2","type":"artists","attributes":{"name":"Bo"}}],
+         "links":{"self":"/tracks/t1"}}
+        """.data(using: .utf8))
+
+        let metadata = TidalCatalog.salvagedMetadata(from: body)
+
+        XCTAssertEqual(metadata.title, "Sleepy Hollow")
+        XCTAssertEqual(metadata.artist, "Ann, Bo")
+    }
+
+    /// An album is named by `title` where a playlist is named by `name` — the
+    /// one place the two catalogues disagree about what a thing is called, and
+    /// the one that would leave every album on the Viewer's list nameless (and
+    /// so dropped) if the reader knew only one of the two words.
+    func testAnAlbumIsNamedByItsTitle() throws {
+        let page = try salvage("""
+        {"data":[{"id":"1234567","type":"albums","attributes":{"title":"Abbey Road"}}],
+         "links":{"self":"/albums"}}
+        """)
+
+        XCTAssertEqual(page.entries.map(\.name), ["Abbey Road"])
+    }
+
+    /// A collection of albums, sideloaded — the shape the albums relationship
+    /// answers in, and the one whose strict decode `AlbumsAttributes` fails for
+    /// a single album missing a barcode.
+    func testCollectionAlbumIdsSurviveSideloadedAlbumsThatWillNotDecode() throws {
+        let page = try salvage("""
+        {"data":[{"id":"1","type":"albums"},{"id":"2","type":"albums"}],
+         "included":[{"id":"1","type":"albums","attributes":{"title":"Kind of Blue"}}],
+         "links":{"self":"/userCollections/1/relationships/albums"}}
+        """)
+
+        XCTAssertEqual(page.entries.map(\.id), ["1", "2"])
+        XCTAssertEqual(page.entries.map(\.name), ["Kind of Blue", nil])
+    }
+
+    func testNothingIsSalvagedFromABodyThatIsNotADocument() throws {
+        XCTAssertNil(TidalCatalog.salvagedEntries(from: nil))
+        XCTAssertEqual(
+            TidalCatalog.salvagedEntries(from: try XCTUnwrap(#"{"errors":[{"status":"403"}]}"#.data(using: .utf8)))?.entries.count,
+            0,
+            "an error document reads as no playlists, which the caller must reject"
+        )
+    }
+}
 
 /// The app-target half of the nursery controls: the pieces that touch iOS types
 /// and therefore cannot live in `CribWireKit`, but that are still decisions rather
@@ -88,29 +344,47 @@ final class TidalConfigurationTests: XCTestCase {
         XCTAssertFalse(availability == .ready, "a service that cannot play is never ready")
     }
 
-    /// A client id is not an implementation.
+    /// A client id gets TIDAL as far as a login screen and no further.
     ///
-    /// Setting `TIDAL_CLIENT_ID` on the backend is a reasonable thing for a
-    /// deployment to do, and it must not make every Camera in the fleet advertise
-    /// a service with no player behind it — which is what put "TIDAL is not set
-    /// up on this camera" in front of someone who had a TIDAL subscription.
+    /// The distinction this pins down is the whole shape of the feature: a
+    /// configured Camera *offers* TIDAL, so it reaches the Viewer's switcher and
+    /// the Camera's own screen can show a sign-in button — but until somebody
+    /// stands in front of that phone and signs in, it reports `needsPermission`
+    /// rather than `ready`, and a Viewer is never given a playlist picker that
+    /// would play nothing.
     @MainActor
-    func testAClientIDAloneDoesNotOfferTidal() async {
+    func testAConfiguredButSignedOutCameraOffersTidalWithoutClaimingItCanPlay() async {
         let provider = TidalMusicProvider(
             configuration: TidalConfiguration(clientID: "a-real-looking-client-id")
         )
-        XCTAssertFalse(
-            provider.isConfigured,
-            "offer TIDAL only when this build can actually play it"
-        )
+        XCTAssertTrue(provider.isConfigured)
+
         let availability = await provider.availability()
-        XCTAssertEqual(availability, .notConfigured)
+        XCTAssertEqual(availability, .needsPermission)
+        XCTAssertFalse(availability == .ready, "signed out is not ready")
+        XCTAssertFalse(
+            provider.canControlPlayback,
+            "there is no queue of ours to pause before anything has been played"
+        )
     }
 
-    /// The switcher is built from the providers a Camera can use, so an
-    /// unimplemented service must not reach a Viewer's screen at all.
+    /// A signed-out provider has nothing to list, and says so rather than
+    /// failing: the whole `MusicProvider` protocol is non-throwing because a
+    /// music service must never be able to break a monitor.
     @MainActor
-    func testTidalIsNotAmongTheProvidersACameraOffers() async throws {
+    func testASignedOutCameraListsNoPlaylistsRatherThanFailing() async {
+        let provider = TidalMusicProvider(
+            configuration: TidalConfiguration(clientID: "a-real-looking-client-id")
+        )
+        let loaded = await provider.loadPlaylists()
+        XCTAssertTrue(loaded.favorites.isEmpty)
+        XCTAssertTrue(loaded.recentlyPlayed.isEmpty)
+    }
+
+    /// The switcher is built from the providers a Camera *can* use, so a
+    /// deployment that issued a client id has to see TIDAL reach it.
+    @MainActor
+    func testTidalIsAmongTheProvidersAConfiguredCameraOffers() async throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.tidalOffer"))
         defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.tidalOffer") }
 
@@ -121,6 +395,28 @@ final class TidalConfigurationTests: XCTestCase {
             providers: [
                 FakeMusicProvider(availability: .ready, canControlPlayback: true),
                 TidalMusicProvider(configuration: TidalConfiguration(clientID: "id"))
+            ],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+        await controller.reload()
+
+        XCTAssertTrue(controller.state.music.availableProviders.contains(.tidal))
+    }
+
+    /// And a Camera whose deployment issued none must not, because a switcher
+    /// entry that leads to "not set up" is four dead buttons.
+    @MainActor
+    func testTidalIsNotOfferedWithoutAClientID() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.tidalHidden"))
+        defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.tidalHidden") }
+
+        let controller = NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [
+                FakeMusicProvider(availability: .ready, canControlPlayback: true),
+                TidalMusicProvider(configuration: nil)
             ],
             systemRemote: FakeSystemMusicRemote(isAvailable: false)
         )
@@ -159,11 +455,46 @@ final class TidalConfigurationTests: XCTestCase {
         XCTAssertNil(TidalConfiguration.make(remote: RemoteConfiguration(tidalClientID: "  ")))
     }
 
-    // No test for the provider resolving its id on every read: `isConfigured`
-    // short-circuits on `isPlaybackImplemented`, so today the resolver is never
-    // consulted at all and there is nothing to observe. It becomes assertable in
-    // the commit that implements playback, which is the commit that gives it a
-    // reason to exist.
+    /// The id is resolved on every read, not captured in `init`.
+    ///
+    /// This is what lets a Camera pick up an id that arrived from `/v1/config`
+    /// moments after it built its providers at launch. A snapshot taken once
+    /// would leave a newly configured deployment doing nothing until the app was
+    /// next restarted, which on a phone left on a shelf could be weeks.
+    @MainActor
+    func testTheClientIDIsResolvedOnEveryReadRatherThanCaptured() {
+        var configuration: TidalConfiguration?
+        let provider = TidalMusicProvider(resolve: { configuration })
+
+        XCTAssertFalse(provider.isConfigured, "nothing served yet")
+        configuration = TidalConfiguration(clientID: "arrived-from-the-backend")
+        XCTAssertTrue(provider.isConfigured, "and now something has")
+    }
+
+    /// The redirect belongs to the *build*, whichever source the id came from:
+    /// its URL scheme has to be in the shipped Info.plist for iOS to route the
+    /// callback at all, so a backend cannot change it.
+    func testTheRedirectFallsBackToTheBuiltInSchemeWhenNoneIsSet() {
+        let bundle = Bundle(for: TidalConfigurationTests.self)
+        XCTAssertEqual(
+            TidalConfiguration.redirectURI(in: bundle),
+            TidalConfiguration.defaultRedirectURI,
+            "this test bundle sets no redirect of its own"
+        )
+
+        let resolved = TidalConfiguration.make(
+            remote: RemoteConfiguration(tidalClientID: "from-backend"),
+            bundle: bundle
+        )
+        XCTAssertEqual(resolved?.redirectURI, TidalConfiguration.defaultRedirectURI)
+    }
+
+    /// The default has to be a URL with a scheme in it, because that scheme is
+    /// what `ASWebAuthenticationSession` is told to watch for.
+    func testTheDefaultRedirectCarriesAScheme() throws {
+        let url = try XCTUnwrap(URL(string: TidalConfiguration.defaultRedirectURI))
+        XCTAssertEqual(url.scheme, "cribwire")
+    }
 }
 
 /// What the backend is allowed to change between releases, and how long a device
@@ -264,6 +595,57 @@ final class NurseryTransportAvailabilityTests: XCTestCase {
     override func tearDown() {
         UserDefaults().removePersistentDomain(forName: suiteName)
         super.tearDown()
+    }
+
+    /// A playlist that could not be played is not a playlist that stopped
+    /// existing.
+    ///
+    /// This is the distinction the provider contract used to lack. `play` answered
+    /// `String?`, and `NurseryController` read every `nil` as "deleted on the
+    /// account" and erased the parent's history entry — so a Camera that lost its
+    /// Wi-Fi, or whose token expired overnight, quietly deleted the playlist it
+    /// had been asked to play. The recents are the record of what is played *in
+    /// this room*, and a failure that may not outlast the minute is not grounds
+    /// for editing it.
+    func testAFailedPlayKeepsThePlaylistInTheHistory() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let store = MusicRecentsStore(defaults: defaults)
+        store.record(playlistID: "lullabies", provider: .appleMusic, name: "Lullabies")
+
+        let provider = FakeMusicProvider(availability: .ready, canControlPlayback: true)
+        provider.playOutcome = .unavailable
+        let controller = try makeController(provider: provider)
+
+        await controller.apply(
+            .music(.selectPlaylist(id: "lullabies", provider: .appleMusic))
+        )
+
+        XCTAssertEqual(
+            store.load().entries.map(\.playlistID),
+            ["lullabies"],
+            "a failure that may be the network must not delete the parent's history"
+        )
+    }
+
+    /// The other half, so the first is not passing because nothing is ever
+    /// forgotten: a playlist the service says is really gone still goes.
+    func testAPlaylistTheServiceSaysIsGoneIsForgotten() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let store = MusicRecentsStore(defaults: defaults)
+        store.record(playlistID: "lullabies", provider: .appleMusic, name: "Lullabies")
+
+        let provider = FakeMusicProvider(availability: .ready, canControlPlayback: true)
+        provider.playOutcome = .gone
+        let controller = try makeController(provider: provider)
+
+        await controller.apply(
+            .music(.selectPlaylist(id: "lullabies", provider: .appleMusic))
+        )
+
+        XCTAssertTrue(
+            store.load().entries.isEmpty,
+            "a dead entry at the top of the Viewer's list is worse than no entry"
+        )
     }
 
     func testALapsedSubscriptionKeepsThePlayerControllable() async throws {
@@ -497,6 +879,10 @@ final class FakeMusicProvider: MusicProvider {
     let canControlPlayback: Bool
     private(set) var isPlaying: Bool
     private(set) var calls: [String] = []
+    /// What `play(playlistID:)` answers. The three cases are handled very
+    /// differently by `NurseryController` — one of them edits the parent's
+    /// history — so a test has to be able to pick.
+    var playOutcome: PlaylistPlaybackOutcome = .playing(name: "Lullabies")
 
     init(
         availability: MusicState.Availability,
@@ -526,9 +912,9 @@ final class FakeMusicProvider: MusicProvider {
     private(set) var currentPlaylistID: String?
 
     @discardableResult
-    func play(playlistID: String) async -> String? {
+    func play(playlistID: String) async -> PlaylistPlaybackOutcome {
         calls.append("play(\(playlistID))")
-        return nil
+        return playOutcome
     }
 
     func play() async {

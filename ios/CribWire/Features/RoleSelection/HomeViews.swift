@@ -114,7 +114,10 @@ struct ViewerHomeView: View {
     @Environment(PushNotificationCoordinator.self) private var notifications
 
     var body: some View {
-        NavigationStack {
+        // Needed to bind `pendingPairingID` below: `@Environment` hands over the
+        // observable, not a binding into it.
+        @Bindable var notifications = notifications
+        return NavigationStack {
             KCScreen {
                 VStack(spacing: Theme.Metrics.stackSpacing) {
                     header
@@ -183,10 +186,11 @@ struct ViewerHomeView: View {
             .navigationBarTitleDisplayMode(.large)
             // A tapped alert should land on the Camera that raised it, not on a
             // list. The coordinator resolves the push to a pairing id; this turns
-            // that into the live view, and clears it so the same tap cannot
-            // re-navigate later.
-            .navigationDestination(isPresented: alertDestination) {
-                if let record = alertedCamera {
+            // that into the live view. Bound to the id itself rather than to a
+            // derived `isPresented` flag, so swiping back clears the id as part
+            // of dismissing and the same tap cannot re-navigate later.
+            .navigationDestination(item: $notifications.pendingPairingID) { pairingID in
+                if let record = camera(for: pairingID) {
                     ViewerLiveView(record: record, services: services)
                 } else {
                     unknownPairingView
@@ -195,24 +199,8 @@ struct ViewerHomeView: View {
         }
     }
 
-    /// Presented while a tapped alert is waiting to be opened. Setting it back to
-    /// `false` — swiping back, or dismissing — clears the pending id, so the same
-    /// tap cannot re-navigate later.
-    ///
-    /// `navigationDestination(item:)` would say this more directly but is iOS 17,
-    /// and CribWire targets 16.
-    private var alertDestination: Binding<Bool> {
-        Binding(
-            get: { notifications.pendingPairingID != nil },
-            set: { isPresented in
-                if !isPresented { notifications.pendingPairingID = nil }
-            }
-        )
-    }
-
-    private var alertedCamera: PairingRecord? {
-        guard let pairingID = notifications.pendingPairingID else { return nil }
-        return services.pairings.first {
+    private func camera(for pairingID: UUID) -> PairingRecord? {
+        services.pairings.first {
             $0.id == pairingID && $0.localRole == .viewer
         }
     }

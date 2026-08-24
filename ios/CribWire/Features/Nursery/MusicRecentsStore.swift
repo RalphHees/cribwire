@@ -42,11 +42,18 @@ struct MusicRecentsStore {
     func record(
         playlistID: String,
         provider: MusicProviderKind,
+        kind: MusicItemKind = .playlist,
         name: String,
         at date: Date = Date()
     ) -> PlaylistRecents {
         var recents = load()
-        recents.record(playlistID: playlistID, provider: provider, name: name, at: date)
+        recents.record(
+            playlistID: playlistID,
+            provider: provider,
+            kind: kind,
+            name: name,
+            at: date
+        )
         save(recents)
         return recents
     }

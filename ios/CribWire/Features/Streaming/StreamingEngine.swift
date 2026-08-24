@@ -328,6 +328,8 @@ final class StreamingEngine: ObservableObject {
     private var qualityTask: Task<Void, Never>?
     private var pathMonitor: NetworkPathMonitor?
     private var audioMonitor: AudioInterruptionMonitor?
+    /// Camera-side only: what keeps this engine running once the screen is off.
+    private var backgroundSession: CameraBackgroundSession?
     /// Local-network transport, one side or the other. Nil on the server path.
     private var localHost: LocalPairingHost?
     private var localGuest: LocalPairingGuest?
@@ -423,6 +425,27 @@ final class StreamingEngine: ObservableObject {
             self?.handle(audio: event)
         }
         audioMonitor?.start()
+
+        if role == .camera {
+            // iOS takes the camera away the moment the screen goes off, and there
+            // is nothing to be done about that half. Everything else — signalling,
+            // room audio, the detectors, and every command a Viewer can send — has
+            // to survive it, and does not without this.
+            let session = CameraBackgroundSession(
+                onEnterBackground: { [weak self] in self?.enterBackground() },
+                onEnterForeground: { [weak self] in self?.enterForeground() }
+            )
+            backgroundSession = session
+            session.start()
+
+            // The picture, the night light and the exposure all come and go with
+            // the capture session, so Viewers are told when it does — otherwise a
+            // locked Camera looks to them like a working one with a frozen frame
+            // and a light switch that does nothing.
+            capture?.onInterruptionChange = { [weak self] in
+                Task { await self?.nursery?.reload() }
+            }
+        }
 
         // Detection is independent of whether anyone is watching: the Camera
         // alerts on a quiet nursery with no Viewer connected, which is the whole
@@ -546,6 +569,11 @@ final class StreamingEngine: ObservableObject {
         qualityTask?.cancel(); qualityTask = nil
         pathMonitor?.stop(); pathMonitor = nil
         audioMonitor?.stop(); audioMonitor = nil
+        backgroundSession?.stop(); backgroundSession = nil
+        capture?.onInterruptionChange = nil
+        // Before `detection.stop()`, so the microphone is not re-opened by a
+        // keep-alive nothing is waiting on any more.
+        detection?.isKeepAliveRequired = false
         localHost?.stop(); localHost = nil
         localGuest?.stop(); localGuest = nil
         isAudioInterrupted = false
@@ -1380,6 +1408,49 @@ final class StreamingEngine: ObservableObject {
     func recoverFromInterruptionIfNeeded() {
         guard isAudioInterrupted else { return }
         handle(audio: .resumable)
+    }
+
+    // MARK: - The screen going off
+
+    /// The Camera's screen has gone dark — the power button, or the app being
+    /// swapped away from.
+    ///
+    /// Everything this engine does *except video* is meant to carry on: a parent
+    /// who locked the phone on the shelf still expects the room to be audible, the
+    /// detectors to fire, and the controls on the other phone to work. What stops
+    /// that from happening is not any decision here — it is iOS suspending the
+    /// process — so the whole of this method is about not being suspended.
+    ///
+    /// Video is the one thing that genuinely cannot continue: a backgrounded
+    /// iPhone app may not hold the camera. `CameraCaptureController` reports the
+    /// interruption and Viewers are told, which is the honest version of a
+    /// limitation that used to present as the app silently breaking.
+    private func enterBackground() {
+        guard role == .camera, isRunning else { return }
+        // The `audio` background mode only applies to an app doing audio I/O, and
+        // with no Viewer connected and noise alerts off this Camera is doing none.
+        detection?.isKeepAliveRequired = true
+        // The capture session is being torn down around us, and libwebrtc's audio
+        // device module reconfigures the shared session whenever that happens.
+        // Re-asserting is what stops room audio going quiet — or landing on the
+        // earpiece — behind a locked screen.
+        configureAudioSession(.active)
+    }
+
+    /// The screen is back. Undo each half of `enterBackground`, in the order that
+    /// leaves the least dead air.
+    private func enterForeground() {
+        guard role == .camera, isRunning else { return }
+        configureAudioSession(.active)
+        // Capture first: iOS ends the interruption on its own, and
+        // `CameraCaptureController` restores the rung, the exposure and the torch
+        // from there. This covers the case where it does not — capture that was
+        // stopped outright rather than interrupted, which looks identical from
+        // the app's side.
+        Task { await self.updateCaptureForViewerCount() }
+        // Given back only once the app is actually frontmost again, so the tap
+        // never lapses in the window where nothing else is holding the session.
+        detection?.isKeepAliveRequired = false
     }
 
     // MARK: - Recovery

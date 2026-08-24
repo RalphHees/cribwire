@@ -196,14 +196,31 @@ has been observed in APNs traffic, and the microphone tap has never run.*
       output device, and rebuilds on a media-services reset. An interruption that
       ends while the app is backgrounded is recovered on the next foreground,
       because the resume notification is never delivered in that case.
-- [x] Picture-in-Picture on Viewer. WebRTC renders into nothing AVKit understands,
-      so frames are converted to `CMSampleBuffer`s and enqueued on an
-      `AVSampleBufferDisplayLayer`. Backgrounding keeps the stream alive **only**
-      while PiP is active — otherwise the Viewer still tears down.
-- [x] Accessibility + EN/NL localization. **168 of 168 extracted strings
-      translated**, verified by diffing the compiler's `.stringsdata` against the
-      String Catalog rather than by eye. Permission prompts are localised too, via
-      `InfoPlist.xcstrings`.
+- [~] Picture-in-Picture on Viewer — **built, then removed**. WebRTC renders into
+      nothing AVKit understands, so frames were converted to `CMSampleBuffer`s and
+      enqueued on an `AVSampleBufferDisplayLayer`. AVKit refused to start the mini
+      window on device (`PGPegasusErrorDomain -1003`) and the most likely cause is
+      structural rather than a bug: `.mixWithOthers` marks the app as non-primary
+      audio, which forfeits the background-audio eligibility PiP is granted on —
+      and that option is what keeps the Camera's lullaby playing and keeps a
+      Viewer from stopping the parent's music. Backgrounding the Viewer now always
+      tears the stream down. Alerts still arrive by push, which is what the
+      feature was actually for.
+- [x] Accessibility + EN/NL localization. **267 of 267 extracted strings
+      translated**, verified by reading the String Catalog rather than by eye.
+      Permission prompts are localised too, via `InfoPlist.xcstrings`.
+
+      This count drifts silently and has done: it read "168 of 168" while 76
+      strings — the whole nursery, room-controls and TIDAL surface — had no Dutch
+      at all, because `SWIFT_EMIT_LOC_STRINGS` adds each new `Text` to the catalog
+      untranslated and nothing fails when it does. Re-check it whenever a feature
+      lands, with:
+
+      ```sh
+      python3 -c "import json;s=json.load(open('ios/CribWire/Resources/Localizable.xcstrings'))['strings'];\
+      m=[k for k,v in s.items() if v.get('localizations',{}).get('nl',{}).get('stringUnit',{}).get('state')!='translated'];\
+      print(len(s),'strings,',len(m),'untranslated');[print(' ',k) for k in m]"
+      ```
       `Theme.Typography` now declares faces against system text styles instead of
       fixed point sizes, so the app responds to Dynamic Type at all — it did not
       before. Default sizes shift a point or two as a result; scaling is worth
@@ -328,12 +345,15 @@ framing layer, the QR encoding and the payload schema.*
       minutes), the reported on-state is read from `isTorchActive` rather than from
       intent, the level is re-asserted after every quality-ladder restart, and it is
       switched off — with the intent cleared — whenever capture stops.
-- [ ] **TIDAL** — control plane done, playback engine not. TIDAL permits
-      third-party playback only through its own SDK under partner credentials from
-      `developer.tidal.com`; everything above the playback call is already
-      provider-agnostic and works. `TidalMusicProvider.swift` documents exactly what
-      finishing it involves, and a build with no client id does not offer the
-      service rather than offering one that plays nothing.
+- [x] **TIDAL** — implemented through TIDAL's own SDK (`Auth`, `Player`,
+      `EventProducer`, `TidalAPI`), which is the only route it permits a third-party
+      app. Sign-in is authorization-code + PKCE in an `ASWebAuthenticationSession`
+      raised from the Camera's own screen, never from a Viewer's tap; the queue is
+      CribWire's, because `Player` takes one track at a time, and it wraps rather
+      than ending. A build with no client id — from `GET /v1/config` or compiled in
+      — does not offer the service at all. **Unverified on hardware**: needs an
+      application registered at `developer.tidal.com` and a subscriber account, so
+      nothing about it can be exercised on a build machine.
 
 **Milestone M6**: a Viewer plays a lullaby on the Camera, skips a track, turns the
 volume down and switches the nursery light on, and both screens agree throughout.

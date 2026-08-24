@@ -46,16 +46,19 @@ protocol MusicProvider: AnyObject {
     @discardableResult
     func requestAuthorization() async -> MusicState.Availability
 
-    /// Playlists worth offering: the user's favourites/library plus whatever the
-    /// service considers recently played. Ordering is not this method's problem —
-    /// `PlaylistShortlist` decides that.
+    /// Playlists and albums worth offering: the user's favourites/library plus
+    /// whatever the service considers recently played. Ordering is not this
+    /// method's problem — `PlaylistShortlist` decides that.
     func loadPlaylists() async -> (favorites: [PlaylistSummary], recentlyPlayed: [PlaylistSummary])
 
-    /// Loads a playlist and starts it. Returns the playlist's display name so the
-    /// Camera's own recents list can record it, or `nil` if it could not be
-    /// played.
+    /// Loads a playlist and starts it.
+    ///
+    /// Three answers rather than an optional name, because the caller acts on the
+    /// difference: `NurseryController` deletes the parent's history entry for a
+    /// playlist that is `.gone`, and a failure that merely *might* be permanent
+    /// must never trigger that. See `PlaylistPlaybackOutcome`.
     @discardableResult
-    func play(playlistID: String) async -> String?
+    func play(playlistID: String) async -> PlaylistPlaybackOutcome
 
     func play() async
     func pause() async
@@ -69,4 +72,29 @@ protocol MusicProvider: AnyObject {
     var isPlaying: Bool { get }
     /// The playlist currently loaded, if it was loaded through CribWire.
     var currentPlaylistID: String? { get }
+}
+
+/// How a request to play a playlist turned out.
+///
+/// The distinction that matters is between the last two, and it is not a nicety:
+/// a Camera on a nursery shelf loses its network, its token expires overnight, and
+/// its music service rate-limits it — none of which mean the parent's playlist
+/// stopped existing. Collapsing all of that into one "nil" is what let a Wi-Fi
+/// blip delete a playlist from the history it had been played from every night.
+enum PlaylistPlaybackOutcome {
+
+    /// Playing, with the display name and the kind to record in the Camera's
+    /// recents — the kind because the id in that history is handed back to
+    /// `play(playlistID:)` on some later night, when the listing that knew an
+    /// album from a playlist is long gone.
+    case playing(name: String, kind: MusicItemKind = .playlist)
+
+    /// The service answered, and the playlist is not there — deleted on the
+    /// account, or emptied. The only outcome that may drop a history entry.
+    case gone
+
+    /// It could not be played right now. Might be the network, the token, the
+    /// subscription or the service; the one thing it is not is proof that the
+    /// playlist is gone, so the history entry stays.
+    case unavailable
 }

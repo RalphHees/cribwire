@@ -109,7 +109,7 @@ struct KCPill: View {
                 Circle().fill(tint).frame(width: 7, height: 7)
             }
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.Typography.caption.weight(.semibold))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)

@@ -36,8 +36,30 @@ final class CameraCaptureController {
 
     private(set) var videoTrack: RTCVideoTrack?
     private(set) var audioTrack: RTCAudioTrack?
+    /// Whether the app *wants* capture running. Not the same as whether frames
+    /// are actually arriving — see `isInterrupted`.
     private(set) var isCapturing = false
     private(set) var quality: VideoQuality = .standard
+
+    /// Set while iOS has taken the capture session away.
+    ///
+    /// The overwhelmingly common cause on a Camera is the power button: a
+    /// backgrounded iPhone app may not hold the camera, so locking the screen
+    /// interrupts the session with `.videoDeviceNotAvailableInBackground` and
+    /// there is no background mode that changes that. A call using the camera and
+    /// a Split View sibling on iPad do the same thing.
+    ///
+    /// Tracked rather than ignored because two things hang off the capture
+    /// session that a Viewer can reach: the torch, which cannot be lit without
+    /// one, and the exposure, which is a property of a device configuration the
+    /// interruption resets. Without this the Camera answered a Viewer's night
+    /// light with silence and then never turned it on, and reported an exposure
+    /// it was not running.
+    private(set) var isInterrupted = false
+
+    /// Called when `isInterrupted` changes, so the engine can tell Viewers that
+    /// the picture, the light and the exposure have come or gone.
+    var onInterruptionChange: (() -> Void)?
 
     /// Set while the local preview needs frames but nothing is being sent.
     private(set) var isCaptureOnly = false
@@ -68,6 +90,7 @@ final class CameraCaptureController {
     /// frames that are actually encoded, without a second camera client.
     private let frameTap: CapturerFrameTap
     private var position: Position = .back
+    private var interruptionObservers: [NSObjectProtocol] = []
 
     init(
         factory: RTCPeerConnectionFactory = WebRTCStack.factory,
@@ -84,6 +107,81 @@ final class CameraCaptureController {
         self.videoTrack = factory.videoTrack(with: source, trackId: "cribwire-video")
         let audioSource = factory.audioSource(with: WebRTCStack.defaultConstraints())
         self.audioTrack = factory.audioTrack(with: audioSource, trackId: "cribwire-audio")
+
+        observeInterruptions()
+    }
+
+    deinit {
+        for observer in interruptionObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    // MARK: - Interruptions
+
+    /// Watches the one capture session this controller owns.
+    ///
+    /// `RTCCameraVideoCapturer` posts nothing of its own for this — libwebrtc
+    /// logs the interruption and moves on — so the notifications are taken
+    /// straight from the `AVCaptureSession` it wraps.
+    private func observeInterruptions() {
+        let center = NotificationCenter.default
+        let session = capturer.captureSession
+
+        interruptionObservers.append(
+            center.addObserver(
+                forName: AVCaptureSession.wasInterruptedNotification,
+                object: session,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handleInterruptionBegan() }
+            }
+        )
+
+        interruptionObservers.append(
+            center.addObserver(
+                forName: AVCaptureSession.interruptionEndedNotification,
+                object: session,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handleInterruptionEnded() }
+            }
+        )
+    }
+
+    private func handleInterruptionBegan() {
+        guard !isInterrupted else { return }
+        isInterrupted = true
+        // `desiredLight` is deliberately **not** cleared, unlike in `stop()`. A
+        // Viewer's night light is a standing request that this phone is
+        // temporarily unable to honour, not one that was withdrawn — the torch
+        // has already gone out with the session, and it goes back on when the
+        // session comes back.
+        onInterruptionChange?()
+    }
+
+    private func handleInterruptionEnded() {
+        guard isInterrupted else { return }
+        isInterrupted = false
+        guard isCapturing else {
+            onInterruptionChange?()
+            return
+        }
+        Task { await restoreAfterInterruption() }
+    }
+
+    /// Puts back everything the interruption took with it.
+    ///
+    /// Straight through `start` rather than a lighter-weight repair, even though
+    /// iOS usually resumes the session itself. `start` is the one path that gets
+    /// the whole set right — the format for the rung the ladder has since moved
+    /// to, the frame-rate ceiling a Viewer may have changed while the screen was
+    /// off, the exposure bias the format reset, and the torch — and the adaptive
+    /// ladder already restarts capture routinely, so this is a well-trodden call
+    /// rather than a special case invented for the lock screen.
+    private func restoreAfterInterruption() async {
+        await start(quality: quality)
+        onInterruptionChange?()
     }
 
     /// Turns luma extraction on and off as the movement detector is enabled.
@@ -104,6 +202,16 @@ final class CameraCaptureController {
     func start(quality: VideoQuality, position: Position? = nil) async {
         if let position { self.position = position }
         self.quality = quality
+
+        // Nothing to start while iOS holds the session — most often because the
+        // screen is off. The rung is recorded above rather than below, so the
+        // adaptive ladder keeps moving against a Camera it cannot see and the
+        // session comes back at the rung the link actually justifies.
+        // `restoreAfterInterruption` is what starts it.
+        guard !isInterrupted else {
+            isCapturing = true
+            return
+        }
 
         guard let device = Self.device(at: self.position.avPosition),
               let format = Self.format(for: quality, on: device)
@@ -242,7 +350,11 @@ final class CameraCaptureController {
     }
 
     private var lightAvailability: LightState.Availability {
-        guard isCapturing, let device = activeDevice else { return .cameraIdle }
+        // `isInterrupted` reads as idle, which is exactly what it is from the
+        // Viewer's side: the switch is worth showing and worth setting — the
+        // request is remembered — but the room will not light up until this phone
+        // has its camera back.
+        guard isCapturing, !isInterrupted, let device = activeDevice else { return .cameraIdle }
         guard device.hasTorch else {
             // A back camera with no torch is hardware that will never have one;
             // the front camera is one flip away from working, and the Viewer is
@@ -350,7 +462,7 @@ final class CameraCaptureController {
 
     /// What the exposure is actually set to, read from the device.
     var sensitivityState: SensitivityState {
-        guard isCapturing, let device = activeDevice else {
+        guard isCapturing, !isInterrupted, let device = activeDevice else {
             // Idle is not "unavailable": the value is stored and applied at the
             // next start, so it is still worth changing from a Viewer.
             return SensitivityState(

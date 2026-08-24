@@ -356,18 +356,27 @@ final class NurseryController {
         }
         guard let provider else { return }
 
-        guard let name = await provider.play(playlistID: playlistID) else {
-            // The playlist is gone — deleted on the account since it was last
-            // played. Drop it from the history so it stops being offered, rather
-            // than leaving a dead entry at the top of the Viewer's list.
+        switch await provider.play(playlistID: playlistID) {
+        case .playing(let name, let kind):
+            recentsStore.record(
+                playlistID: playlistID,
+                provider: provider.kind,
+                kind: kind,
+                name: name
+            )
+        case .gone:
+            // Deleted on the account since it was last played. Drop it from the
+            // history so it stops being offered, rather than leaving a dead entry
+            // at the top of the Viewer's list.
             var recents = recentsStore.load()
             recents.forget(playlistID: playlistID, provider: provider.kind)
             recentsStore.save(recents)
-            await reloadPlaylists()
-            return
+        case .unavailable:
+            // Deliberately nothing. The history is the parent's record of what
+            // they play in this room, and a failure that may be a lost network or
+            // an expired token is not permission to edit it.
+            break
         }
-
-        recentsStore.record(playlistID: playlistID, provider: provider.kind, name: name)
         await reloadPlaylists()
     }
 

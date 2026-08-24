@@ -126,7 +126,8 @@ implementations in one change set — see the note at the top of
 | `DEVELOPMENT_TEAM` | empty | Apple Developer team ID |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `example.cribwire.*` | app and tests — one app bundle id |
 | `CRIBWIRE_API_BASE_URL` | `https://api.cribwire.example` | Camera-side default only |
-| `CRIBWIRE_TIDAL_CLIENT_ID` | undefined | Leave unset unless TIDAL is being wired up — see below |
+| `CRIBWIRE_TIDAL_CLIENT_ID` | undefined | Leave unset unless this build should offer TIDAL — see below |
+| `CRIBWIRE_TIDAL_REDIRECT_URI` | undefined | Only if the TIDAL registration uses something other than `cribwire://tidal-auth` |
 
 ### Music services
 
@@ -136,14 +137,36 @@ service enabled on the App ID in the Apple Developer portal. Without it
 indistinguishable from the user refusing. `NSAppleMusicUsageDescription` is already
 in `project.yml`; both are required.
 
-TIDAL is deliberately *not* wired up. It permits third-party playback only through
-its own SDK under partner credentials issued at `developer.tidal.com`, so a default
-build does not offer it at all rather than offering a service that plays nothing.
-Everything except the playback engine is already provider-agnostic and works — the
-sealed command protocol, the Viewer's controls, the playlist shortlist, the Camera's
-history. The header of `CribWire/Features/Nursery/TidalMusicProvider.swift` lists
-exactly what completing it involves; `CRIBWIRE_TIDAL_CLIENT_ID` is the switch that
-makes the service appear once it is done.
+TIDAL is implemented through TIDAL's own SDK
+(`github.com/tidal-music/tidal-sdk-ios`, products `Auth`, `Player`,
+`EventProducer` and `TidalAPI`, all four wired in `project.yml`), because it
+permits third-party playback by no other route. What it needs that is not in this
+repository is an **application registered at `developer.tidal.com`**, which
+supplies two things:
+
+1. a **client id**, set either as `CRIBWIRE_TIDAL_CLIENT_ID` here or — better —
+   served by the backend as `TIDAL_CLIENT_ID` through `GET /v1/config`, which
+   makes rotating it a configuration change rather than a release. A build with
+   neither does not offer TIDAL at all, rather than offering a service nobody
+   registered it for;
+2. a **redirect URI** listed on that application. The default is
+   `cribwire://tidal-auth`, whose scheme `project.yml` registers under
+   `CFBundleURLTypes`; a registration that uses something else sets
+   `CRIBWIRE_TIDAL_REDIRECT_URI` and adds its scheme there.
+
+The registration also has to carry the scopes `collection.read`,
+`playlists.read`, `playback` and `user.read` — `TidalSession` asks for exactly
+those and no more, and TIDAL fails the whole authorize request rather than
+degrading if one is missing.
+
+There is no client *secret* anywhere in the app, and there must not be: the phone
+runs the authorization-code + PKCE flow, which is a public-client flow with no
+secret in it. `TIDAL_CLIENT_SECRET` stays in the backend's environment and is
+never served to a device.
+
+Signing in happens on the **Camera's own screen**, through
+`ASWebAuthenticationSession` — never from a Viewer's tap, for the same reason as
+Apple Music's permission prompt.
 
 ### Where the keys live
 
@@ -201,7 +224,8 @@ is indistinguishable from the others.
   `docs/specs/security.md` §7; the implementation is in git history if the
   trade-off ever changes.
 - **Camera/Viewer home screens** — pairing, device list, live view, dimming,
-  battery warnings and audio-only mode are all in. Picture-in-Picture is Phase 4.
+  battery warnings and audio-only mode are all in. Picture-in-Picture is not —
+  see `docs/TASKS.md` Phase 4 for why it was removed after being built.
 - **Localization** — strings are inline English. EN/NL localization is Phase 4.
 
 ## Needs a physical device to verify

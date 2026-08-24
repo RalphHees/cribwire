@@ -69,12 +69,109 @@ final class NurseryTests: XCTestCase {
         XCTAssertEqual(list.count, 2, "playlist ids are only unique within a service")
     }
 
+    /// The history's name normally wins — it is the one the parent has been
+    /// reading — but not when it is a raw id. `TidalMusicProvider` records the
+    /// id as the name when a playlist plays on a night the name request is the
+    /// one call that fails, and without this that UUID sits at the top of the
+    /// list for good, outranking the library entry that knows better.
+    func testAHistoryEntryNamedAfterItsOwnIdTakesTheNameTheLibraryKnows() {
+        let list = PlaylistShortlist.build(
+            cameraRecents: [summary("6d2f", name: "6d2f", lastPlayedAt: now)],
+            favorites: [summary("6d2f", name: "Rain Sounds", isFavorite: true)]
+        )
+
+        XCTAssertEqual(list.count, 1)
+        XCTAssertEqual(list.first?.name, "Rain Sounds")
+        XCTAssertEqual(list.first?.lastPlayedAt, now, "and it keeps its place")
+    }
+
+    func testARealNameFromTheHistoryIsNeverOverwritten() {
+        let list = PlaylistShortlist.build(
+            cameraRecents: [summary("6d2f", name: "Bedtime", lastPlayedAt: now)],
+            favorites: [summary("6d2f", name: "Bedtime (renamed today)")]
+        )
+
+        XCTAssertEqual(list.first?.name, "Bedtime")
+    }
+
     func testShortlistIsCapped() {
         let many = (0..<40).map { summary("p\($0)") }
         XCTAssertEqual(
             PlaylistShortlist.build(cameraRecents: many).count,
             PlaylistShortlist.limit
         )
+    }
+
+    // MARK: - Albums
+
+    /// The id is the only thing that reaches `play(playlistID:)` — from a
+    /// Viewer's tap, and from the Camera's own history months later — so the
+    /// kind has to survive inside it.
+    func testAnAlbumIdCarriesItsKindAndComesBackWhole() {
+        let travelling = MusicItemKind.album.wireID(for: "1234567")
+
+        let (kind, id) = MusicItemKind.read(travelling)
+
+        XCTAssertEqual(kind, .album)
+        XCTAssertEqual(id, "1234567")
+    }
+
+    /// Every id written before albums existed is a playlist id, and there are
+    /// stored histories full of them.
+    func testAnUnprefixedIdIsAPlaylist() {
+        XCTAssertEqual(MusicItemKind.playlist.wireID(for: "abc"), "abc")
+
+        let (kind, id) = MusicItemKind.read("db7b2f06-a14f-49e6-82d6-8ac64bfcd591")
+
+        XCTAssertEqual(kind, .playlist)
+        XCTAssertEqual(id, "db7b2f06-a14f-49e6-82d6-8ac64bfcd591")
+    }
+
+    /// The upgrade case, and the one that would be silent: a history written
+    /// before albums has no `kind` field. Decoding that as a failure would drop
+    /// every entry — `PlaylistRecents` cannot tell an older file from a corrupt
+    /// one — and wipe the family's listening history on update.
+    func testAHistoryWrittenBeforeAlbumsStillDecodes() throws {
+        let json = """
+        {"entries":[{"playlistID":"p1","provider":"tidal","name":"Bedtime",
+                     "playedAt":768000000.0}]}
+        """
+        let recents = try JSONDecoder().decode(
+            PlaylistRecents.self,
+            from: XCTUnwrap(json.data(using: .utf8))
+        )
+
+        XCTAssertEqual(recents.entries.count, 1)
+        XCTAssertEqual(recents.entries.first?.kind, .playlist)
+        XCTAssertEqual(recents.entries.first?.name, "Bedtime")
+    }
+
+    /// The same for a Viewer's copy of the shortlist, which a Camera on an older
+    /// build still sends without one.
+    func testASummaryWithNoKindOnTheWireIsAPlaylist() throws {
+        let json = #"{"i":"p1","p":"tidal","n":"Bedtime"}"#
+        let summary = try JSONDecoder().decode(
+            PlaylistSummary.self,
+            from: XCTUnwrap(json.data(using: .utf8))
+        )
+
+        XCTAssertEqual(summary.kind, .playlist)
+    }
+
+    func testAnAlbumSurvivesTheRoundTripThroughTheHistory() {
+        var recents = PlaylistRecents()
+        recents.record(
+            playlistID: MusicItemKind.album.wireID(for: "42"),
+            provider: .tidal,
+            kind: .album,
+            name: "Abbey Road",
+            at: now
+        )
+
+        let summary = recents.summaries(limitedTo: [.tidal]).first
+
+        XCTAssertEqual(summary?.kind, .album)
+        XCTAssertEqual(MusicItemKind.read(summary?.playlistID ?? "").id, "42")
     }
 
     // MARK: - Recents

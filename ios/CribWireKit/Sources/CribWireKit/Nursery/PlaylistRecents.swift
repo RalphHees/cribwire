@@ -15,27 +15,48 @@ public struct PlaylistRecents: Codable, Equatable, Sendable {
     /// How many are kept. Deliberately smaller than `PlaylistShortlist.limit`, so
     /// the shortlist always has room for favourites underneath the history rather
     /// than being entirely consumed by it.
-    public static let capacity = 8
+    public static let capacity = 20
 
     public struct Entry: Codable, Equatable, Sendable {
         public var playlistID: String
         public var provider: MusicProviderKind
+        public var kind: MusicItemKind
         public var name: String
         public var playedAt: Date
 
         public init(
             playlistID: String,
             provider: MusicProviderKind,
+            kind: MusicItemKind = .playlist,
             name: String,
             playedAt: Date
         ) {
             self.playlistID = playlistID
             self.provider = provider
+            self.kind = kind
             self.name = PlaylistSummary.truncate(name, to: PlaylistSummary.maxNameLength)
             self.playedAt = playedAt
         }
 
         var id: String { "\(provider.rawValue):\(playlistID)" }
+
+        /// Decoded by hand for one reason: a history written before albums
+        /// existed carries no `kind`, and every entry in it is a playlist.
+        /// Letting that throw would drop the entry — and `LenientEntry` cannot
+        /// tell a merely older file from a corrupt one, so the whole of a
+        /// family's listening history would vanish on the update that added
+        /// albums.
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            playlistID = try container.decode(String.self, forKey: .playlistID)
+            provider = try container.decode(MusicProviderKind.self, forKey: .provider)
+            kind = (try? container.decodeIfPresent(MusicItemKind.self, forKey: .kind)) ?? .playlist
+            name = PlaylistSummary.truncate(
+                try container.decode(String.self, forKey: .name),
+                to: PlaylistSummary.maxNameLength
+            )
+            playedAt = try container.decode(Date.self, forKey: .playedAt)
+        }
     }
 
     /// Most recently played first.
@@ -50,12 +71,14 @@ public struct PlaylistRecents: Codable, Equatable, Sendable {
     public mutating func record(
         playlistID: String,
         provider: MusicProviderKind,
+        kind: MusicItemKind = .playlist,
         name: String,
         at date: Date
     ) {
         let entry = Entry(
             playlistID: playlistID,
             provider: provider,
+            kind: kind,
             name: name,
             playedAt: date
         )
@@ -83,6 +106,7 @@ public struct PlaylistRecents: Codable, Equatable, Sendable {
                 PlaylistSummary(
                     playlistID: $0.playlistID,
                     provider: $0.provider,
+                    kind: $0.kind,
                     name: $0.name,
                     lastPlayedAt: $0.playedAt
                 )

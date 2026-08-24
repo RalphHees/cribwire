@@ -43,6 +43,10 @@ final class AppleMusicProvider: MusicProvider {
     /// Cached so a playlist can be re-queued (previous/next past the ends, a
     /// restart after `stop`) without another network round trip.
     private var loadedPlaylist: Playlist?
+    /// The same, for an album. Two properties rather than one existential
+    /// because `player.queue` takes a concrete `PlayableMusicItem`, and exactly
+    /// one of the two is ever set — `play(playlistID:)` clears the other.
+    private var loadedAlbum: Album?
 
     var isPlaying: Bool {
         player.state.playbackStatus == .playing
@@ -109,11 +113,25 @@ final class AppleMusicProvider: MusicProvider {
         favorites: [PlaylistSummary],
         recentlyPlayed: [PlaylistSummary]
     ) {
-        // Sequential rather than concurrent: both hop to the main actor anyway,
-        // so `async let` would buy nothing and cost the Sendable dance.
-        let favorites = await libraryPlaylists()
-        let recent = await recentlyPlayedPlaylists()
+        // Sequential rather than concurrent: they all hop to the main actor
+        // anyway, so `async let` would buy nothing and cost the Sendable dance.
+        let favorites = interleaved(await libraryPlaylists(), await libraryAlbums())
+        let recent = await recentlyPlayed()
         return (favorites, recent)
+    }
+
+    /// Playlists and albums, alternating, so that neither kind crowds the other
+    /// out of a shortlist that is a fraction of a real library.
+    private func interleaved(
+        _ playlists: [PlaylistSummary],
+        _ albums: [PlaylistSummary]
+    ) -> [PlaylistSummary] {
+        var mixed: [PlaylistSummary] = []
+        for index in 0 ..< max(playlists.count, albums.count) {
+            if index < playlists.count { mixed.append(playlists[index]) }
+            if index < albums.count { mixed.append(albums[index]) }
+        }
+        return mixed
     }
 
     /// Playlists in the user's library — the practical meaning of "favourites"
@@ -127,20 +145,35 @@ final class AppleMusicProvider: MusicProvider {
         return response.items.map { summary(for: $0, isFavorite: true) }
     }
 
-    /// Apple Music's own recently played, filtered to playlists.
+    /// Albums in the user's library, the counterpart of `libraryPlaylists`.
+    private func libraryAlbums() async -> [PlaylistSummary] {
+        var request = MusicLibraryRequest<Album>()
+        request.limit = PlaylistShortlist.limit * 2
+        guard let response = try? await request.response() else { return [] }
+        return response.items.map { summary(for: $0, isFavorite: true) }
+    }
+
+    /// Apple Music's own recently played — the playlists and the albums.
     ///
     /// The container request rather than `MusicRecentlyPlayedRequest<Playlist>`:
     /// `Playlist` is not `MusicRecentlyPlayedRequestable`, so the only route to a
-    /// recently played playlist is the mixed container feed, sifted here.
-    private func recentlyPlayedPlaylists() async -> [PlaylistSummary] {
+    /// recently played playlist is the mixed container feed, sifted here. Albums
+    /// arrive in the same feed and were being thrown away, which is why an album
+    /// the parent had just been listening to on their own phone was nowhere on
+    /// the Viewer's list. Stations still go: they are not playable through the
+    /// same id, and half a feature in that list is worse than none.
+    private func recentlyPlayed() async -> [PlaylistSummary] {
         var request = MusicRecentlyPlayedContainerRequest()
-        // Asked for wider than the shortlist because albums and stations share
-        // this feed, and after sifting them out only a handful may be playlists.
+        // Asked for wider than the shortlist because stations share this feed,
+        // and after sifting them out fewer entries are left than were asked for.
         request.limit = PlaylistShortlist.limit * 2
         guard let response = try? await request.response() else { return [] }
         return response.items.compactMap { item in
-            guard case .playlist(let playlist) = item else { return nil }
-            return summary(for: playlist, isFavorite: false)
+            switch item {
+            case .playlist(let playlist): return summary(for: playlist, isFavorite: false)
+            case .album(let album): return summary(for: album, isFavorite: false)
+            default: return nil
+            }
         }
     }
 
@@ -148,8 +181,23 @@ final class AppleMusicProvider: MusicProvider {
         PlaylistSummary(
             playlistID: playlist.id.rawValue,
             provider: .appleMusic,
+            kind: .playlist,
             name: playlist.name,
             detail: playlist.curatorName,
+            isFavorite: isFavorite
+        )
+    }
+
+    private func summary(for album: Album, isFavorite: Bool) -> PlaylistSummary {
+        PlaylistSummary(
+            // Prefixed, so `play(playlistID:)` knows which catalogue to resolve
+            // it in when the id comes back — from a Viewer, or out of the
+            // Camera's own history long after this listing is gone.
+            playlistID: MusicItemKind.album.wireID(for: album.id.rawValue),
+            provider: .appleMusic,
+            kind: .album,
+            name: album.title,
+            detail: album.artistName,
             isFavorite: isFavorite
         )
     }
@@ -157,20 +205,66 @@ final class AppleMusicProvider: MusicProvider {
     // MARK: - Transport
 
     @discardableResult
-    func play(playlistID: String) async -> String? {
-        guard let playlist = await playlist(id: playlistID) else { return nil }
+    func play(playlistID: String) async -> PlaylistPlaybackOutcome {
+        let (kind, id) = MusicItemKind.read(playlistID)
+        if kind == .album { return await playAlbum(id: id, wireID: playlistID) }
+
+        // Neither request found it, in the library or the catalog. For a
+        // MusicKit id that is as close to "deleted" as the framework says — and
+        // unlike the TIDAL path, a request that merely failed throws rather than
+        // answering empty, so this really is an absence.
+        guard let playlist = await playlist(id: id) else { return .gone }
 
         loadedPlaylist = playlist
+        loadedAlbum = nil
         currentPlaylistID = playlistID
         player.queue = [playlist]
         // Left in the parent's hands rather than forced: repeat-all is what a
         // sleep playlist usually wants, but overriding a mode the user set in the
         // Music app is not this app's business.
         guard (try? await player.play()) != nil else {
+            // The playlist exists — it was just resolved — so a refusal here is
+            // the account, the network or the subscription. Not grounds for
+            // deleting the parent's history entry.
             currentPlaylistID = nil
-            return nil
+            return .unavailable
         }
-        return playlist.name
+        return .playing(name: playlist.name, kind: .playlist)
+    }
+
+    /// The album path, which differs from the playlist one only in what it
+    /// resolves and queues — and is kept separate for that reason: the two
+    /// lookups have nothing in common but their shape.
+    private func playAlbum(id: String, wireID: String) async -> PlaylistPlaybackOutcome {
+        guard let album = await album(id: id) else { return .gone }
+
+        loadedAlbum = album
+        loadedPlaylist = nil
+        currentPlaylistID = wireID
+        player.queue = [album]
+        guard (try? await player.play()) != nil else {
+            currentPlaylistID = nil
+            return .unavailable
+        }
+        return .playing(name: album.title, kind: .album)
+    }
+
+    /// Resolves an id to an album, library copy first — same reasoning as
+    /// `playlist(id:)`, and the same two requests.
+    private func album(id: String) async -> Album? {
+        if let cached = loadedAlbum, cached.id.rawValue == id { return cached }
+
+        let libraryRequest = MusicLibraryRequest<Album>()
+        if let response = try? await libraryRequest.response(),
+           let found = response.items.first(where: { $0.id.rawValue == id }) {
+            return found
+        }
+
+        let catalogRequest = MusicCatalogResourceRequest<Album>(
+            matching: \.id,
+            equalTo: MusicItemID(id)
+        )
+        return try? await catalogRequest.response().items.first
     }
 
     /// Resolves an id to a playlist, preferring the library copy.
@@ -199,9 +293,13 @@ final class AppleMusicProvider: MusicProvider {
 
     func play() async {
         // Nothing queued yet — a Viewer pressing play before choosing anything.
-        // Re-queuing the last playlist is the only sensible reading of it.
-        if player.queue.currentEntry == nil, let playlist = loadedPlaylist {
-            player.queue = [playlist]
+        // Re-queuing whatever was last loaded is the only sensible reading of it.
+        if player.queue.currentEntry == nil {
+            if let playlist = loadedPlaylist {
+                player.queue = [playlist]
+            } else if let album = loadedAlbum {
+                player.queue = [album]
+            }
         }
         try? await player.play()
     }
@@ -248,7 +346,7 @@ final class AppleMusicProvider: MusicProvider {
     }
 
     @discardableResult
-    func play(playlistID: String) async -> String? { nil }
+    func play(playlistID: String) async -> PlaylistPlaybackOutcome { .unavailable }
     func play() async {}
     func pause() async {}
     func next() async {}

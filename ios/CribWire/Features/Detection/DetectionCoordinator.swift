@@ -35,6 +35,38 @@ final class DetectionCoordinator {
     private var battery = LowBatteryMonitor()
     private var settings: DetectionSettings
 
+    /// Holds the microphone open even with noise alerts switched off.
+    ///
+    /// Set while the Camera's screen is off, and this is what keeps the whole app
+    /// alive there. `UIBackgroundModes: audio` sustains a backgrounded app only
+    /// while it is actually doing audio I/O; a Camera with nobody watching and
+    /// noise alerts off is doing none, so iOS suspended it seconds after the power
+    /// button and took the signalling socket, every Viewer command and the
+    /// detectors down with it. One running input tap is enough to prevent that.
+    ///
+    /// Deliberately not left on all the time. The recording indicator is a promise
+    /// to the person in the room, and a Camera sitting in the foreground with
+    /// alerts off has no business holding the microphone — so it is taken for
+    /// exactly as long as the screen is dark and given straight back.
+    ///
+    /// The levels it produces cost nothing: `ingest(levelDBFS:)` already discards
+    /// them when noise alerts are off, so nothing downstream can fire on them.
+    ///
+    /// Computed over a backing store for the same reason as
+    /// `NurseryController.hasConnectedViewers`: `@Observable` rewrites stored
+    /// properties into accessors, and Swift will not accept `didSet` on top of
+    /// those.
+    var isKeepAliveRequired: Bool {
+        get { storedIsKeepAliveRequired }
+        set {
+            guard newValue != storedIsKeepAliveRequired else { return }
+            storedIsKeepAliveRequired = newValue
+            refreshAudioMonitor()
+        }
+    }
+
+    private var storedIsKeepAliveRequired = false
+
     private var audioMonitor: AudioLevelMonitor?
     private let record: PairingRecord
     private let services: AppServices
@@ -86,15 +118,11 @@ final class DetectionCoordinator {
         movement.settings = settings.movement
         movement.cooldown = settings.cooldown
 
-        if settings.noise.isEnabled {
-            startAudioMonitor()
-        } else {
-            audioMonitor?.stop()
-            audioMonitor = nil
-            isNoiseDetectionUnavailable = false
+        if !settings.noise.isEnabled {
             currentLevelDBFS = AWeightingFilter.silenceFloorDB
             noise.resetWindowState()
         }
+        refreshAudioMonitor()
 
         if !settings.movement.isEnabled {
             movement.resetFrameState()
@@ -102,8 +130,29 @@ final class DetectionCoordinator {
         isMovementDetectionRunning = settings.movement.isEnabled
     }
 
-    private func startAudioMonitor() {
-        guard audioMonitor == nil else { return }
+    /// Starts or stops the one microphone client to match what needs it.
+    ///
+    /// Two independent reasons to hold the input, and only one of them is
+    /// detection — see `isKeepAliveRequired`. They share a single
+    /// `AudioLevelMonitor` rather than opening the input twice, because two
+    /// `AVAudioEngine`s on one input is exactly the conflict the monitor's own
+    /// documentation warns about.
+    private func refreshAudioMonitor() {
+        guard settings.noise.isEnabled || isKeepAliveRequired else {
+            audioMonitor?.stop()
+            audioMonitor = nil
+            isNoiseDetectionUnavailable = false
+            return
+        }
+        guard audioMonitor == nil else {
+            // Already running. The failure flag still has to be re-derived: a tap
+            // opened purely to keep the app alive says nothing about whether noise
+            // alerts work, and noise alerts that have just been switched on over a
+            // working tap do.
+            isNoiseDetectionUnavailable = false
+            return
+        }
+
         let monitor = AudioLevelMonitor { [weak self] level in
             self?.ingest(levelDBFS: level)
         }
@@ -112,7 +161,12 @@ final class DetectionCoordinator {
             audioMonitor = monitor
             isNoiseDetectionUnavailable = false
         } catch {
-            isNoiseDetectionUnavailable = true
+            // Only reported when somebody asked for noise alerts. A keep-alive
+            // that could not open the microphone is a battery-life problem, not a
+            // detector the Viewer needs warning about — saying "microphone
+            // unavailable" on a Camera whose alerts are off would be a warning
+            // about nothing.
+            isNoiseDetectionUnavailable = settings.noise.isEnabled
         }
     }
 

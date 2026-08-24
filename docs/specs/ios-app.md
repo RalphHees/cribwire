@@ -64,8 +64,10 @@ movement.
 - Audio-only mode: video can be turned off to save bandwidth/battery while keeping
   the audio stream and notifications.
 - Talk-back (push-to-talk from Viewer to Camera) — v1.1, not MVP.
-- Picture-in-Picture when the app is backgrounded (AVKit PiP with the WebRTC track
-  rendered via `AVSampleBufferDisplayLayer`).
+- **No** Picture-in-Picture. It was built and removed: AVKit refuses to start the
+  mini window for an app whose audio session is mixable, and `.mixWithOthers` is
+  load-bearing elsewhere (the Camera's lullaby, and not stopping the parent's
+  music). Backgrounding the Viewer tears the stream down; alerts arrive by push.
 
 ### 2.4a Nursery controls — music, light, picture and alerts
 
@@ -102,22 +104,56 @@ or which playlist was chosen. The Camera obeys a `control` only from a Viewer wh
 session has passed the DTLS fingerprint check (`security.md` §4), and only a Camera
 ever acts on one.
 
-**Playlists.** The Viewer is offered a shortlist, never a library: what CribWire
-itself has played on this Camera (most recent first), then the service's recently
-played, then favourites/library playlists, deduplicated and capped at
-`PlaylistShortlist.limit`. The cap and the name-length cap are also what keep the
-state message inside the 16 KiB signaling frame. Playlist names travel sealed and
-are never sent to the backend.
+**Playlists and albums.** The Viewer is offered a shortlist, never a library: what
+CribWire itself has played on this Camera (most recent first), then the service's
+recently played, then the library — playlists and albums alternating, so neither
+kind crowds the other out — deduplicated and capped at `PlaylistShortlist.limit`.
+The cap and the name-length cap are also what keep the state message inside the
+16 KiB signaling frame. Names travel sealed and are never sent to the backend.
+
+An album and a playlist reach the Camera as one opaque id, so the kind travels
+inside the id itself (`MusicItemKind`, an `album:` prefix) as well as beside it on
+`PlaylistSummary`. The prefix is what a provider reads when all it has is the id —
+which is the normal case, because the same id comes back out of the Camera's own
+history long after the listing that described it is gone. An id with no prefix is
+a playlist, which is what every id written before albums existed is.
 
 **Services.** Apple Music is implemented through MusicKit's
 `ApplicationMusicPlayer` — not `SystemMusicPlayer`, which would take over the Music
 app on the Camera's own account. It needs the MusicKit service enabled on the App ID
 and `NSAppleMusicUsageDescription`; authorisation is requested **from the Camera's
 own screen only**, because a system prompt raised by a tap on another device is a
-prompt nobody is standing in front of. TIDAL is behind the same `MusicProvider`
-protocol and is offered only when a client id is compiled in — see
-`TidalMusicProvider.swift` for what completing it requires (TIDAL permits third-party
-playback only through its own SDK, under partner credentials).
+prompt nobody is standing in front of. TIDAL sits behind the same `MusicProvider`
+protocol, implemented through TIDAL's own SDK — the only route it permits a
+third-party app — and is offered only where a client id has been configured, by the
+backend or by the build. Its sign-in is a web sheet rather than a system prompt, and
+it too is raised from the Camera's own screen only. Two differences from Apple Music
+are visible in `TidalMusicProvider.swift` and nowhere else: the queue is CribWire's,
+because `Player` takes one track at a time, and it wraps rather than ending — a sleep
+playlist that runs out at 2 a.m. leaves a silent room. Whether the account can play
+full tracks is not knowable until one starts, so availability reads `ready` for a
+signed-in parent and becomes `needsSubscription` the moment TIDAL reports that what
+is playing is a preview.
+
+A third difference, less visible and more expensive: TIDAL's generated OpenAPI
+models are strict where its responses are not. `TracksAttributes` makes eight
+fields mandatory and `PlaylistsAttributes` seven, `JSONDecoder` is all-or-nothing,
+and the generated client reports the resulting failure as
+`HTTPErrorResponse(statusCode: 200)` — a decoding failure wearing the clothes of a
+transport one. One track without an ISRC therefore failed a whole playlist, and one
+unfamiliar `playlistType` failed a whole collection, which then fell back to the
+playlists the parent *owns* and hid everything they had saved. So every read in
+`TidalCatalog` tries the generated models first and, on a 2xx whose body would not
+decode, re-reads the raw bytes against what JSON:API actually guarantees: ids,
+types, `links.next`, and a name or title where one is readable. Nothing understood
+is kept distinct from nothing found — an empty answer is what deletes a playlist
+from the parent's history, so a body this reader cannot make sense of stays an
+error.
+
+The Camera's audio session stays `WebRTCStack`'s throughout. TIDAL's `Player` never
+sets a category of its own, which is what makes this work: setting `.playback`, the
+obvious thing for a music player to do, would take the microphone away and turn the
+monitor into a speaker.
 
 **Volume** means the Camera device's output volume. Neither service exposes a
 per-app gain, and for a phone playing into a room the device's volume is what

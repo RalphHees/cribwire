@@ -365,11 +365,18 @@ struct CameraStatusView: View {
                     row(label: "Light", value: lightSummary(state.light))
 
                     if state.music.availability == .needsPermission {
-                        // iOS shows the music permission prompt exactly once. A
-                        // second tap on "Allow" after it has been refused does
-                        // nothing at all, so once asking has visibly failed the
-                        // button becomes the only thing that can still work.
-                        if musicPermissionNeedsSettings {
+                        // iOS shows the *music library* permission prompt exactly
+                        // once. A second tap on "Allow" after it has been refused
+                        // does nothing at all, so once asking has visibly failed
+                        // the Settings app is the only thing that can still work.
+                        //
+                        // That is true of Apple Music and of nothing else. TIDAL's
+                        // "not allowed yet" is a signed-out account, which Settings
+                        // has no opinion about whatsoever — sending a parent there
+                        // would be a dead end they could not get out of. A web
+                        // sheet can also be dismissed and re-raised as often as
+                        // somebody likes, so failing once means nothing.
+                        if musicPermissionNeedsSettings, state.music.provider == .appleMusic {
                             Button {
                                 if let url = URL(string: UIApplication.openSettingsURLString) {
                                     UIApplication.shared.open(url)
@@ -386,8 +393,11 @@ struct CameraStatusView: View {
                                     musicPermissionNeedsSettings = !allowed
                                 }
                             } label: {
-                                Label("Allow music access", systemImage: "music.note")
-                                    .frame(maxWidth: .infinity)
+                                Label(
+                                    musicAuthorizationLabel(state.music.provider),
+                                    systemImage: "music.note"
+                                )
+                                .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(KCGhostButtonStyle())
                         }
@@ -399,6 +409,17 @@ struct CameraStatusView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+        }
+    }
+
+    /// What the button is actually offering to do, which is a different act on
+    /// each service: Apple Music needs iOS's permission to read the library on
+    /// this phone, TIDAL needs an account signed in to it. One label for both
+    /// would have to be vague enough to describe neither.
+    private func musicAuthorizationLabel(_ provider: MusicProviderKind) -> String {
+        switch provider {
+        case .appleMusic: return String(localized: "Allow music access")
+        case .tidal: return String(localized: "Sign in to TIDAL")
         }
     }
 
@@ -464,6 +485,17 @@ struct CameraStatusView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(KCPrimaryButtonStyle())
+
+            // The one thing a parent setting a camera up will otherwise get
+            // wrong. Reaching for the power button is the obvious way to black a
+            // phone out overnight, and iOS will not let a locked phone hold its
+            // camera — no app can — so the video stops and only the sound and the
+            // alerts carry on. This button is the version that keeps the picture.
+            Text("Use this rather than the power button. A locked phone cannot use its camera, so the picture stops — sound, alerts and the controls on the other phone keep working either way.")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(Theme.Palette.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

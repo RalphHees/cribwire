@@ -21,6 +21,9 @@ struct CribWireApp: App {
                     // Cold launch: whatever was delivered while the app was not
                     // running still says "Activity detected".
                     await services.notifications.upgradeDeliveredNotifications()
+                    // And whatever Live Activity survived the last run is about
+                    // a stream that ended with it.
+                    await LiveActivityController.endStale()
                 }
                 // Same again on every return to the foreground — `onChange` does
                 // not fire for the launch transition (see

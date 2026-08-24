@@ -103,6 +103,21 @@ packages:
     minVersion: 120.0.0
     maxVersion: 200.0.0
 
+  # TIDAL's own SDK, which is the only route a third-party app has to TIDAL
+  # playback — the catalogue may not be streamed by any other means. All four
+  # products are needed and none of them is optional: `Auth` signs the parent in
+  # on the Camera, `TidalAPI` reads their playlists, `Player` plays them, and
+  # `EventProducer` carries the playback reporting `Player` requires to exist
+  # before it will start.
+  #
+  # A range rather than `from:`, matching WebRTC above: the SDK is pre-1.0, so a
+  # minor bump can be a breaking one, and pinning the ceiling keeps a resolution
+  # on a build machine from picking up an API change nobody has compiled against.
+  TidalSDK:
+    url: https://github.com/tidal-music/tidal-sdk-ios
+    minVersion: 0.12.4
+    maxVersion: 0.13.0
+
 # ---------------------------------------------------------------------------
 # Targets
 # ---------------------------------------------------------------------------
@@ -118,6 +133,14 @@ targets:
         product: CribWireKit
       - package: WebRTC
         product: WebRTC
+      - package: TidalSDK
+        product: Auth
+      - package: TidalSDK
+        product: Player
+      - package: TidalSDK
+        product: EventProducer
+      - package: TidalSDK
+        product: TidalAPI
       - target: CribWireWidgets
         embed: true
     settings:
@@ -203,9 +226,26 @@ targets:
         # TIDAL client id from developer.tidal.com. Left as an unsubstituted
         # placeholder on purpose: `TidalConfiguration` treats `$(…)` and empty
         # as "not configured", so a default build simply does not offer TIDAL
-        # rather than offering a service it cannot play. See the header of
-        # `TidalMusicProvider.swift` for what completing it involves.
+        # rather than offering a service nobody registered it for. The backend
+        # can serve one instead — see `RemoteConfigurationStore` — which is what
+        # makes rotating the id a configuration change rather than a release.
         CribWireTidalClientID: $(CRIBWIRE_TIDAL_CLIENT_ID)
+        # Where TIDAL sends the parent back after they sign in on the Camera.
+        # Unset in a default build, which falls back to
+        # `TidalConfiguration.defaultRedirectURI` — the `cribwire` scheme
+        # registered just below. Whatever it ends up being has to be listed on
+        # the application at developer.tidal.com as well: TIDAL refuses an
+        # authorize request carrying a redirect it does not recognise.
+        CribWireTidalRedirectURI: $(CRIBWIRE_TIDAL_REDIRECT_URI)
+
+        # The scheme the TIDAL sign-in comes back on. `ASWebAuthenticationSession`
+        # intercepts the callback itself, so this is not what makes the flow
+        # work — it is what keeps the URL from escaping to Safari and dead-ending
+        # if the sheet is dismissed at the wrong moment.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.ralphhees.cribwire.auth
+            CFBundleURLSchemes:
+              - cribwire
 
     scheme:
       testTargets:

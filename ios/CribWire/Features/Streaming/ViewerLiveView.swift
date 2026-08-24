@@ -20,7 +20,6 @@ struct ViewerLiveView: View {
     @Environment(PushNotificationCoordinator.self) private var notifications
 
     @State private var grabber = VideoFrameGrabber()
-    @State private var pip = PictureInPictureController()
     @State private var isAudioOnly = false
     @State private var toast: String?
     @State private var liveActivity = LiveActivityController()
@@ -74,7 +73,6 @@ struct ViewerLiveView: View {
         }
         .onDisappear {
             liveActivity.end()
-            pip.teardown()
             engine.stop()
         }
         // Connection changes are worth showing at once; the throttle inside the
@@ -88,19 +86,6 @@ struct ViewerLiveView: View {
         .onChange(of: notifications.latestEvent?.event.ts) {
             liveActivity.update(activityState, force: true)
         }
-        // The PiP converter has to follow the track across reconnects, which
-        // produce a brand-new track object.
-        .onChange(of: engine.remoteVideoTrack) { _, track in
-            pip.attach(track: track)
-        }
-        // AVKit reports a refused PiP start to its delegate and does nothing
-        // visible. Saying so is the difference between "not now" and a button
-        // that appears to be broken.
-        .onChange(of: pip.lastError) { _, message in
-            guard let message else { return }
-            show(message)
-            pip.clearError()
-        }
         // Talk-back fails silently by nature — a refused microphone sends
         // silence rather than an error — so the only way a parent learns the
         // room cannot hear them is if this says so.
@@ -111,11 +96,17 @@ struct ViewerLiveView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             // Backgrounding tears the stream down rather than holding a camera
-            // and a relay open behind a locked screen — unless PiP is running,
-            // which is precisely a request to keep watching while doing something
-            // else. Alerts still arrive by push either way, which is the point of
-            // the Camera doing detection itself.
-            if phase == .background && !pip.isActive { engine.stop() }
+            // and a relay open behind a locked screen. Alerts still arrive by
+            // push, which is the point of the Camera doing detection itself.
+            //
+            // The Live Activity goes with it. It exists to say the Viewer is
+            // watching, and a card left on the Lock Screen of a phone that
+            // stopped watching when it was put down is the same lie `end()`
+            // guards against.
+            if phase == .background {
+                engine.stop()
+                liveActivity.end()
+            }
             // A call that ended while the app was away never delivered its
             // resume notification, so the audio would stay silent.
             if phase == .active { engine.recoverFromInterruptionIfNeeded() }
@@ -151,11 +142,6 @@ struct ViewerLiveView: View {
             if case .failed(let reason, let isSecurity) = engine.state {
                 failure(reason: reason, isSecurity: isSecurity)
             } else if engine.isVerified && !isAudioOnly {
-                // Underneath, not beside: AVKit will only start the mini window
-                // from a layer that is in a window at a real size, and the Metal
-                // renderer on top of it is opaque, so nothing of it is seen.
-                PictureInPictureLayerHost(controller: pip)
-                    .allowsHitTesting(false)
                 VideoRenderView(track: engine.remoteVideoTrack, grabber: grabber)
             } else if engine.isVerified && isAudioOnly {
                 audioOnlyPlaceholder
@@ -275,47 +261,42 @@ struct ViewerLiveView: View {
             .accessibilityAddTraits(.isButton)
     }
 
-    /// Two rows rather than one. Five buttons across an iPhone leaves labels like
-    /// "Audio only" at two words a line, which is unreadable at the moment this
-    /// screen is actually used.
+    /// One row of four, which is what the mockup shows (`docs/design`).
+    ///
+    /// It was two rows while there were five of these. Four fit across an iPhone
+    /// with the longest label — "Audio only" — still on a single line, and the
+    /// row this screen can least afford to be tall is the one under the video.
     private var controlRow: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                controlButton(
-                    systemName: engine.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                    label: engine.isMuted ? "Unmute" : "Mute",
-                    isActive: engine.isMuted
-                ) {
-                    engine.setMuted(!engine.isMuted)
-                }
-
-                controlButton(
-                    systemName: isAudioOnly ? "video.slash.fill" : "video.fill",
-                    label: isAudioOnly ? "Show video" : "Audio only",
-                    isActive: isAudioOnly
-                ) {
-                    isAudioOnly.toggle()
-                }
-
-                // Music and light live behind one button rather than on this
-                // screen. Four more controls under a video feed is a busier
-                // screen than anyone wants at 3 a.m., and this is the one thing
-                // here that is reached for deliberately rather than glanced at.
-                controlButton(
-                    systemName: roomSymbol,
-                    label: "Room",
-                    isActive: isRoomActive,
-                    isEnabled: engine.nurseryState != nil
-                ) {
-                    showRoomControls = true
-                }
-            }
-            secondaryControlRow
-        }
-    }
-
-    private var secondaryControlRow: some View {
         HStack(spacing: 12) {
+            controlButton(
+                systemName: engine.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                label: engine.isMuted ? "Unmute" : "Mute",
+                isActive: engine.isMuted
+            ) {
+                engine.setMuted(!engine.isMuted)
+            }
+
+            controlButton(
+                systemName: isAudioOnly ? "video.slash.fill" : "video.fill",
+                label: isAudioOnly ? "Show video" : "Audio only",
+                isActive: isAudioOnly
+            ) {
+                isAudioOnly.toggle()
+            }
+
+            // Music and light live behind one button rather than on this
+            // screen. Four more controls under a video feed is a busier screen
+            // than anyone wants at 3 a.m., and this is the one thing here that
+            // is reached for deliberately rather than glanced at.
+            controlButton(
+                systemName: roomSymbol,
+                label: "Room",
+                isActive: isRoomActive,
+                isEnabled: engine.nurseryState != nil
+            ) {
+                showRoomControls = true
+            }
+
             controlButton(
                 systemName: "camera.fill",
                 label: "Snapshot",
@@ -323,26 +304,6 @@ struct ViewerLiveView: View {
                 isEnabled: engine.isVerified && !isAudioOnly
             ) {
                 saveSnapshot()
-            }
-
-            if PictureInPictureController.isSupported {
-                // Deliberately not gated on `pip.isPossible`. That flag goes
-                // false for reasons the user cannot see — another app holding
-                // the system's single PiP window, most often — and a button that
-                // is simply grey explains none of them. Tapping now either opens
-                // the mini window or says why it did not.
-                controlButton(
-                    systemName: "pip.enter",
-                    label: "Mini view",
-                    isActive: pip.isActive,
-                    isEnabled: engine.isVerified && !isAudioOnly
-                ) {
-                    pip.isActive ? pip.stop() : pip.start()
-                }
-            } else {
-                // Keeps Snapshot the width it is in the row above rather than
-                // letting it stretch across the screen on its own.
-                Color.clear.frame(maxWidth: .infinity)
             }
         }
     }

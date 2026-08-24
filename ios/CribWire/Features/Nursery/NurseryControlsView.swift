@@ -227,7 +227,7 @@ struct NurseryControlsView: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "list.bullet")
-                Text(currentPlaylistName ?? String(localized: "Choose a playlist"))
+                Text(currentPlaylistName ?? String(localized: "Choose music"))
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.up.chevron.down")
@@ -245,7 +245,7 @@ struct NurseryControlsView: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Text("Choose a playlist"))
+        .accessibilityLabel(Text("Choose music"))
         .accessibilityValue(Text(currentPlaylistName ?? String(localized: "None")))
     }
 
@@ -304,13 +304,17 @@ struct NurseryControlsView: View {
                         trailing: nil
                     )
                     Spacer(minLength: 8)
+                    // An empty label closure rather than `Toggle("", isOn:)`.
+                    // The literal is hidden anyway, and it extracts into the
+                    // String Catalog as an empty key that can never be
+                    // translated and never goes away. The row's own header is
+                    // the visible label; `accessibilityLabel` is the spoken one.
                     Toggle(
-                        "",
                         isOn: Binding(
                             get: { state.light.isOn },
                             set: { send(.light(.setOn($0))) }
                         )
-                    )
+                    ) {}
                     .labelsHidden()
                     .tint(Theme.Palette.periwinkle)
                     .disabled(!state.light.isControllable)
@@ -448,7 +452,8 @@ struct ThrottledSlider: View {
 
 // MARK: - Playlist picker
 
-/// The playlist sheet: recently played on this camera, then favourites.
+/// The music sheet: playlists and albums, recently played on this camera
+/// first, then the library.
 ///
 /// The Camera has already shortlisted these — see `PlaylistShortlist` — so this
 /// view sorts nothing and filters nothing. What arrives is what is offered.
@@ -475,7 +480,7 @@ struct PlaylistPickerView: View {
                     .padding(.vertical, 20)
                 }
             }
-            .navigationTitle("Playlists")
+            .navigationTitle("Music")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -490,10 +495,10 @@ struct PlaylistPickerView: View {
             Image(systemName: "music.note.list")
                 .font(.system(size: 32))
                 .foregroundStyle(Theme.Palette.textFaint)
-            Text("No playlists yet")
+            Text("Nothing to play yet")
                 .font(Theme.Typography.headline)
                 .foregroundStyle(Theme.Palette.text)
-            Text("CribWire shows playlists you have played here, and the ones in your library on the camera phone.")
+            Text("CribWire shows the playlists and albums you have played here, and the ones in your library on the camera phone.")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Palette.textMuted)
                 .multilineTextAlignment(.center)
@@ -509,7 +514,7 @@ struct PlaylistPickerView: View {
             onSelect(playlist)
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: playlist.isFavorite ? "heart.fill" : "clock")
+                Image(systemName: icon(for: playlist))
                     .font(.system(size: 14))
                     .foregroundStyle(
                         playlist.isFavorite ? Theme.Palette.coral : Theme.Palette.textFaint
@@ -543,7 +548,22 @@ struct PlaylistPickerView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(playlist.name))
-        .accessibilityHint(isCurrent ? Text("Currently playing") : Text("Play this playlist"))
+        .accessibilityHint(hint(for: playlist, isCurrent: isCurrent))
+    }
+
+    /// An album is marked as one, because in a list that mixes them the title
+    /// alone does not say which is which — and a record and a heart mean
+    /// different things to someone deciding what to put on.
+    private func icon(for playlist: PlaylistSummary) -> String {
+        switch playlist.kind {
+        case .album: return "opticaldisc.fill"
+        case .playlist: return playlist.isFavorite ? "heart.fill" : "clock"
+        }
+    }
+
+    private func hint(for playlist: PlaylistSummary, isCurrent: Bool) -> Text {
+        if isCurrent { return Text("Currently playing") }
+        return playlist.kind == .album ? Text("Play this album") : Text("Play this playlist")
     }
 
     /// "Played last night" beats a curator's name for something you are choosing

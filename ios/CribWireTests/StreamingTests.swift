@@ -170,57 +170,6 @@ final class VideoFrameGrabberTests: XCTestCase {
     }
 }
 
-/// What the mini window is fed.
-///
-/// `AVSampleBufferDisplayLayer` shows the buffer it is given and nothing else —
-/// no rotation flag, and no transform on the source layer, because AVKit draws
-/// these buffers in its own window. So the turn has to be in the pixels by the
-/// time they are enqueued, which is what these assert.
-final class PixelBufferRotatorTests: XCTestCase {
-
-    func testAQuarterTurnSwapsTheAxes() throws {
-        let rotator = PixelBufferRotator()
-        let source = try makePixelBuffer(width: 64, height: 48)
-
-        for rotation: RTCVideoRotation in [._90, ._270] {
-            let rotated = try XCTUnwrap(rotator.rotate(source, by: rotation))
-            XCTAssertEqual(CVPixelBufferGetWidth(rotated), 48)
-            XCTAssertEqual(CVPixelBufferGetHeight(rotated), 64)
-        }
-    }
-
-    func testAHalfTurnKeepsTheAxes() throws {
-        let rotator = PixelBufferRotator()
-        let rotated = try XCTUnwrap(
-            rotator.rotate(try makePixelBuffer(width: 64, height: 48), by: ._180)
-        )
-        XCTAssertEqual(CVPixelBufferGetWidth(rotated), 64)
-        XCTAssertEqual(CVPixelBufferGetHeight(rotated), 48)
-    }
-
-    /// An upright frame is the common case once the Camera is in a stand, and it
-    /// must cost nothing: the same buffer comes back, not a copy of it.
-    func testAnUprightFrameIsPassedStraightThrough() throws {
-        let rotator = PixelBufferRotator()
-        let source = try makePixelBuffer(width: 64, height: 48)
-        XCTAssertTrue(rotator.rotate(source, by: ._0) === source)
-    }
-
-    private func makePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
-        var buffer: CVPixelBuffer?
-        let status = CVPixelBufferCreate(
-            kCFAllocatorDefault,
-            width,
-            height,
-            kCVPixelFormatType_32BGRA,
-            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary,
-            &buffer
-        )
-        XCTAssertEqual(status, kCVReturnSuccess)
-        return try XCTUnwrap(buffer)
-    }
-}
-
 /// The bridge between what the camera captures and what the movement detector
 /// compares. A wrong frame here shows up as phantom movement, so the failure
 /// modes matter as much as the happy path.
@@ -394,6 +343,7 @@ final class WebRTCAudioConfigurationTests: XCTestCase {
             AVAudioSession.Mode.videoChat.rawValue
         )
     }
+
 }
 
 final class RecoveryBudgetTests: XCTestCase {

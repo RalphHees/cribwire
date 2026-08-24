@@ -72,9 +72,9 @@ struct PairedDevicesView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(record.displayName)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Theme.Typography.body.weight(.semibold))
                     Text("Paired \(record.pairedAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.system(size: 13))
+                        .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Palette.textMuted)
                     KCPill(title: "End-to-end encrypted", tint: Theme.Palette.live, showsDot: false)
                         .padding(.top, 2)
@@ -89,7 +89,7 @@ struct PairedDevicesView: View {
                         pendingRevocation = record
                     } label: {
                         Text("Remove")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(Theme.Typography.callout.weight(.semibold))
                             .foregroundStyle(Theme.Palette.danger)
                     }
                     .buttonStyle(.plain)

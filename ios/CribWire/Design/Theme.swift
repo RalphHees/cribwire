@@ -55,14 +55,6 @@ enum Theme {
 
     // MARK: - Typography
 
-    /// Every face is declared `relativeTo:` a system text style, which is what
-    /// makes the app respond to Dynamic Type.
-    ///
-    /// A bare `Font.system(size:)` is frozen: it ignores the reader's text-size
-    /// setting entirely. That matters more here than in most apps — a parent
-    /// checking a monitor at 3 a.m. without their glasses is the normal case, not
-    /// an edge case — so the sizes below are starting points that scale, not
-    /// fixed measurements.
     /// Faces are declared against system **text styles** rather than point sizes,
     /// which is what makes them respond to Dynamic Type.
     ///
@@ -74,6 +66,11 @@ enum Theme {
     /// The trade is that the default sizes shift by a point or two from the
     /// original fixed values (`callout` 14.5 → 13, `caption` 13.5 → 12). Scaling
     /// is worth more than matching the mock exactly at one text size.
+    ///
+    /// **`Font.system(size:)` is for SF Symbols glyphs only.** A glyph sized to
+    /// its container is a layout measurement; text sized in points is a text-size
+    /// setting quietly ignored. Any `Text` reaching for a point size wants one of
+    /// the faces below with a `.weight()` on it instead.
     enum Typography {
         static let display = Font.system(.title, design: .default).weight(.heavy)
         static let title = Font.system(.title2).weight(.bold)
