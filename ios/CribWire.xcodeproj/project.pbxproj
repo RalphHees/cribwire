@@ -140,7 +140,7 @@
 		41844D2454AB5F7639CDEC49 /* MusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicProvider.swift; sourceTree = "<group>"; };
 		41CD3A420C36A9183A681943 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		47E75044C49E33EB5EE8D8D1 /* CameraPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPairingView.swift; sourceTree = "<group>"; };
-		4C3949594ABA35389F7FF6E2 /* CribWireKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CribWireKit; path = CribWireKit; sourceTree = SOURCE_ROOT; };
+		4C3949594ABA35389F7FF6E2 /* CribWireKit */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CribWireKit; sourceTree = SOURCE_ROOT; };
 		4E6C2E57C43C60B916C97B37 /* LumaFrameExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaFrameExtractor.swift; sourceTree = "<group>"; };
 		4ECDC27E0C6E064796ED91BA /* CribWire.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CribWire.entitlements; sourceTree = "<group>"; };
 		538522365CE1671F80557DD8 /* LocalPairingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPairingCoordinator.swift; sourceTree = "<group>"; };
@@ -181,7 +181,7 @@
 		D46C194775B7AF46C1CE35F8 /* ViewerScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerScanView.swift; sourceTree = "<group>"; };
 		D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsControlsView.swift; sourceTree = "<group>"; };
 		E96BDB312DFB474C51A1E702 /* CameraStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStatusView.swift; sourceTree = "<group>"; };
-		E9F2318ED98E1005A061D891 /* CribWire.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CribWire.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9F2318ED98E1005A061D891 /* CribWire.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CribWire.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA51949C8A9DA9D78698BBF2 /* RoleSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoleSelectionView.swift; sourceTree = "<group>"; };
 		EC8118E93530AD0476715A28 /* HomeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViews.swift; sourceTree = "<group>"; };
 		F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -891,6 +891,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CribWire/CribWire.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = CribWire/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -943,6 +944,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CribWire/CribWire.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = CribWire/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
