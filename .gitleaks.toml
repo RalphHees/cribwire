@@ -1,0 +1,58 @@
+# gitleaks configuration — secret scanning for CI and pre-commit.
+#
+# Run it the same way CI does:
+#
+#   gitleaks dir . --config .gitleaks.toml          # working tree
+#   gitleaks git --config .gitleaks.toml \
+#     --log-opts="--all --full-history"             # every commit on every branch
+#
+# The default rule set is kept in full. This file only adds an allowlist, and
+# that allowlist names individual *values* rather than files or rules, so every
+# file in the repository — the test vectors included — stays fully scanned.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Cross-implementation test vectors (shared/test-vectors/*.json)
+# ---------------------------------------------------------------------------
+# `shared/protocol.md` pins these as normative: iOS (CryptoKit) and the backend
+# (Node crypto) must reproduce them byte for byte, so they have to live in the
+# repository in cleartext.
+#
+# They are not keys to anything. Each is
+#
+#   HKDF-SHA256(ikm = rootSecretHex, salt = "", info = "cribwire/v1/<label>", L = 32)
+#
+# over the published test root secret 000102...1e1f — the standard
+# incrementing-byte pattern, committed a few lines above them in the same file.
+# All four derive in a few lines of Python from values already public, so
+# listing them here discloses nothing that the vectors themselves do not.
+#
+# Two deliberate choices about how narrow this is:
+#
+#   * Values, not paths. A `paths` allowlist would make gitleaks skip the whole
+#     file, so a real credential pasted into it later would go unreported.
+#     Pinning the exact strings leaves the file scanned — anything new in it is
+#     still a finding.
+#   * Exact strings, anchored. Revising the vectors (a future revision 1.2 with
+#     new derived keys) turns the scan red on purpose and forces someone to
+#     look. When that happens, confirm the new values are derivations of the
+#     *test* root secret and not a real key, then add them below.
+#
+# kidscam-v1.json is the pre-rename name of the same file. It is gone from the
+# working tree but still reachable in history, so `gitleaks git` needs its four
+# values here to stay clean too.
+[[allowlists]]
+description = "CribWire v1 protocol test vectors — HKDF outputs of the published test root secret"
+regexes = [
+  # shared/test-vectors/cribwire-v1.json — K_auth, K_sig, K_evt, K_sas
+  '''^cd3202965017a1441948e1232e60817ee369cd31ac9d29d4cc993aa0afff7652$''',
+  '''^5d32ad6ac6a10a18ac93bdaf3df94d05f55f9d7cb1939333c7e2757eaa76b0e8$''',
+  '''^10f8a4568a9e4f9df0139be9738c531299b829cd746fdd2f4706a1a781cff14d$''',
+  '''^1af78ffd5ae0a98edacd1020b85af4e6b4e504a49d5fd0ac9a63f33264651f7b$''',
+  # shared/test-vectors/kidscam-v1.json — the same four slots before the rename
+  '''^5d491ecb316194ecd09f3bf8ecb86642b0260f37a8a386906e48e5ba3b3a0462$''',
+  '''^6055df5ff1bb653e59011ae8114760ee54a3e66ef76277260a0ae70d3c837e09$''',
+  '''^0ef772742e7709cd9c3ea15f2e72ddbde48ab246f9c929fc53d76735acb39c20$''',
+  '''^168d4ca20af3912d67693ab123262ba6a1786d60a9ca18a5296c6e7e48cf7ae2$''',
+]
