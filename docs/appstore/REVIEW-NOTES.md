@@ -78,15 +78,27 @@ purchases, no third-party advertising.
 
 ### Screenshots
 
-The live-view screenshots must not show a real, identifiable child. Use a doll, a
-pet, or an empty cot. Required set:
+Uploads must be **1242 × 2688 px** or **2688 × 1242 px** (6.5" display), or
+**1284 × 2778 px** or **2778 × 1284 px** (6.7"). App Store Connect rejects any
+other size at upload rather than resizing it.
 
-1. Role selection ("Secure babyphone next to your crib")
-2. Camera showing the pairing QR
-3. The six-digit confirmation on both devices
-4. Viewer live view with the connection indicator
-5. Alert settings, showing both detectors off by default
-6. A notification on the lock screen
+The rendered mockups in [`docs/design/screenshots/`](../design/screenshots/) are
+already 1242 × 2688 and can be uploaded as they are; re-render the set at
+1284 × 2778 with `docs/design/render-screenshots.sh --display 6.7` if the 6.7"
+slot is filled separately. Real device captures are the alternative — an
+iPhone 11 Pro Max or XS Max screenshots at 1242 × 2688, an iPhone 12/13/14 Plus
+or Pro Max at 1284 × 2778. Do not scale a capture from another device up or
+down to reach those numbers: it lands soft, and Apple sees it.
+
+The live-view screenshots must not show a real, identifiable child. Use a doll, a
+pet, or an empty cot. Required set, with the mockup that matches each:
+
+1. Role selection ("Secure babyphone next to your crib") — `1-role-selection`
+2. Camera showing the pairing QR — `3-pairing-qr`
+3. The six-digit confirmation on both devices — `5-pairing-confirm`
+4. Viewer live view with the connection indicator — `9-viewer-live`
+5. Alert settings, showing both detectors off by default — `7-camera-alerts`
+6. A notification on the lock screen — `13-lockscreen`
 
 ### Localization
 
@@ -111,5 +123,6 @@ it turns a multi-day round trip into a same-day one.
 - [ ] `DEVELOPMENT_TEAM` and the bundle id are the real ones, not the placeholders in `ios/project.yml`
 - [ ] Export-compliance answer confirmed with counsel (`PRIVACY-LABELS.md`)
 - [ ] Privacy labels entered as "Data Not Collected" across every category
+- [ ] Every screenshot is 1242 × 2688 / 2688 × 1242 or 1284 × 2778 / 2778 × 1284
 - [ ] Two-device demo video uploaded or linked in the review notes
 - [ ] Tested on the oldest supported OS (iOS 26) as well as the newest

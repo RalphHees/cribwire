@@ -46,24 +46,51 @@ mockups. Rendered PNGs live in [`screenshots/`](screenshots/).
   at 3 a.m. without their glasses is the normal case. `Font.system(size:)` is for
   SF Symbols glyphs only, never for text.
 
+## Screenshot dimensions
+
+The thirteen numbered PNGs are rendered at a size App Store Connect accepts for
+an iPhone screenshot, so the design reference and the masters uploaded with the
+listing are the same files:
+
+| Display | Canvas | At 3x | Also accepted |
+|---------|--------|-------|---------------|
+| 6.5" (default) | 414 × 896 pt | **1242 × 2688 px** | 2688 × 1242 landscape |
+| 6.7" | 428 × 926 pt | **1284 × 2778 px** | 2778 × 1284 landscape |
+
+App Store Connect rejects anything else at upload, so the render script
+measures every PNG it writes against that list and fails the run rather than
+leave an off-size file behind. The mockups are portrait-only; the landscape
+sizes are listed because the store accepts them, not because anything here
+produces one.
+
+The canvas is not a browser flag — it is `--shot-w` / `--shot-h` in
+[`app-screens.html`](app-screens.html), which the phone frame is drawn from, so
+the mockup on screen is the pixel grid that ships. Nothing else in the sheet
+assumes a phone dimension, which is what lets one file render both sizes.
+
+`0-app-overview.png` is the contact sheet, not a store upload: it is the whole
+row at 1x with the device frames left on, and is not size-checked.
+
 ## Re-rendering screenshots
 
-Each mockup root carries the `shot` class with an `id` (`s1`…`s13`). Open the HTML
-in a browser, or render headlessly — no dependency needed beyond Chrome, which
-takes a per-board shot when the other boards are hidden:
+Each mockup root carries the `shot` class with an `id` (`s1`…`s13`), and
+[`render-screenshots.sh`](render-screenshots.sh) renders one board at a time by
+hiding the rest. No dependency beyond a Chrome or Chromium binary:
 
 ```sh
-CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-sed 's|</head>|<style>body{padding:0;display:block}.board{display:none}\
-.board:has(#s9){display:block}.board h2,.board .note{display:none}</style></head>|' \
-  app-screens.html > /tmp/s9.html
-"$CHROME" --headless --disable-gpu --hide-scrollbars \
-  --force-device-scale-factor=2 --window-size=390,844 \
-  --screenshot=screenshots/9-viewer-live.png file:///tmp/s9.html
+./render-screenshots.sh                 # all screens + overview, 1242 × 2688
+./render-screenshots.sh --display 6.7   # the same set at 1284 × 2778
+./render-screenshots.sh --only s9       # just screenshots/9-viewer-live.png
+CHROME=/path/to/chrome ./render-screenshots.sh
 ```
 
-`0-app-overview.png` is the whole sheet at 1x (`--window-size=6100,1150`, no board
-hidden).
+The script picks a browser from `$CHROME`, then from the usual install
+locations. Some headless Chromium builds ignore `--window-size` for layout and
+paint the excess as page background — which produces a *correctly sized* PNG
+with the bottom of the screen missing, so measuring the file would not catch
+it. The script asks the browser what viewport it took before rendering anything
+and stops if the answer is wrong; pointing `CHROME` at a `headless_shell`
+binary is the usual fix.
 
 These mockups are the reference for `ios-architect`/`ios-engineer` when building
 the SwiftUI screens; visual details (spacing, exact shades) may evolve in code, but
