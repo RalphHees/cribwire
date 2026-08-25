@@ -110,6 +110,9 @@ it turns a multi-day round trip into a same-day one.
 - [ ] `aps-environment` is `production` in the release configuration
 - [ ] `DEVELOPMENT_TEAM` and the bundle id are the real ones, not the placeholders in `ios/project.yml`
 - [ ] Export-compliance answer confirmed with counsel (`PRIVACY-LABELS.md`)
+- [ ] French encryption declaration filed with ANSSI and its receipt, plus the
+      signed `CribWire-French-Encryption-Declaration.pdf`, uploaded under Export
+      Compliance
 - [ ] Privacy labels entered as "Data Not Collected" across every category
 - [ ] Two-device demo video uploaded or linked in the review notes
 - [ ] Tested on the oldest supported OS (iOS 26) as well as the newest
