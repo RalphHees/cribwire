@@ -2,9 +2,10 @@
  * `GET /v1/config` — deployment configuration a client may not hardcode.
  *
  * Everything here has one property in common: it changes on a schedule the App
- * Store cannot keep up with. A TIDAL client id gets rotated, or issued for the
- * first time, long after a build has shipped; baking it into `Info.plist` means
- * a release and a review queue between deciding and taking effect.
+ * Store cannot keep up with. A TIDAL or Spotify client id gets rotated, or
+ * issued for the first time, long after a build has shipped; baking it into
+ * `Info.plist` means a release and a review queue between deciding and taking
+ * effect.
  *
  * Two rules keep this endpoint boring, which is what it must stay:
  *
@@ -19,11 +20,12 @@
  *
  * Absent sections mean "this deployment has none", which the client reads as
  * "fall back to whatever was built in". That is what lets a single build serve
- * a deployment with TIDAL and one without.
+ * a deployment with TIDAL, one with Spotify, one with both and one with
+ * neither.
  */
 
 import type { FastifyInstance } from 'fastify';
-import { tidalConfigured } from '../config.ts';
+import { spotifyConfigured, tidalConfigured } from '../config.ts';
 import { authenticateDevice } from '../http/authenticate.ts';
 import type { AppContext } from '../http/context.ts';
 import { enforcePerPairingLimit } from '../http/rate-limit.ts';
@@ -32,6 +34,9 @@ interface ConfigResponse {
   /** Seconds a client may cache this before asking again. */
   readonly ttlSeconds: number;
   readonly tidal?: {
+    readonly clientId: string;
+  };
+  readonly spotify?: {
     readonly clientId: string;
   };
 }
@@ -57,6 +62,12 @@ export function registerConfigRoutes(
       // added a field, and nothing would fail loudly.
       ...(tidalConfigured(ctx.config)
         ? { tidal: { clientId: ctx.config.tidal.clientId } }
+        : {}),
+      // Spelled out for the same reason as TIDAL above, even though these
+      // settings hold nothing else today: the rule is the habit, and the first
+      // field added to `spotify` is exactly when a spread would start leaking.
+      ...(spotifyConfigured(ctx.config)
+        ? { spotify: { clientId: ctx.config.spotify.clientId } }
         : {}),
     };
 

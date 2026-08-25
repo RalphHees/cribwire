@@ -1,5 +1,4 @@
 import Auth
-import AuthenticationServices
 import CribWireKit
 import EventProducer
 import Foundation
@@ -53,7 +52,14 @@ final class TidalSession {
 
     static let shared = TidalSession()
 
-    static let log = Logger(subsystem: "com.ralphhees.cribwire", category: "tidal")
+    /// `nonisolated` for the same reason as `SpotifySession.log`: the player
+    /// listener bridge logs from the SDK's own queue, and `Logger` is
+    /// `Sendable`, so isolating it bought nothing but a Swift 6 error in
+    /// waiting.
+    nonisolated static let log = Logger(
+        subsystem: "com.ralphhees.cribwire",
+        category: "tidal"
+    )
 
     private init() {}
 
@@ -200,12 +206,6 @@ final class TidalSession {
     // MARK: - Sign-in
 
     private var signInTask: Task<Bool, Never>?
-    /// Held for the duration of the flow only. `ASWebAuthenticationSession`
-    /// holds its presentation context provider *weakly*, so a locally scoped one
-    /// is deallocated before iOS asks it for a window and the sheet never
-    /// appears.
-    private var webSession: ASWebAuthenticationSession?
-    private var anchor: PresentationAnchor?
 
     /// Signs a parent in, on the Camera's own screen.
     ///
@@ -224,19 +224,19 @@ final class TidalSession {
         // that did nothing.
         if let signInTask { return await signInTask.value }
 
-        let task = Task<Bool, Never> { [weak self] in
-            guard let self else { return false }
-            defer {
-                self.webSession = nil
-                self.anchor = nil
-            }
-
+        // Nothing of this object is captured: every step below is on the SDK's
+        // own process-wide singletons, and the sheet is the shared flow's to
+        // hold. So the task cannot outlive its usefulness by keeping this alive.
+        let task = Task<Bool, Never> {
             guard let url = TidalAuth.shared.initializeLogin(
                 redirectUri: redirectURI,
                 loginConfig: LoginConfig()
             ), let scheme = URL(string: redirectURI)?.scheme else { return false }
 
-            guard let callback = await self.authenticate(with: url, scheme: scheme) else {
+            guard let callback = await WebAuthenticationFlow.run(
+                url: url,
+                callbackScheme: scheme
+            ) else {
                 return false
             }
             // A cancelled sheet and a refused sign-in land here identically, and
@@ -261,94 +261,6 @@ final class TidalSession {
         bootstrappedPlayer?.reset()
     }
 
-    private func authenticate(with url: URL, scheme: String) async -> URL? {
-        // Resolved before the session is built rather than inside the anchor,
-        // because "there is no window" and "the sheet failed to start" are the
-        // same outcome and this is the only place that can say so without
-        // inventing a window to hand back.
-        guard let window = Self.presentationWindow() else { return nil }
-
-        return await withCheckedContinuation { continuation in
-            let callback = LoginCallback(continuation)
-            let session = ASWebAuthenticationSession(
-                url: url,
-                callback: .customScheme(scheme)
-            ) { callbackURL, _ in
-                callback.finish(callbackURL)
-            }
-            let anchor = PresentationAnchor(window: window)
-            session.presentationContextProvider = anchor
-            session.prefersEphemeralWebBrowserSession = false
-            self.anchor = anchor
-            self.webSession = session
-
-            // `start()` failing means the completion handler will never run, so
-            // the continuation has to be resumed here or this task waits for the
-            // rest of the night. `LoginCallback` is what makes doing both safe.
-            if !session.start() {
-                callback.finish(nil)
-            }
-        }
-    }
-
-    /// The window the sheet is presented over: the key window of a foreground
-    /// scene, which on a Camera being set up is the only window there is.
-    ///
-    /// `nil` when the app has no window on screen at all, which means nobody is
-    /// looking at the phone this sign-in was supposed to be answered on.
-    private static func presentationWindow() -> UIWindow? {
-        let windows = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-        return windows.first(where: \.isKeyWindow) ?? windows.first
-    }
-}
-
-// MARK: - Callback plumbing
-
-/// Resumes the sign-in continuation exactly once.
-///
-/// Both writers — `ASWebAuthenticationSession`'s completion handler and the
-/// `start()` failure path — run on the main thread, which is what makes the
-/// unchecked conformance true rather than merely convenient. Resuming a
-/// continuation twice is a crash, and this is the one place two callers could.
-private final class LoginCallback: @unchecked Sendable {
-
-    private var continuation: CheckedContinuation<URL?, Never>?
-
-    init(_ continuation: CheckedContinuation<URL?, Never>) {
-        self.continuation = continuation
-    }
-
-    func finish(_ url: URL?) {
-        guard let continuation else { return }
-        self.continuation = nil
-        continuation.resume(returning: url)
-    }
-}
-
-/// Where the TIDAL sheet is presented from.
-///
-/// It holds the window rather than looking one up, so that the "no window at
-/// all" case is decided by `TidalSession.presentationWindow()` before the flow
-/// starts — a context provider has no way to say no, and the only alternative
-/// would be conjuring a window nothing is attached to.
-///
-/// A strong reference, deliberately: `ASWebAuthenticationSession` holds its
-/// context provider *weakly*, so `TidalSession` keeps this object alive for the
-/// duration of the flow and it in turn keeps the window it was told about.
-@MainActor
-private final class PresentationAnchor: NSObject, ASWebAuthenticationPresentationContextProviding {
-
-    private let window: UIWindow
-
-    init(window: UIWindow) {
-        self.window = window
-    }
-
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        window
-    }
 }
 
 /// Turns `Player`'s delegate callbacks into main-actor work.

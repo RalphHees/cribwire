@@ -154,7 +154,10 @@ final class LocalPairingHost {
                 return
             }
             // Introduce ourselves back, so the Viewer can address this Camera.
-            _ = try? await client.send(.hello(), to: .viewer(deviceID: viewerDeviceID))
+            _ = try? await client.send(
+                .hello(name: DeviceNameStore().load()),
+                to: .viewer(deviceID: viewerDeviceID)
+            )
             self.onClaim(Claim(viewerDeviceID: viewerDeviceID, client: client))
         }
     }
@@ -196,7 +199,7 @@ final class LocalPairingGuest {
 
         // The Viewer speaks first: on this path, connecting and introducing
         // itself is what the REST claim used to be.
-        _ = try? await client.send(.hello(), to: .camera)
+        _ = try? await client.send(.hello(name: DeviceNameStore().load()), to: .camera)
 
         guard let cameraDeviceID = await LocalPairingCoordinator.awaitHello(on: client) else {
             await client.disconnect()

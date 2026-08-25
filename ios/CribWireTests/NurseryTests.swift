@@ -346,18 +346,23 @@ final class TidalConfigurationTests: XCTestCase {
 
     /// A client id gets TIDAL as far as a login screen and no further.
     ///
-    /// The distinction this pins down is the whole shape of the feature: a
-    /// configured Camera *offers* TIDAL, so it reaches the Viewer's switcher and
-    /// the Camera's own screen can show a sign-in button — but until somebody
-    /// stands in front of that phone and signs in, it reports `needsPermission`
-    /// rather than `ready`, and a Viewer is never given a playlist picker that
-    /// would play nothing.
+    /// The distinction this pins down is the whole shape of the feature, and it
+    /// is three separate answers rather than one. *Configured* means this build
+    /// could talk to TIDAL, so it appears on the Camera's own account list with
+    /// a sign-in button. *Connected* means a parent has actually signed in, and
+    /// it is what puts a service on the Viewer's switcher — false here, because
+    /// a client id is not an account. *Ready* means it can start a playlist,
+    /// which needs both plus a subscription.
+    ///
+    /// Collapsing the first two is what would put a service in front of a parent
+    /// in another room whose every button leads to silence.
     @MainActor
-    func testAConfiguredButSignedOutCameraOffersTidalWithoutClaimingItCanPlay() async {
+    func testAClientIDConfiguresTidalWithoutConnectingIt() async {
         let provider = TidalMusicProvider(
             configuration: TidalConfiguration(clientID: "a-real-looking-client-id")
         )
         XCTAssertTrue(provider.isConfigured)
+        XCTAssertFalse(provider.isConnected, "a client id is not an account")
 
         let availability = await provider.availability()
         XCTAssertEqual(availability, .needsPermission)
@@ -381,10 +386,16 @@ final class TidalConfigurationTests: XCTestCase {
         XCTAssertTrue(loaded.recentlyPlayed.isEmpty)
     }
 
-    /// The switcher is built from the providers a Camera *can* use, so a
-    /// deployment that issued a client id has to see TIDAL reach it.
+    /// A configured service with nobody signed in to it is **not** offered to
+    /// the Viewer.
+    ///
+    /// The rule the whole account feature turns on. A client id means this build
+    /// *could* talk to TIDAL; it says nothing about whether a parent has an
+    /// account on this phone, and a switcher entry with no account behind it is
+    /// four buttons whose only outcome is silence — in another room, where the
+    /// web sheet that would fix it cannot be answered.
     @MainActor
-    func testTidalIsAmongTheProvidersAConfiguredCameraOffers() async throws {
+    func testAConfiguredButSignedOutServiceIsNotOffered() async throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.tidalOffer"))
         defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.tidalOffer") }
 
@@ -394,17 +405,158 @@ final class TidalConfigurationTests: XCTestCase {
             defaults: defaults,
             providers: [
                 FakeMusicProvider(availability: .ready, canControlPlayback: true),
-                TidalMusicProvider(configuration: TidalConfiguration(clientID: "id"))
+                // Configured — it has a client id — and signed out, which is
+                // every Camera before somebody walks over and taps Sign in.
+                FakeMusicProvider(
+                    kind: .tidal,
+                    availability: .needsPermission,
+                    canControlPlayback: false,
+                    isConnected: false
+                )
             ],
             systemRemote: FakeSystemMusicRemote(isAvailable: false)
         )
         await controller.reload()
 
-        XCTAssertTrue(controller.state.music.availableProviders.contains(.tidal))
+        XCTAssertFalse(controller.state.music.availableProviders.contains(.tidal))
+        XCTAssertEqual(controller.state.music.availableProviders, [.appleMusic])
     }
 
-    /// And a Camera whose deployment issued none must not, because a switcher
-    /// entry that leads to "not set up" is four dead buttons.
+    /// And it *is* offered once a parent connects it, without the Camera being
+    /// restarted: the account list and the Viewer's switcher are the same fact.
+    @MainActor
+    func testConnectingAServiceOffersItToViewers() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.tidalConnect"))
+        defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.tidalConnect") }
+
+        let tidal = FakeMusicProvider(
+            kind: .tidal,
+            availability: .ready,
+            canControlPlayback: true,
+            isConnected: false
+        )
+        let controller = NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [
+                FakeMusicProvider(availability: .ready, canControlPlayback: true),
+                tidal
+            ],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+        await controller.reload()
+        XCTAssertFalse(controller.state.music.availableProviders.contains(.tidal))
+
+        await controller.connect(.tidal)
+
+        XCTAssertTrue(controller.state.music.availableProviders.contains(.tidal))
+        XCTAssertTrue(tidal.calls.contains("connect"))
+        // A parent who just connected something meant to use it.
+        XCTAssertEqual(controller.state.music.provider, .tidal)
+    }
+
+    /// Signing out takes the service off the Viewer *and* stops the music.
+    ///
+    /// The second half is the one worth a test: a lullaby still playing out of
+    /// an account the parent has just signed out of is the loudest possible way
+    /// to tell them the button did not work.
+    @MainActor
+    func testSigningOutStopsThePlaybackAndWithdrawsTheService() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.signOut"))
+        defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.signOut") }
+
+        let apple = FakeMusicProvider(
+            availability: .ready,
+            canControlPlayback: true,
+            isPlaying: true,
+            currentPlaylistID: "lullabies"
+        )
+        let controller = NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [apple],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+        await controller.reload()
+        XCTAssertEqual(controller.state.music.availableProviders, [.appleMusic])
+
+        await controller.disconnect(.appleMusic)
+
+        XCTAssertTrue(apple.calls.contains("signOut"))
+        XCTAssertFalse(apple.isPlaying)
+        XCTAssertTrue(controller.state.music.availableProviders.isEmpty)
+        XCTAssertFalse(controller.state.music.hasConnectedProvider)
+    }
+
+    /// Signing the *selected* service out falls back to one that can still play,
+    /// rather than leaving the Camera pointed at an account it no longer has.
+    @MainActor
+    func testSigningOutTheSelectedServiceFallsBackToAConnectedOne() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.signOutFallback"))
+        defer {
+            UserDefaults().removePersistentDomain(forName: "cribwire.tests.signOutFallback")
+        }
+
+        let controller = NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [
+                FakeMusicProvider(availability: .ready, canControlPlayback: true),
+                FakeMusicProvider(
+                    kind: .spotify,
+                    availability: .ready,
+                    canControlPlayback: true
+                )
+            ],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+        await controller.reload()
+        XCTAssertEqual(controller.state.music.provider, .appleMusic)
+
+        await controller.disconnect(.appleMusic)
+
+        XCTAssertEqual(controller.state.music.provider, .spotify)
+        XCTAssertEqual(controller.state.music.availableProviders, [.spotify])
+    }
+
+    /// A Viewer cannot switch to a service the Camera has no account for.
+    ///
+    /// It should never be offered one, so this is the stale-screen case: the
+    /// account was signed out on the Camera a moment ago and the Viewer's
+    /// picker has not caught up. Refusing leaves the room playing what it was
+    /// playing, which is the better of the two wrong answers.
+    @MainActor
+    func testAViewerCannotSelectAServiceWithNoAccount() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.staleSwitch"))
+        defer { UserDefaults().removePersistentDomain(forName: "cribwire.tests.staleSwitch") }
+
+        let controller = NurseryController(
+            capture: nil,
+            recentsStore: MusicRecentsStore(defaults: defaults),
+            defaults: defaults,
+            providers: [
+                FakeMusicProvider(availability: .ready, canControlPlayback: true),
+                FakeMusicProvider(
+                    kind: .spotify,
+                    availability: .needsPermission,
+                    canControlPlayback: false,
+                    isConnected: false
+                )
+            ],
+            systemRemote: FakeSystemMusicRemote(isAvailable: false)
+        )
+        await controller.reload()
+
+        await controller.apply(.music(.setProvider(.spotify)))
+
+        XCTAssertEqual(controller.state.music.provider, .appleMusic)
+    }
+
+    /// A service with no client id is not even offered on the Camera's own
+    /// account list, so it can never become connected and never reach a Viewer.
     @MainActor
     func testTidalIsNotOfferedWithoutAClientID() async throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "cribwire.tests.tidalHidden"))
@@ -499,6 +651,130 @@ final class TidalConfigurationTests: XCTestCase {
 
 /// What the backend is allowed to change between releases, and how long a device
 /// keeps believing it.
+/// Spotify's own rules, as far as they can be asserted without a Spotify app,
+/// an account and a phone.
+///
+/// Which is further than it sounds. The two things that break silently on a
+/// nursery shelf are both pure: whether a deployment offers the service at all,
+/// and whether the id a Viewer taps survives the round trip to a Spotify URI and
+/// back. Playback itself needs two devices and a Premium account, and is called
+/// out as such in `docs/TASKS.md`.
+final class SpotifyProviderTests: XCTestCase {
+
+    /// No client id means Spotify is not offered — not offered as broken, not
+    /// offered at all. Same rule as TIDAL, and for the same reason: a service
+    /// nobody registered this build for cannot reach a login screen, so putting
+    /// it on the Camera's account list would be inviting a tap that fails.
+    @MainActor
+    func testSpotifyIsHiddenWithoutAClientID() async {
+        let provider = SpotifyMusicProvider(configuration: nil)
+
+        XCTAssertFalse(provider.isConfigured)
+        XCTAssertFalse(provider.isConnected)
+        let availability = await provider.availability()
+        XCTAssertEqual(availability, .notConfigured)
+    }
+
+    /// A client id configures Spotify without connecting it, exactly as one does
+    /// for TIDAL: an id is not an account.
+    @MainActor
+    func testAClientIDConfiguresSpotifyWithoutConnectingIt() async {
+        let provider = SpotifyMusicProvider(
+            configuration: SpotifyConfiguration(clientID: "a-real-looking-client-id")
+        )
+
+        XCTAssertTrue(provider.isConfigured)
+        XCTAssertFalse(provider.isConnected, "a client id is not an account")
+        let availability = await provider.availability()
+        XCTAssertEqual(availability, .needsPermission)
+    }
+
+    /// A signed-out provider lists nothing rather than failing. The whole
+    /// `MusicProvider` protocol is non-throwing because a music service must
+    /// never be able to break a monitor.
+    @MainActor
+    func testASignedOutSpotifyListsNoPlaylistsRatherThanFailing() async {
+        let provider = SpotifyMusicProvider(
+            configuration: SpotifyConfiguration(clientID: "a-real-looking-client-id")
+        )
+        let loaded = await provider.loadPlaylists()
+
+        XCTAssertTrue(loaded.favorites.isEmpty)
+        XCTAssertTrue(loaded.recentlyPlayed.isEmpty)
+    }
+
+    /// The id a Viewer taps has to survive the round trip through a Spotify URI.
+    ///
+    /// This is the path that runs months later: the id comes back out of the
+    /// Camera's own history, becomes a URI, and the Spotify app reports that URI
+    /// as its context — at which point it has to be recognisable as the same row
+    /// in the picker. An album losing its `album:` prefix anywhere along the way
+    /// turns into a playlist lookup that answers nothing.
+    func testPlaylistAndAlbumIdentifiersSurviveTheSpotifyURIRoundTrip() {
+        let playlist = MusicItemKind.playlist.wireID(for: "37i9dQZF1DX")
+        XCTAssertEqual(
+            SpotifyMusicProvider.wireID(fromURI: "spotify:playlist:37i9dQZF1DX"),
+            playlist
+        )
+
+        let album = MusicItemKind.album.wireID(for: "1DFixLWuPkv")
+        XCTAssertEqual(
+            SpotifyMusicProvider.wireID(fromURI: "spotify:album:1DFixLWuPkv"),
+            album
+        )
+        XCTAssertEqual(MusicItemKind.read(album).kind, .album)
+        XCTAssertEqual(MusicItemKind.read(album).id, "1DFixLWuPkv")
+    }
+
+    /// Anything that is not a playlist or an album ticks nothing.
+    ///
+    /// A parent who started a single track or an artist radio in the Spotify app
+    /// is listening to something no row in the picker describes, and the honest
+    /// answer is a picker with nothing ticked rather than a row that lights up
+    /// because it happened to be last.
+    func testANonPlaylistContextTicksNothing() {
+        XCTAssertNil(SpotifyMusicProvider.wireID(fromURI: "spotify:track:4uLU6hMCjM"))
+        XCTAssertNil(SpotifyMusicProvider.wireID(fromURI: "spotify:artist:0OdUWJ0sBjD"))
+        XCTAssertNil(SpotifyMusicProvider.wireID(fromURI: ""))
+        XCTAssertNil(SpotifyMusicProvider.wireID(fromURI: "https://example.com"))
+    }
+
+    /// The backend's id beats the built-in one — the point of serving one at
+    /// all, since it makes rotating an id a configuration change rather than an
+    /// App Store release.
+    func testTheBackendSpotifyClientIDIsPreferredOverTheBuiltInOne() {
+        let remote = RemoteConfiguration(spotifyClientID: "from-backend")
+        let resolved = SpotifyConfiguration.make(
+            remote: remote,
+            bundle: Bundle(for: SpotifyProviderTests.self)
+        )
+
+        XCTAssertEqual(resolved?.clientID, "from-backend")
+    }
+
+    /// An unsubstituted XcodeGen placeholder counts as "not configured".
+    ///
+    /// Not a nicety: `$(CRIBWIRE_SPOTIFY_CLIENT_ID)` is exactly what a default
+    /// build ships with, and treating it as an id would offer every such build a
+    /// Spotify sign-in that Spotify rejects.
+    func testAnUnsubstitutedPlaceholderIsNotAClientID() {
+        XCTAssertNil(SpotifyConfiguration.make(rawClientID: "$(CRIBWIRE_SPOTIFY_CLIENT_ID)"))
+        XCTAssertNil(SpotifyConfiguration.make(rawClientID: "   "))
+        XCTAssertNil(SpotifyConfiguration.make(rawClientID: nil))
+        XCTAssertEqual(SpotifyConfiguration.make(rawClientID: " real ")?.clientID, "real")
+    }
+
+    /// A redirect the build cannot receive is worse than the default, so a
+    /// scheme-less or blank override falls back rather than being handed to
+    /// Spotify to reject.
+    func testAnUnusableRedirectFallsBackToTheDefault() {
+        XCTAssertEqual(
+            SpotifyConfiguration.redirectURI(in: Bundle(for: SpotifyProviderTests.self)),
+            SpotifyConfiguration.defaultRedirectURI
+        )
+    }
+}
+
 final class RemoteConfigurationTests: XCTestCase {
 
     private let suiteName = "cribwire.tests.remoteConfig"
@@ -872,34 +1148,56 @@ final class FakeSystemMusicRemote: SystemMusicRemote {
 @MainActor
 final class FakeMusicProvider: MusicProvider {
 
-    let kind: MusicProviderKind = .appleMusic
+    let kind: MusicProviderKind
     let isConfigured = true
 
     private let reportedAvailability: MusicState.Availability
     let canControlPlayback: Bool
     private(set) var isPlaying: Bool
     private(set) var calls: [String] = []
+    /// Whether a parent has an account on this one. Settable, because half of
+    /// what these tests assert is what changes when it flips — connecting and
+    /// signing out are the two moves the Camera has to get right.
+    var isConnected: Bool
     /// What `play(playlistID:)` answers. The three cases are handled very
     /// differently by `NurseryController` — one of them edits the parent's
     /// history — so a test has to be able to pick.
     var playOutcome: PlaylistPlaybackOutcome = .playing(name: "Lullabies")
 
     init(
+        kind: MusicProviderKind = .appleMusic,
         availability: MusicState.Availability,
         canControlPlayback: Bool,
         isPlaying: Bool = false,
-        currentPlaylistID: String? = nil
+        currentPlaylistID: String? = nil,
+        isConnected: Bool = true
     ) {
+        self.kind = kind
         self.reportedAvailability = availability
         self.canControlPlayback = canControlPlayback
         self.isPlaying = isPlaying
         self.currentPlaylistID = currentPlaylistID
+        self.isConnected = isConnected
     }
 
     func availability() async -> MusicState.Availability { reportedAvailability }
 
+    /// Connecting succeeds, which is the interesting case: a real sign-in that
+    /// fails leaves everything exactly as it was, and there is nothing there for
+    /// the Camera to get wrong.
     @discardableResult
-    func requestAuthorization() async -> MusicState.Availability { reportedAvailability }
+    func requestAuthorization() async -> MusicState.Availability {
+        calls.append("connect")
+        isConnected = true
+        return reportedAvailability
+    }
+
+    func signOut() async {
+        calls.append("signOut")
+        isConnected = false
+        isPlaying = false
+        currentPlaylistID = nil
+    }
 
     func loadPlaylists() async -> (
         favorites: [PlaylistSummary],
@@ -909,7 +1207,7 @@ final class FakeMusicProvider: MusicProvider {
     }
 
     var nowPlaying: (title: String?, artist: String?) { (nil, nil) }
-    private(set) var currentPlaylistID: String?
+    var currentPlaylistID: String?
 
     @discardableResult
     func play(playlistID: String) async -> PlaylistPlaybackOutcome {

@@ -160,8 +160,20 @@ public struct MusicState: Codable, Equatable, Sendable {
     /// Recently played and favourite playlists, already shortlisted by
     /// `PlaylistShortlist`. The Viewer shows exactly this and never asks for more.
     public var playlists: [PlaylistSummary]
-    /// Services this Camera could switch to. Usually one; the Viewer only shows a
-    /// service switcher when there is more than one.
+    /// The services a parent has **connected on this Camera** — signed in to, or
+    /// in Apple Music's case granted access to and left switched on.
+    ///
+    /// Not the services this build knows how to talk to. A Camera with a TIDAL
+    /// client id compiled in but no account signed in to it reports an empty list
+    /// here, and the Viewer offers no TIDAL: a switcher entry for a service with
+    /// no account behind it is a button whose only outcome is silence, and the
+    /// fix for it — a web sheet — can only be answered on the Camera anyway.
+    ///
+    /// Empty is therefore a normal state with a specific meaning: *nothing is
+    /// connected yet, go and connect something on the camera phone*. It is not
+    /// the same as the Camera being unable to play, which is what
+    /// `canControlPlayback` answers — a parent with no account connected can
+    /// still pause whatever is already coming out of that phone.
     public var availableProviders: [MusicProviderKind]
 
     public init(
@@ -188,6 +200,17 @@ public struct MusicState: Codable, Equatable, Sendable {
         self.playlistID = playlistID
         self.playlists = Array(playlists.prefix(PlaylistShortlist.limit))
         self.availableProviders = availableProviders
+    }
+
+    /// Whether any music account is connected on the Camera.
+    ///
+    /// What the Viewer branches its explanation on. With nothing connected there
+    /// is no service to name, and naming one anyway — the Camera still reports
+    /// some `provider`, because something has to be selected — would tell a
+    /// parent their Apple Music was broken when the truth is they have never
+    /// connected any account at all.
+    public var hasConnectedProvider: Bool {
+        !availableProviders.isEmpty
     }
 
     /// Whether the Camera can be asked to start a playlist.

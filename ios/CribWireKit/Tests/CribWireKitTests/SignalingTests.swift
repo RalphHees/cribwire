@@ -552,3 +552,153 @@ final class RequestTimestampSequencerTests: XCTestCase {
         XCTAssertLessThan(sequencer.drift(from: base), 60)
     }
 }
+
+/// Device names: the rules a name has to obey to be put on the wire, and the
+/// promise that a peer too old to send one costs nothing.
+///
+/// Names are the one string in this protocol typed by a person on another
+/// device and drawn unescaped on this one, so what is asserted here is mostly
+/// what happens to a hostile one.
+final class DeviceNameTests: XCTestCase {
+
+    func testNamesAreTrimmedAndCollapsed() {
+        XCTAssertEqual(DeviceName.sanitized("  Nursery  "), "Nursery")
+        XCTAssertEqual(DeviceName.sanitized("Kitchen\tiPad"), "Kitchen iPad")
+    }
+
+    /// Line breaks are stripped rather than escaped.
+    ///
+    /// A name is drawn in a single-line row beside a Remove button. A peer that
+    /// sent forty newlines could otherwise push that button off the screen of
+    /// the device it is paired with — cheap to prevent here, impossible to fix
+    /// once it is stored.
+    func testLineBreaksCannotSurviveInAName() {
+        let hostile = "Nursery\n\n\n\n\nRemove"
+        let sanitized = DeviceName.sanitized(hostile)
+
+        XCTAssertEqual(sanitized, "Nursery Remove")
+        XCTAssertFalse(sanitized?.contains("\n") ?? true)
+    }
+
+    /// A name that says nothing is `nil`, not an empty string: the UI draws the
+    /// peer's *role* for a nameless device, and it can only do that if "no name"
+    /// is a case rather than a blank.
+    func testAnEmptyNameIsNoName() {
+        XCTAssertNil(DeviceName.sanitized(""))
+        XCTAssertNil(DeviceName.sanitized("   \n\t "))
+    }
+
+    func testLongNamesAreCappedAndMarked() {
+        let long = String(repeating: "a", count: 200)
+        let capped = DeviceName.sanitized(long)
+
+        XCTAssertEqual(capped?.count, DeviceName.maxLength)
+        XCTAssertTrue(capped?.hasSuffix("…") ?? false, "a shortened name must not look like the real one")
+    }
+
+    /// Sanitising happens on decode too, not only on the way out. The encoder at
+    /// the other end is another device on another build, which this one has no
+    /// say over.
+    func testAHostileNameIsSanitisedOnTheWayIn() throws {
+        let json = #"{"d":"viewer:abc","n":"  Bad\n\nName  "}"#
+        let decoded = try JSONDecoder().decode(ConnectedDevice.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.name, "Bad Name")
+        XCTAssertEqual(decoded.deviceID, "viewer:abc")
+    }
+
+    /// The roster is capped at the pairing limit. A peer claiming more is either
+    /// broken or malicious, and either way the answer is to stop reading.
+    func testTheRosterIsCappedAtThePairingLimit() {
+        let crowd = (0..<50).map { ConnectedDevice(deviceID: "viewer:\($0)", name: "V\($0)") }
+        let payload = SignalingPayload.status(
+            batteryLevel: 0.5,
+            isCharging: false,
+            name: "Nursery",
+            viewers: crowd
+        )
+
+        XCTAssertEqual(payload.vws?.count, DeviceName.maxRoster)
+    }
+
+    /// A name survives the round trip on every message type that carries one.
+    ///
+    /// Four types carry it because a name is something a peer mentions while
+    /// doing something else — there is no "my name is" message — and each path
+    /// is the only one some pairing has: local pairings introduce with `hello`,
+    /// server pairings with offer/answer, and `status` is what keeps a Viewer up
+    /// to date afterwards.
+    func testNamesSurviveEveryMessageThatCarriesThem() throws {
+        let payloads = [
+            SignalingPayload.hello(name: "Nursery"),
+            SignalingPayload.offer(sdp: "v=0", fingerprint: "sha-256 AA", name: "Nursery"),
+            SignalingPayload.answer(sdp: "v=0", fingerprint: "sha-256 BB", name: "Kitchen"),
+            SignalingPayload.status(batteryLevel: 0.4, isCharging: true, name: "Nursery")
+        ]
+
+        for payload in payloads {
+            let data = try JSONEncoder().encode(payload)
+            let decoded = try JSONDecoder().decode(SignalingPayload.self, from: data)
+            XCTAssertEqual(decoded.nm, payload.nm, "\(payload.t) dropped the name")
+        }
+    }
+
+    /// Stamping is what `SignalingClient` does on the way out, and it rebuilds
+    /// the payload field by field — so a field added without being stamped is
+    /// silently dropped on every real send while every test that skips stamping
+    /// passes.
+    func testStampingKeepsTheNameAndTheRoster() {
+        let payload = SignalingPayload.status(
+            batteryLevel: 0.9,
+            isCharging: false,
+            name: "Nursery",
+            viewers: [ConnectedDevice(deviceID: "viewer:1", name: "Kitchen")]
+        )
+        let stamped = payload.stamped(seq: 4, from: "camera")
+
+        XCTAssertEqual(stamped.nm, "Nursery")
+        XCTAssertEqual(stamped.vws?.first?.name, "Kitchen")
+        XCTAssertEqual(stamped.seq, 4)
+    }
+
+    /// A peer that predates names costs nothing: the fields are absent, the
+    /// message still decodes, and every screen falls back to the role.
+    func testAMessageWithoutANameStillDecodes() throws {
+        let json = #"{"t":"status","batt":0.5,"chg":false}"#
+        let decoded = try JSONDecoder().decode(SignalingPayload.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.t, .status)
+        XCTAssertNil(decoded.nm)
+        XCTAssertNil(decoded.vws, "no roster is not the same as an empty room")
+        XCTAssertEqual(decoded.batt, 0.5)
+    }
+
+    /// A full roster of the longest permissible names still fits the signaling
+    /// frame, with the battery and everything else in the same message.
+    func testAFullRosterFitsTheSignalingFrame() throws {
+        let longest = String(repeating: "W", count: DeviceName.maxLength)
+        let payload = SignalingPayload.status(
+            batteryLevel: 0.5,
+            isCharging: true,
+            name: longest,
+            viewers: (0..<DeviceName.maxRoster).map {
+                ConnectedDevice(
+                    deviceID: "viewer:\(UUID().uuidString)-\($0)",
+                    name: longest,
+                    since: Date()
+                )
+            }
+        )
+
+        let encoded = try JSONEncoder().encode(payload.stamped(seq: 1, from: "camera"))
+        // Sealing adds a 12-byte nonce and a 16-byte tag and then base64s the
+        // lot, so the plaintext has to leave room for a third of itself again
+        // plus the envelope around it.
+        let sealedEstimate = ((encoded.count + 28) * 4 / 3) + 128
+        XCTAssertLessThan(
+            sealedEstimate,
+            SignalingEnvelope.maxMessageBytes,
+            "the name and roster caps are what keep this message sendable"
+        )
+    }
+}

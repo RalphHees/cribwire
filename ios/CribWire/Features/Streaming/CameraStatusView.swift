@@ -27,9 +27,26 @@ struct CameraStatusView: View {
 
     @State private var isDimmed = false
     @State private var isMicrophoneOn = true
-    @State private var showGuidedAccessHelp = false
-    /// Set once asking for music access has been tried and left nothing changed.
-    @State private var musicPermissionNeedsSettings = false
+    /// Which sheet is up, if any.
+    ///
+    /// One `@State` and one `.sheet` for all three, for the reason written out
+    /// on `ViewerLiveView`: several `.sheet(isPresented:)` modifiers scattered
+    /// across a view and its children is a presentation that works until it
+    /// quietly does not, and the failure is a button that does nothing. Here
+    /// they were on three different views — the screen, the status card and the
+    /// nursery card — which is the arrangement that happens to work rather than
+    /// the one that is guaranteed to.
+    @State private var activeSheet: ActiveSheet?
+
+    private enum ActiveSheet: String, Identifiable {
+        case guidedAccessHelp
+        case connectedDevices
+        case musicAccounts
+
+        var id: String { rawValue }
+    }
+    /// The music accounts sheet — the only place this app signs in or out of a
+    /// music service, and Camera-side by construction.
     @State private var batteryLevel = UIDevice.current.batteryLevel
     @State private var batteryState = UIDevice.current.batteryState
     /// Restored when the screen goes away, so dimming never leaks into the rest
@@ -87,7 +104,32 @@ struct CameraStatusView: View {
                 for: UIDevice.batteryStateDidChangeNotification
             )
         ) { _ in refreshBattery() }
-        .sheet(isPresented: $showGuidedAccessHelp) { guidedAccessSheet }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .guidedAccessHelp:
+                guidedAccessSheet
+            case .connectedDevices:
+                ConnectedDevicesView(
+                    role: .camera,
+                    peerName: engine.peerName,
+                    connectedDevices: engine.connectedDevices,
+                    isConnected: engine.connectedPeerCount > 0,
+                    onRename: { _ in engine.deviceNameDidChange() }
+                )
+            case .musicAccounts:
+                // Read off the controller as the sheet is built, so a service
+                // signed in behind it — the web sheet returns and this one is
+                // still up — shows as connected without anything having to
+                // notify anybody.
+                if let nursery = engine.nursery {
+                    MusicAccountsView(
+                        accounts: nursery.accounts,
+                        connect: { await nursery.connect($0) },
+                        disconnect: { await nursery.disconnect($0) }
+                    )
+                }
+            }
+        }
     }
 
     // MARK: - Content
@@ -181,6 +223,19 @@ struct CameraStatusView: View {
                         : nil
                 )
                 row(label: "Quality", value: engine.quality.description)
+
+                // Named, not just counted. "2 watching" answers how many; the
+                // question a parent standing at the nursery door actually has is
+                // *which* two, and that is one tap away rather than a number
+                // they have to trust.
+                Button {
+                    activeSheet = .connectedDevices
+                } label: {
+                    Label("Who is watching", systemImage: "person.2.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(KCGhostButtonStyle())
+
                 if engine.negotiatingPeerCount > 0, !engine.isVerified {
                     // Only while a handshake is in flight: once video is running
                     // this is noise, but until then it is the whole diagnosis.
@@ -351,57 +406,35 @@ struct CameraStatusView: View {
     /// What a Viewer can reach in this room, and the one thing only this phone can
     /// do about it.
     ///
-    /// Music permission is the reason this card exists. `MusicAuthorization` is a
-    /// system prompt, and a prompt raised by a tap on another device is a prompt
-    /// nobody is standing in front of — so no Viewer command can trigger it and it
-    /// has to be offered here, on the phone somebody is holding while they set the
+    /// Music accounts are the reason this card exists. Every service CribWire
+    /// plays from authenticates through a web sheet or a system prompt, and one
+    /// of those raised by a tap on another device is a question nobody is
+    /// standing in front of — so no Viewer command can trigger one, and the way
+    /// in has to be here, on the phone somebody is holding while they set the
     /// camera up.
     @ViewBuilder
     private var nurseryCard: some View {
-        if let nursery = engine.nursery, let state = engine.nurseryState {
+        // The controller itself is no longer needed here — the accounts sheet
+        // reads it at the root, where the presentation now lives — but its
+        // presence still gates this card: a Camera with no nursery controller
+        // has no music and no light to describe.
+        if engine.nursery != nil, let state = engine.nurseryState {
             KCCard {
                 VStack(alignment: .leading, spacing: 12) {
                     row(label: "Music", value: musicSummary(state.music))
+                    row(label: "Accounts", value: accountsSummary(state.music))
                     row(label: "Light", value: lightSummary(state.light))
 
-                    if state.music.availability == .needsPermission {
-                        // iOS shows the *music library* permission prompt exactly
-                        // once. A second tap on "Allow" after it has been refused
-                        // does nothing at all, so once asking has visibly failed
-                        // the Settings app is the only thing that can still work.
-                        //
-                        // That is true of Apple Music and of nothing else. TIDAL's
-                        // "not allowed yet" is a signed-out account, which Settings
-                        // has no opinion about whatsoever — sending a parent there
-                        // would be a dead end they could not get out of. A web
-                        // sheet can also be dismissed and re-raised as often as
-                        // somebody likes, so failing once means nothing.
-                        if musicPermissionNeedsSettings, state.music.provider == .appleMusic {
-                            Button {
-                                if let url = URL(string: UIApplication.openSettingsURLString) {
-                                    UIApplication.shared.open(url)
-                                }
-                            } label: {
-                                Label("Allow music in Settings", systemImage: "gear")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(KCGhostButtonStyle())
-                        } else {
-                            Button {
-                                Task {
-                                    let allowed = await nursery.requestMusicAuthorization()
-                                    musicPermissionNeedsSettings = !allowed
-                                }
-                            } label: {
-                                Label(
-                                    musicAuthorizationLabel(state.music.provider),
-                                    systemImage: "music.note"
-                                )
-                                .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(KCGhostButtonStyle())
-                        }
+                    Button {
+                        activeSheet = .musicAccounts
+                    } label: {
+                        Label(
+                            musicAccountsLabel(state.music),
+                            systemImage: "person.crop.circle.badge.checkmark"
+                        )
+                        .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(KCGhostButtonStyle())
 
                     Text("Whoever is watching can play music here and turn this phone's light on. Only your paired devices can — the controls travel encrypted, like the video.")
                         .font(Theme.Typography.caption)
@@ -412,18 +445,37 @@ struct CameraStatusView: View {
         }
     }
 
-    /// What the button is actually offering to do, which is a different act on
-    /// each service: Apple Music needs iOS's permission to read the library on
-    /// this phone, TIDAL needs an account signed in to it. One label for both
-    /// would have to be vague enough to describe neither.
-    private func musicAuthorizationLabel(_ provider: MusicProviderKind) -> String {
-        switch provider {
-        case .appleMusic: return String(localized: "Allow music access")
-        case .tidal: return String(localized: "Sign in to TIDAL")
-        }
+    /// The way into the accounts sheet, worded for whichever of the two states
+    /// this Camera is in. A phone with nothing connected is being *invited* to
+    /// connect something — that is the setup step this screen exists to prompt —
+    /// while one that already plays music is only being offered a way to change
+    /// it.
+    private func musicAccountsLabel(_ music: MusicState) -> String {
+        music.hasConnectedProvider
+            ? String(localized: "Music accounts")
+            : String(localized: "Connect a music service")
+    }
+
+    /// Which services this phone is signed in to, named rather than counted.
+    ///
+    /// A count would be shorter and useless: the question a parent has standing
+    /// at the Camera is "will the Viewer be able to play our lullabies", and the
+    /// answer to that is a service name.
+    private func accountsSummary(_ music: MusicState) -> String {
+        guard music.hasConnectedProvider else { return String(localized: "None connected") }
+        return music.availableProviders
+            .map(\.displayName)
+            .joined(separator: ", ")
     }
 
     private func musicSummary(_ music: MusicState) -> String {
+        // Asked before availability, because with no account connected there is
+        // no service whose availability means anything — and "Not allowed yet"
+        // would describe a permission problem this phone does not have.
+        guard music.hasConnectedProvider else {
+            return String(localized: "No account connected")
+        }
+
         switch music.availability {
         case .ready:
             if music.isPlaying {
@@ -536,7 +588,7 @@ struct CameraStatusView: View {
 
     private var guidedAccessCard: some View {
         Button {
-            showGuidedAccessHelp = true
+            activeSheet = .guidedAccessHelp
         } label: {
             KCCard {
                 HStack(spacing: 12) {
@@ -600,7 +652,7 @@ struct CameraStatusView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { showGuidedAccessHelp = false }
+                    Button("Done") { activeSheet = nil }
                 }
             }
         }

@@ -72,6 +72,18 @@ final class TidalMusicProvider: MusicProvider {
     /// broken.
     var isConfigured: Bool { configuration != nil }
 
+    /// A signed-in account, read from the Keychain the SDK stored it in.
+    ///
+    /// No network call, which is what makes it safe on the refresh tick — and
+    /// honest besides: a Camera that lost its Wi-Fi has not been signed out, and
+    /// answering `false` for it would take TIDAL off the Viewer's switcher every
+    /// time the router blinked.
+    var isConnected: Bool {
+        guard let configuration else { return false }
+        session.configure(configuration)
+        return session.isSignedIn
+    }
+
     /// Resolved on each read rather than captured once.
     ///
     /// The id can arrive from the backend after this object exists — a Camera
@@ -155,7 +167,28 @@ final class TidalMusicProvider: MusicProvider {
 
         guard !session.isSignedIn else { return await availability() }
         _ = await session.signIn(redirectURI: configuration.redirectURI)
+        // A sign-in that succeeded says nothing yet about the subscription —
+        // TIDAL only mentions that once a track is playing — so the sticky flags
+        // from the *previous* account are cleared here rather than left to
+        // condemn the new one. Signing in again is the fix a parent reaches for
+        // when TIDAL has gone wrong, and it has to be able to actually fix it.
+        isPreviewOnly = false
+        hasFailed = false
         return await availability()
+    }
+
+    func signOut() async {
+        // Order matters: the queue is emptied and the player stopped while the
+        // token is still valid, because `stop()` talks to a `Player` that would
+        // otherwise be holding a session TIDAL has just been told to forget.
+        await stop()
+        session.signOut()
+        // Both are facts about the account that just left, not about this
+        // Camera. Carrying them into the next sign-in would report a fresh
+        // account as having no subscription.
+        isPreviewOnly = false
+        hasFailed = false
+        names.removeAll()
     }
 
     // MARK: - Playlists

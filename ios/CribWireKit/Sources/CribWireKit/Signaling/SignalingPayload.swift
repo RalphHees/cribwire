@@ -94,6 +94,24 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
     public let ctl: NurseryCommand?
     /// The music and light state, for `nursery`.
     public let nur: NurseryState?
+    /// The sender's own device name, already sanitised by `DeviceName`.
+    ///
+    /// Rides on `hello`, `offer`, `answer` and `status` — every message that
+    /// starts or maintains a session — rather than getting a message type of its
+    /// own. That is what makes a name arrive on both paths without new plumbing:
+    /// a local-network pairing introduces itself with `hello`, a server pairing
+    /// with the offer/answer exchange, and neither has to know about the other.
+    ///
+    /// Absent from a peer running a build that predates names, which is drawn as
+    /// a role — "Viewer" — rather than as an empty row.
+    public let nm: String?
+    /// Camera → Viewer: who else is watching this room, for `status`.
+    ///
+    /// The Camera is the only device that can know this. Viewers hold a session
+    /// with the Camera and with nobody else — there is no peer-to-peer mesh and
+    /// deliberately so — so a Viewer showing "two others watching" is showing
+    /// something only the Camera could have told it.
+    public let vws: [ConnectedDevice]?
 
     public init(
         t: Kind,
@@ -107,7 +125,9 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         batt: Double? = nil,
         chg: Bool? = nil,
         ctl: NurseryCommand? = nil,
-        nur: NurseryState? = nil
+        nur: NurseryState? = nil,
+        nm: String? = nil,
+        vws: [ConnectedDevice]? = nil
     ) {
         self.t = t
         self.seq = seq
@@ -121,18 +141,32 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
         self.chg = chg
         self.ctl = ctl
         self.nur = nur
+        self.nm = nm.flatMap(DeviceName.sanitized)
+        // Capped on the way out as well as on the way in: a Camera with a
+        // runaway session table must not be the thing that produces a message
+        // too large for the frame it has to fit in.
+        self.vws = vws.map { Array($0.prefix(DeviceName.maxRoster)) }
     }
 
     // MARK: - Factories
 
-    /// Camera → Viewer offer, carrying the camera's DTLS fingerprint.
-    public static func offer(sdp: String, fingerprint: String) -> SignalingPayload {
-        SignalingPayload(t: .offer, sdp: sdp, fp: fingerprint)
+    /// Camera → Viewer offer, carrying the camera's DTLS fingerprint and the
+    /// name the Camera goes by.
+    public static func offer(
+        sdp: String,
+        fingerprint: String,
+        name: String? = nil
+    ) -> SignalingPayload {
+        SignalingPayload(t: .offer, sdp: sdp, fp: fingerprint, nm: name)
     }
 
-    /// Viewer → Camera answer, carrying the viewer's DTLS fingerprint.
-    public static func answer(sdp: String, fingerprint: String) -> SignalingPayload {
-        SignalingPayload(t: .answer, sdp: sdp, fp: fingerprint)
+    /// Viewer → Camera answer, carrying the viewer's DTLS fingerprint and name.
+    public static func answer(
+        sdp: String,
+        fingerprint: String,
+        name: String? = nil
+    ) -> SignalingPayload {
+        SignalingPayload(t: .answer, sdp: sdp, fp: fingerprint, nm: name)
     }
 
     public static func ice(candidate: String, mid: String?, mLineIndex: Int) -> SignalingPayload {
@@ -145,8 +179,8 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
 
     /// Local-network introduction. The sender's device id rides in `from`,
     /// stamped inside the seal by `SignalingClient`.
-    public static func hello() -> SignalingPayload {
-        SignalingPayload(t: .hello)
+    public static func hello(name: String? = nil) -> SignalingPayload {
+        SignalingPayload(t: .hello, nm: name)
     }
 
     /// Camera → Viewer battery report.
@@ -154,8 +188,19 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
     /// - Parameter level: `0...1`, or negative when iOS has not measured it yet.
     ///   A negative reading is sent as `nil` rather than as a number, so the
     ///   Viewer can show "unknown" instead of "0 %" and frighten someone.
-    public static func status(batteryLevel: Double, isCharging: Bool) -> SignalingPayload {
-        SignalingPayload(t: .status, batt: batteryLevel >= 0 ? batteryLevel : nil, chg: isCharging)
+    public static func status(
+        batteryLevel: Double,
+        isCharging: Bool,
+        name: String? = nil,
+        viewers: [ConnectedDevice]? = nil
+    ) -> SignalingPayload {
+        SignalingPayload(
+            t: .status,
+            batt: batteryLevel >= 0 ? batteryLevel : nil,
+            chg: isCharging,
+            nm: name,
+            vws: viewers
+        )
     }
 
     /// Viewer → Camera nursery control.
@@ -186,7 +231,9 @@ public struct SignalingPayload: Codable, Equatable, Sendable {
             batt: batt,
             chg: chg,
             ctl: ctl,
-            nur: nur
+            nur: nur,
+            nm: nm,
+            vws: vws
         )
     }
 }

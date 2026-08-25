@@ -120,6 +120,46 @@ actor KeychainStore {
         #endif
     }
 
+    // MARK: - Synchronous read
+
+    /// Reads one item without awaiting the actor.
+    ///
+    /// An exception, and a narrow one. Everything else here goes through the
+    /// actor because the sequences that matter are read-modify-write, and those
+    /// are what an actor exists to serialise. A plain read is not one of those:
+    /// `SecItemCopyMatching` is thread-safe, it takes microseconds against the
+    /// local keychain, and it cannot interleave with itself destructively.
+    ///
+    /// It is here because two callers genuinely cannot await. `MusicProvider`
+    /// answers `isConnected` synchronously — it is read from SwiftUI body
+    /// evaluation and from the Camera's five-second refresh tick — and a session
+    /// that could not answer "is a parent signed in here" without a suspension
+    /// point would have to guess `false` on first read. Guessing `false` means a
+    /// Camera that shows its music service as disconnected for the first moments
+    /// after launch, and a Viewer that briefly loses the switcher.
+    ///
+    /// Callers are expected to do this **once per launch** and cache the answer.
+    nonisolated static func readSynchronously(account: String) -> Data? {
+        #if canImport(Security)
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: false
+        ]
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+        var result: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else {
+            return nil
+        }
+        return result as? Data
+        #else
+        return nil
+        #endif
+    }
+
     // MARK: - Query building
 
     #if canImport(Security)

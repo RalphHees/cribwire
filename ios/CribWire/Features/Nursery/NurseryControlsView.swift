@@ -52,10 +52,14 @@ struct NurseryControlsView: View {
                 header(
                     symbol: state.music.isPlaying ? "music.note.list" : "music.note",
                     title: "Music",
-                    // The service is named in the header when there is only one,
-                    // and becomes a picker when there is a choice. Showing a
-                    // one-option picker would be a control that does nothing.
-                    trailing: hasProviderChoice ? nil : state.music.provider.displayName
+                    // The service is named in the header when the camera has
+                    // exactly one connected, and becomes a picker when there is
+                    // a choice. Showing a one-option picker would be a control
+                    // that does nothing — and naming a service on a camera with
+                    // no account connected would name one the parent never
+                    // chose, since the camera reports its stored selection
+                    // whether or not it can play.
+                    trailing: connectedProviderName
                 )
 
                 if hasProviderChoice { providerPicker }
@@ -89,6 +93,15 @@ struct NurseryControlsView: View {
         state.music.availableProviders.count > 1
     }
 
+    /// The one connected service's name, or nothing.
+    ///
+    /// Nothing in both directions: no account connected on the camera, and more
+    /// than one, which the picker below names instead.
+    private var connectedProviderName: String? {
+        guard state.music.availableProviders.count == 1 else { return nil }
+        return state.music.availableProviders[0].displayName
+    }
+
     private var providerPicker: some View {
         Picker(
             "Music service",
@@ -112,6 +125,21 @@ struct NurseryControlsView: View {
     /// rather than a message: only the Viewer knows how to phrase it, and only in
     /// the reader's own language.
     private var musicUnavailableReason: String? {
+        // Before anything the camera said about a service, because with nothing
+        // connected there is no service to be talking about. The camera still
+        // reports one — `MusicState.provider` is not optional — and naming it
+        // here would tell a parent their Apple Music was broken when the truth
+        // is that nobody has connected any account to that phone yet.
+        //
+        // Everything above this line stays on screen: the transport row and the
+        // volume are about whatever is making sound in that room, which is a
+        // question no music account has to be connected to answer.
+        guard state.music.hasConnectedProvider else {
+            return String(
+                localized: "No music service is connected on the camera. Open CribWire on the camera phone to connect one."
+            )
+        }
+
         switch state.music.availability {
         case .ready:
             return nil

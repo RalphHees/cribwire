@@ -131,6 +131,29 @@ final class StreamingEngine: ObservableObject {
     /// do about it, and none of them is worth taking the screen over — the video
     /// is still the point.
     @Published var talkbackNotice: String?
+    /// What the device at the other end calls itself.
+    ///
+    /// On a Viewer, the Camera's name; on a Camera, the name of the Viewer whose
+    /// session arrived most recently — which is only meaningful for a pairing
+    /// with one Viewer, and is why the Camera's own screen reads
+    /// `connectedDevices` instead.
+    ///
+    /// `nil` until the peer introduces itself, and on a peer running a build
+    /// that predates names it stays `nil` for ever. Every screen that draws it
+    /// falls back to the role.
+    @Published private(set) var peerName: String?
+    /// Who is watching this room right now, newest last.
+    ///
+    /// Built by the Camera from its own session table and sent to every Viewer
+    /// inside the sealed `status` message, so both roles draw the same list from
+    /// the same source. A Viewer cannot compute this itself: it holds a session
+    /// with the Camera and with no other Viewer, by design.
+    ///
+    /// **Verified sessions only.** A peer that has exchanged SDP but failed the
+    /// fingerprint check is not watching anything, and a list that showed it
+    /// would be the one place in the app where an unverified device appears to
+    /// be inside the pairing.
+    @Published private(set) var connectedDevices: [ConnectedDevice] = []
     /// Viewer-side: the Camera's last reported battery, `0...1`, or `nil` until it
     /// says. Arrives sealed over signaling — the server never sees it.
     @Published private(set) var peerBatteryLevel: Double?
@@ -308,6 +331,14 @@ final class StreamingEngine: ObservableObject {
 
     private let record: PairingRecord
     private let services: AppServices
+    /// What this device calls itself, as last read from `DeviceNameStore`.
+    ///
+    /// Cached rather than read per message — it is the same string on every send
+    /// — and re-read by `deviceNameDidChange()` when a parent renames the phone,
+    /// which also tells the peer. Without that second half a rename would be
+    /// invisible on the other device until the next reconnect, which on a Camera
+    /// left running all night is "tomorrow".
+    private var deviceName: String
     private let role: PairingRole
 
     /// Camera-side only.
@@ -350,6 +381,18 @@ final class StreamingEngine: ObservableObject {
     /// to five Viewers — so this is keyed by address rather than being a single
     /// optional.
     private var sessions: [SignalingRecipient: PeerSession] = [:]
+    /// What each peer introduced itself as, keyed the same way as `sessions`.
+    ///
+    /// Separate from the session rather than a field on it because it outlives
+    /// one: a Viewer that drops and comes back is the same device with the same
+    /// name, and re-showing "Viewer" for the seconds before its first message
+    /// would make the roster flicker on every reconnect.
+    private var peerNames: [SignalingRecipient: String] = [:]
+    /// When each peer's session was *verified*, which is what the roster shows
+    /// as the moment somebody started watching. Cleared when the session goes,
+    /// so a returning Viewer is timed from its new session rather than from one
+    /// that ended an hour ago.
+    private var verifiedAt: [SignalingRecipient: Date] = [:]
     private var qualityController = AdaptiveQualityController()
 
     private var identity: PairingSecretsStore.DeviceIdentity?
@@ -379,6 +422,7 @@ final class StreamingEngine: ObservableObject {
         self.record = record
         self.services = services
         self.role = record.localRole
+        self.deviceName = DeviceNameStore().load()
 
         guard record.localRole == .camera else {
             self.capture = nil
@@ -530,14 +574,168 @@ final class StreamingEngine: ObservableObject {
         connectedPeerCount = sessions.values.filter(\.isVerified).count
         // Music and torch state is polled only while somebody can see it.
         nursery?.hasConnectedViewers = connectedPeerCount > 0
+        refreshRoster()
     }
 
-    /// Sends the last battery reading to every connected Viewer.
+    /// Rebuilds the Camera's list of who is watching.
+    ///
+    /// Driven off the same session table as the counts and recomputed in the
+    /// same place, because the two drifting apart is exactly the bug that had
+    /// the Camera claiming nobody was there through an entire handshake.
+    ///
+    /// Camera-only: a Viewer's roster is whatever the Camera last sent it, and
+    /// recomputing it here from that Viewer's single session would replace a
+    /// list of everyone watching with a list of one.
+    private func refreshRoster() {
+        guard role == .camera else { return }
+
+        let verified = sessions.filter { $0.value.isVerified }.map(\.key)
+        // Timed from the moment a session was verified, not from now, so a
+        // roster that is rebuilt on every session change does not reset
+        // everybody's "watching since" each time one Viewer arrives.
+        let now = Date()
+        for peer in verified where verifiedAt[peer] == nil {
+            verifiedAt[peer] = now
+        }
+        // Peers that dropped or lost verification lose their timestamp, so a
+        // reconnect is timed afresh rather than from the session before it.
+        verifiedAt = verifiedAt.filter { verified.contains($0.key) }
+
+        let roster = verified
+            .map { peer in
+                ConnectedDevice(
+                    deviceID: peer.wireValue,
+                    name: peerNames[peer],
+                    since: verifiedAt[peer]
+                )
+            }
+            // Oldest first: the list is read as "who is here", and a stable
+            // order means a Viewer joining does not shuffle the rows somebody is
+            // already looking at.
+            .sorted { ($0.since ?? .distantPast) < ($1.since ?? .distantPast) }
+
+        guard roster != connectedDevices else { return }
+        connectedDevices = roster
+        // Every Viewer is told, so the list on a phone in another room changes
+        // as somebody else opens or closes theirs. Only on an actual change:
+        // this is recomputed on every session event, and sending a sealed
+        // message per event would put one on the wire for each ICE candidate.
+        Task { await self.broadcastStatus() }
+    }
+
+    /// How this device appears in the Camera's roster.
+    ///
+    /// `nil` before the identity is loaded, which is also before any `status`
+    /// can have arrived — so the filter it feeds is never asked a question it
+    /// cannot answer.
+    private var ownRecipient: SignalingRecipient? {
+        switch role {
+        case .camera:
+            return .camera
+        case .viewer:
+            return identity.map { .viewer(deviceID: $0.deviceID) }
+        }
+    }
+
+    /// Records what a peer calls itself, and remembers it for next time.
+    ///
+    /// Two destinations, and they answer different questions. `peerNames` is for
+    /// *this* session — the roster, the status line — and dies with the engine.
+    /// The pairing record is what the paired-devices list reads weeks later,
+    /// when nothing is connected at all, and it is the reason a name learned
+    /// tonight is still on screen tomorrow.
+    private func record(name: String?, from peer: SignalingRecipient) {
+        guard let name = name.flatMap(DeviceName.sanitized) else { return }
+        let isNew = peerNames[peer] != name
+        peerNames[peer] = name
+        // The one-peer view of the world. A Camera with several Viewers has a
+        // roster to read instead, and every screen that shows more than one uses
+        // it — this is what a Viewer, which only ever has one peer, draws.
+        if role == .viewer || sessions.count <= 1 {
+            peerName = name
+        }
+        guard isNew else { return }
+        refreshRoster()
+        persist(peerName: name, from: peer)
+    }
+
+    /// Writes the peer's name into the pairing so it outlives the session.
+    ///
+    /// This is what makes a name still be there weeks later on the paired-devices
+    /// list, with nothing connected and no session to ask.
+    ///
+    /// Written only for **the peer this record is actually about**. A Viewer has
+    /// exactly one, the Camera, so every name it learns is the right one. A
+    /// Camera does not: one record can accept several Viewers, and only the one
+    /// whose device id the record carries is the device that record names.
+    /// Storing whichever Viewer connected most recently would quietly rewrite
+    /// the list every night — the roster is where "everyone currently watching"
+    /// belongs, and it is deliberately not persisted at all.
+    private func persist(peerName name: String, from peer: SignalingRecipient) {
+        switch peer {
+        case .camera:
+            // Viewer-side: its only peer, by construction.
+            break
+        case .viewer(let deviceID):
+            guard deviceID == record.peerDeviceID else { return }
+        }
+        guard record.displayName != name else { return }
+        var updated = record
+        updated.displayName = name
+        Task { [services] in await services.updatePairing(updated) }
+    }
+
+    /// Re-reads this device's name and tells the peers about it.
+    ///
+    /// Called by the rename UI. The two roles announce differently because they
+    /// have different messages to hand: a Camera already sends `status` to every
+    /// Viewer and its name rides on that, while a Viewer has no periodic message
+    /// of its own and so re-introduces itself with `hello` — which is what
+    /// `hello` has always meant, and which the Camera already reads a name from
+    /// however it arrives.
+    func deviceNameDidChange() {
+        let updated = DeviceNameStore().load()
+        guard updated != deviceName else { return }
+        deviceName = updated
+        Task { await self.announceDeviceName() }
+    }
+
+    private func announceDeviceName() async {
+        guard let client, isRunning else { return }
+        switch role {
+        case .camera:
+            await broadcastStatus()
+        case .viewer:
+            // Every session, not just verified ones: a name is not a secret from
+            // the peer that is mid-handshake with us, and the Camera will want to
+            // put it in the roster the moment that handshake finishes.
+            let payload = SignalingPayload.hello(name: deviceName)
+            for target in sessions.keys {
+                _ = try? await client.send(payload, to: target)
+            }
+        }
+    }
+
+    /// Sends the last battery reading — and who is watching — to every connected
+    /// Viewer.
+    ///
+    /// The roster rides here rather than on the nursery state because it is the
+    /// same kind of fact as the battery: something about the *devices*, not about
+    /// the room. It reaches merely-connected Viewers as well as verified ones,
+    /// for the same reason the battery does — a Viewer still finishing its
+    /// handshake is a Viewer whose parent is already looking at the screen — and
+    /// what it contains is only ever verified peers.
     private func broadcastStatus(to peer: SignalingRecipient? = nil) async {
-        guard let client, let battery = lastBattery else { return }
+        guard let client, role == .camera else { return }
         let payload = SignalingPayload.status(
-            batteryLevel: battery.level,
-            isCharging: battery.isCharging
+            // A Camera that has not read its battery yet still has a name and a
+            // roster worth sending. A negative level is carried as "unknown"
+            // rather than as 0 %, which is the whole reason the factory takes a
+            // number and not an optional.
+            batteryLevel: lastBattery?.level ?? -1,
+            isCharging: lastBattery?.isCharging ?? false,
+            name: deviceName,
+            viewers: connectedDevices
         )
         for target in peer.map({ [$0] }) ?? Array(sessions.keys) {
             _ = try? await client.send(payload, to: target)
@@ -590,7 +788,13 @@ final class StreamingEngine: ObservableObject {
             session.close()
         }
         sessions.removeAll()
+        // The names go with the sessions. They are re-learned from the first
+        // message of the next one, and keeping them would have a stopped Camera
+        // reporting a roster of people who are no longer watching.
+        peerNames.removeAll()
+        verifiedAt.removeAll()
         refreshPeerCounts()
+        connectedDevices = []
         remoteVideoTrack = nil
         isVerified = false
         peerBatteryLevel = nil
@@ -1011,7 +1215,7 @@ final class StreamingEngine: ObservableObject {
             let sdp = try await session.makeOffer(iceRestart: iceRestart)
             let fingerprint = try session.localFingerprint()
             try await client.send(
-                .offer(sdp: sdp, fingerprint: fingerprint.sdpValue),
+                .offer(sdp: sdp, fingerprint: fingerprint.sdpValue, name: deviceName),
                 to: peer
             )
         } catch {
@@ -1021,6 +1225,12 @@ final class StreamingEngine: ObservableObject {
 
     private func handle(_ payload: SignalingPayload) async {
         guard let client, let sender = sender(of: payload) else { return }
+
+        // Before the switch, because four different message types can carry it
+        // and none of them is *about* it: a name is something a peer mentions
+        // while doing something else. Sanitised in `SignalingPayload`, which is
+        // where it arrives from another device.
+        record(name: payload.nm, from: sender)
 
         switch payload.t {
         case .offer:
@@ -1045,7 +1255,9 @@ final class StreamingEngine: ObservableObject {
 
         case .hello:
             // The introduction already did its job during pairing; a repeat on an
-            // established link is harmless and carries nothing to act on.
+            // established link carries nothing to act on beyond the name, which
+            // was taken above — and which is the whole reason a local-network
+            // pairing sends one at all.
             break
 
         case .status:
@@ -1055,6 +1267,19 @@ final class StreamingEngine: ObservableObject {
             guard role == .viewer else { return }
             peerBatteryLevel = payload.batt
             isPeerCharging = payload.chg ?? false
+            // The Camera is the only device that can see the whole roster, so a
+            // Viewer takes what it is sent — minus itself. The Camera's list is
+            // everyone watching, and on this screen that reads as "also
+            // watching": a phone listing itself there would have a parent
+            // wondering who the second viewer is, which is the exact anxiety
+            // this feature exists to remove.
+            //
+            // An older Camera sends no list at all. That stays `nil`-shaped —
+            // an empty roster — and the sheet says "not reported" rather than
+            // "nobody is watching", which would be visibly false to the person
+            // reading it.
+            let roster = payload.vws ?? []
+            connectedDevices = roster.filter { $0.deviceID != ownRecipient?.wireValue }
 
         case .nursery:
             guard role == .viewer, let state = payload.nur else { return }
@@ -1134,7 +1359,7 @@ final class StreamingEngine: ObservableObject {
             let answer = try await session.makeAnswer()
             let fingerprint = try session.localFingerprint()
             try await client.send(
-                .answer(sdp: answer, fingerprint: fingerprint.sdpValue),
+                .answer(sdp: answer, fingerprint: fingerprint.sdpValue, name: deviceName),
                 to: sender
             )
         } catch {

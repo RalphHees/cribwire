@@ -57,6 +57,24 @@ export interface TidalSettings {
   readonly clientSecret: string;
 }
 
+/**
+ * Spotify application credentials.
+ *
+ * The id only, and deliberately not a matching secret. TIDAL has both because
+ * this server can make catalogue calls of its own with the `client_credentials`
+ * flow; nothing here talks to Spotify at all. A Camera signs in with
+ * authorization code + PKCE — a public-client flow with no secret in it — and
+ * plays through the Spotify app on the phone, so the id is the entire server
+ * side of the integration.
+ *
+ * Adding a `clientSecret` here that nothing consumes would be worse than
+ * useless: it would invite an operator to put a real secret in the environment
+ * of a process that has no reason to hold one.
+ */
+export interface SpotifySettings {
+  readonly clientId: string;
+}
+
 export interface ApnsSettings {
   /** Contents of the `.p8` key. Empty when push is unconfigured. */
   readonly privateKeyPem: string;
@@ -103,6 +121,7 @@ export interface Config {
   readonly turn: TurnSettings;
   readonly apns: ApnsSettings;
   readonly tidal: TidalSettings;
+  readonly spotify: SpotifySettings;
   readonly rateLimits: {
     readonly pairingCreatePerIp: RateLimitRule;
     readonly claimPerIp: RateLimitRule;
@@ -227,6 +246,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       clientId: env['TIDAL_CLIENT_ID'] ?? '',
       clientSecret: env['TIDAL_CLIENT_SECRET'] ?? '',
     },
+    spotify: {
+      clientId: env['SPOTIFY_CLIENT_ID'] ?? '',
+    },
     apns: {
       privateKeyPem: env['APNS_KEY_P8'] ?? '',
       keyId: env['APNS_KEY_ID'] ?? '',
@@ -288,6 +310,22 @@ export function turnConfigured(config: Config): boolean {
  */
 export function tidalConfigured(config: Config): boolean {
   return config.tidal.clientId !== '';
+}
+
+/**
+ * True when a Camera could actually sign a parent in to Spotify.
+ *
+ * The same shape of answer as `tidalConfigured`, for the same reason: without an
+ * id a Camera cannot reach a login screen, so it hides Spotify rather than
+ * offering a service that would fail at the first tap.
+ *
+ * What this does *not* claim is that Spotify will play. That additionally needs
+ * the Spotify app installed on the Camera phone and a Premium account, neither
+ * of which any server can know about — the Camera works both out for itself and
+ * says so on its own screen.
+ */
+export function spotifyConfigured(config: Config): boolean {
+  return config.spotify.clientId !== '';
 }
 
 /** True when the APNs provider credentials are complete. */

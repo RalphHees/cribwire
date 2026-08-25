@@ -223,3 +223,84 @@ final class SharedTestVectorResourceTests: XCTestCase {
         XCTAssertEqual(sas.digits, expected)
     }
 }
+
+/// Naming this device: what is stored, what is sent, and what a blank field
+/// means.
+///
+/// The store is the half of the rename that can be asserted without a screen,
+/// and it is the half that decides what the *other* phone ends up showing.
+final class DeviceNameStoreTests: XCTestCase {
+
+    private let suiteName = "cribwire.tests.deviceName"
+
+    private func makeDefaults() throws -> UserDefaults {
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        return try XCTUnwrap(UserDefaults(suiteName: suiteName))
+    }
+
+    override func tearDown() {
+        UserDefaults().removePersistentDomain(forName: suiteName)
+        super.tearDown()
+    }
+
+    /// A phone that has never been renamed still has to introduce itself. The
+    /// model name is a worse label than "Nursery" and a much better one than a
+    /// blank row on another device's screen.
+    func testAnUnnamedDeviceStillHasAName() throws {
+        let store = DeviceNameStore(defaults: try makeDefaults())
+
+        XCTAssertFalse(store.hasCustomName)
+        XCTAssertEqual(store.load(), DeviceNameStore.suggested)
+        XCTAssertFalse(store.load().isEmpty)
+    }
+
+    func testSavingANameMakesItTheOneThatIsSent() throws {
+        let store = DeviceNameStore(defaults: try makeDefaults())
+
+        store.save("Nursery")
+
+        XCTAssertTrue(store.hasCustomName)
+        XCTAssertEqual(store.load(), "Nursery")
+    }
+
+    /// Renaming twice is the ordinary case — a parent trying "Nursery", then
+    /// "Baby room" — and the second one has to win.
+    func testRenamingAgainReplacesTheName() throws {
+        let store = DeviceNameStore(defaults: try makeDefaults())
+
+        store.save("Nursery")
+        store.save("Baby room")
+
+        XCTAssertEqual(store.load(), "Baby room")
+    }
+
+    /// Clearing the field is a way back to the default, not a way to have no
+    /// name at all. A device with an empty name is one the other phone draws as
+    /// a blank row.
+    func testClearingTheFieldRestoresTheDefault() throws {
+        let store = DeviceNameStore(defaults: try makeDefaults())
+        store.save("Nursery")
+
+        store.save("   ")
+
+        XCTAssertFalse(store.hasCustomName)
+        XCTAssertEqual(store.load(), DeviceNameStore.suggested)
+    }
+
+    /// What is stored is what a peer would accept.
+    ///
+    /// The name goes through the same sanitiser on the way out as a peer's does
+    /// on the way in, so this device can never send something it would itself
+    /// refuse — the sort of asymmetry that shows up as a name that truncates on
+    /// one screen and not the other.
+    func testAStoredNameIsSanitisedTheSameWayAPeersIs() throws {
+        let store = DeviceNameStore(defaults: try makeDefaults())
+
+        store.save("  Baby\n\nroom  ")
+        XCTAssertEqual(store.load(), "Baby room")
+
+        store.save(String(repeating: "a", count: 200))
+        XCTAssertEqual(store.load().count, DeviceName.maxLength)
+        XCTAssertEqual(store.load(), DeviceName.sanitized(String(repeating: "a", count: 200)))
+    }
+}

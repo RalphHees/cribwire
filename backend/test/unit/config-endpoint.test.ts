@@ -6,7 +6,11 @@
 import type { LightMyRequestResponse } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Config } from '../../src/config.ts';
-import { loadConfig, tidalConfigured } from '../../src/config.ts';
+import {
+  loadConfig,
+  spotifyConfigured,
+  tidalConfigured,
+} from '../../src/config.ts';
 import type { CameraCredentials, TestApp } from '../helpers/app.ts';
 import {
   bootstrapCamera,
@@ -23,16 +27,21 @@ const TIDAL: Config['tidal'] = {
   clientSecret: 'tidal-client-secret-never-served',
 };
 
+const SPOTIFY: Config['spotify'] = {
+  clientId: 'spotify-client-id',
+};
+
 interface ConfigResponse {
   ttlSeconds: number;
   tidal?: { clientId: string };
+  spotify?: { clientId: string };
 }
 
 let harness: TestApp;
 let camera: CameraCredentials;
 
 beforeEach(async () => {
-  harness = createTestApp({ tidal: TIDAL });
+  harness = createTestApp({ tidal: TIDAL, spotify: SPOTIFY });
   camera = await bootstrapCamera(harness);
   harness.setNow(new Date(harness.now().getTime() + 1000));
 });
@@ -85,6 +94,33 @@ describe('TIDAL configuration', () => {
   });
 });
 
+describe('Spotify configuration', () => {
+  it('reads the client id from the environment', () => {
+    const config = loadConfig({ SPOTIFY_CLIENT_ID: 'from-env' });
+    expect(config.spotify.clientId).toBe('from-env');
+    expect(spotifyConfigured(config)).toBe(true);
+  });
+
+  it('defaults to unconfigured', () => {
+    expect(spotifyConfigured(loadConfig({}))).toBe(false);
+  });
+
+  /**
+   * Spotify has no server-side half at all: this process never calls Spotify,
+   * so there is no `client_credentials` flow and nothing for a secret to do.
+   * Asserted rather than assumed, because "we did it for TIDAL" is exactly the
+   * reasoning that would later add one nothing consumes.
+   */
+  it('holds no secret to leak', () => {
+    const config = loadConfig({
+      SPOTIFY_CLIENT_ID: 'from-env',
+      SPOTIFY_CLIENT_SECRET: 'should-be-ignored',
+    });
+    expect(Object.keys(config.spotify)).toEqual(['clientId']);
+    expect(JSON.stringify(config.spotify)).not.toContain('should-be-ignored');
+  });
+});
+
 describe('GET /v1/config', () => {
   it('serves the client id and a cache lifetime', async () => {
     const response = await get(harness, camera);
@@ -106,6 +142,30 @@ describe('GET /v1/config', () => {
     ]);
   });
 
+  it('serves the Spotify client id alongside TIDAL', async () => {
+    const response = await get(harness, camera);
+
+    expect(response.statusCode).toBe(200);
+    const body = jsonOf<ConfigResponse>(response);
+    expect(body.spotify?.clientId).toBe(SPOTIFY.clientId);
+    // Both, independently: a deployment may serve either, both or neither, and
+    // one service being present must never decide the other's fate.
+    expect(body.tidal?.clientId).toBe(TIDAL.clientId);
+  });
+
+  it('serves one service without the other', async () => {
+    const spotifyOnly = createTestApp({ spotify: SPOTIFY });
+    const spotifyCamera = await bootstrapCamera(spotifyOnly);
+    spotifyOnly.setNow(new Date(spotifyOnly.now().getTime() + 1000));
+
+    const response = await get(spotifyOnly, spotifyCamera);
+
+    const body = jsonOf<ConfigResponse>(response);
+    expect(body.spotify?.clientId).toBe(SPOTIFY.clientId);
+    expect(body.tidal).toBeUndefined();
+    await spotifyOnly.close();
+  });
+
   it('omits a service this deployment has not configured', async () => {
     const bare = createTestApp();
     const bareCamera = await bootstrapCamera(bare);
@@ -116,7 +176,9 @@ describe('GET /v1/config', () => {
     expect(response.statusCode).toBe(200);
     // Absent, not empty: the client reads "this deployment has none" and falls
     // back to what it was built with, rather than to a blank id.
-    expect(jsonOf<ConfigResponse>(response).tidal).toBeUndefined();
+    const body = jsonOf<ConfigResponse>(response);
+    expect(body.tidal).toBeUndefined();
+    expect(body.spotify).toBeUndefined();
     await bare.close();
   });
 

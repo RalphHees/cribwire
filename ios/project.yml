@@ -51,7 +51,16 @@ settings:
     SWIFT_VERSION: "5.0"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "1"
+    # The build number, and the source of truth for it now that the generated
+    # .xcodeproj is committed for Xcode Cloud.
+    #
+    # Xcode Cloud bumps this by editing the project file directly and committing
+    # the result ("Build 8"), which the next `xcodegen generate` would silently
+    # revert to whatever stands here — sending the build number *backwards* and
+    # getting the upload rejected, since App Store Connect requires it to
+    # increase. So this line has to be kept level with the last build Xcode
+    # Cloud produced. Raise it here when you raise it there.
+    CURRENT_PROJECT_VERSION: "8"
     CODE_SIGN_STYLE: Automatic
     # Placeholder — set to the real Apple Developer team ID.
     DEVELOPMENT_TEAM: "NRV7K64R87"
@@ -118,6 +127,23 @@ packages:
     minVersion: 0.12.4
     maxVersion: 0.13.0
 
+  # Spotify's own SDK, for the same reason TIDAL's is here and with one extra
+  # consequence: Spotify's catalogue may only be played by the *Spotify app*, so
+  # this SDK is a remote control rather than a player. `SPTAppRemote` connects
+  # to the Spotify app on the same phone and drives it; the parent's playlists
+  # come from the Web API over plain `URLSession` (`SpotifyCatalog`), because
+  # four endpoints do not justify a second generated client.
+  #
+  # The package is a `binaryTarget` wrapping `SpotifyiOS.xcframework`, which
+  # Spotify commits into the repository rather than publishing as a release
+  # artifact — so resolving this pulls the binary itself. v5.0.1 carries both
+  # `ios-arm64` and `ios-arm64_x86_64-simulator` slices, which is what lets CI
+  # build for a simulator on Apple Silicon.
+  SpotifySDK:
+    url: https://github.com/spotify/ios-sdk
+    minVersion: 5.0.1
+    maxVersion: 6.0.0
+
 # ---------------------------------------------------------------------------
 # Targets
 # ---------------------------------------------------------------------------
@@ -141,6 +167,8 @@ targets:
         product: EventProducer
       - package: TidalSDK
         product: TidalAPI
+      - package: SpotifySDK
+        product: SpotifyiOS
       - target: CribWireWidgets
         embed: true
     settings:
@@ -237,15 +265,40 @@ targets:
         # the application at developer.tidal.com as well: TIDAL refuses an
         # authorize request carrying a redirect it does not recognise.
         CribWireTidalRedirectURI: $(CRIBWIRE_TIDAL_REDIRECT_URI)
+        # Spotify client id from developer.spotify.com, on exactly the same
+        # terms as TIDAL's above: an unsubstituted placeholder counts as "not
+        # configured", so a default build does not offer Spotify at all rather
+        # than offering a service nobody registered it for.
+        CribWireSpotifyClientID: $(CRIBWIRE_SPOTIFY_CLIENT_ID)
+        # Where Spotify sends the parent back. Unset in a default build, which
+        # falls back to `SpotifyConfiguration.defaultRedirectURI` — the
+        # `cribwire` scheme registered just below. It must be listed on the
+        # application at developer.spotify.com too.
+        CribWireSpotifyRedirectURI: $(CRIBWIRE_SPOTIFY_REDIRECT_URI)
 
-        # The scheme the TIDAL sign-in comes back on. `ASWebAuthenticationSession`
-        # intercepts the callback itself, so this is not what makes the flow
-        # work — it is what keeps the URL from escaping to Safari and dead-ending
-        # if the sheet is dismissed at the wrong moment.
+        # The scheme both music sign-ins come back on.
+        #
+        # For TIDAL this is belt and braces: `ASWebAuthenticationSession`
+        # intercepts its own callback, so registering the scheme only keeps the
+        # URL from escaping to Safari and dead-ending if the sheet is dismissed
+        # at the wrong moment.
+        #
+        # For Spotify it is load-bearing. `SPTAppRemote.authorizeAndPlayURI`
+        # hands off to the Spotify app, which returns the App Remote token by
+        # *opening this app* on this scheme — a real `application(_:open:)`,
+        # forwarded to `SpotifySession.handleCallback` by `AppDelegate`. Without
+        # the registration the hand-off never arrives and Spotify plays nothing.
         CFBundleURLTypes:
           - CFBundleURLName: com.ralphhees.cribwire.auth
             CFBundleURLSchemes:
               - cribwire
+
+        # Required before iOS will answer `canOpenURL(spotify:)` truthfully.
+        # Undeclared, it returns false for a phone that has Spotify installed,
+        # and the Camera would report Spotify as permanently unavailable on
+        # exactly the phones where it works.
+        LSApplicationQueriesSchemes:
+          - spotify
 
     scheme:
       testTargets:

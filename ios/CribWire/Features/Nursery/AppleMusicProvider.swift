@@ -37,6 +37,45 @@ final class AppleMusicProvider: MusicProvider {
 
     private(set) var currentPlaylistID: String?
 
+    // MARK: - Connection
+
+    /// Where "the parent turned this off here" is remembered.
+    ///
+    /// Apple Music is the one service in CribWire with **no session to end**.
+    /// TIDAL and Spotify hold a token that signing out deletes; MusicKit holds a
+    /// system permission that only iOS can grant and only the Settings app can
+    /// take back, and it stays granted whatever this app would prefer. So
+    /// disconnecting has to be recorded on our side, or the Sign out button
+    /// would be a button that visibly does nothing.
+    ///
+    /// `UserDefaults` and not the Keychain, deliberately: this is a preference,
+    /// not a credential. There is nothing here that would be a secret if
+    /// somebody read it off the phone — only the fact that this nursery is not
+    /// currently playing from Apple Music.
+    private static let disconnectedKey = "cribwire.appleMusic.disconnected"
+
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    private var isDisconnected: Bool {
+        get { defaults.bool(forKey: Self.disconnectedKey) }
+        set { defaults.set(newValue, forKey: Self.disconnectedKey) }
+    }
+
+    /// Granted by iOS *and* switched on here. Both halves are needed and neither
+    /// implies the other: permission survives the parent turning this service
+    /// off, and turning it back on cannot conjure a permission iOS refused.
+    var isConnected: Bool {
+        #if canImport(MusicKit)
+        return MusicAuthorization.currentStatus == .authorized && !isDisconnected
+        #else
+        return false
+        #endif
+    }
+
     #if canImport(MusicKit)
 
     private var player: ApplicationMusicPlayer { .shared }
@@ -59,7 +98,7 @@ final class AppleMusicProvider: MusicProvider {
     /// skipping a queue this app owns still works. The subscription decides what
     /// can be *started* from the catalogue, which is `availability`'s business.
     var canControlPlayback: Bool {
-        MusicAuthorization.currentStatus == .authorized
+        isConnected
     }
 
     var nowPlaying: (title: String?, artist: String?) {
@@ -70,6 +109,12 @@ final class AppleMusicProvider: MusicProvider {
     // MARK: - Authorisation
 
     func availability() async -> MusicState.Availability {
+        // The parent's own switch first, and before the system status: a service
+        // they have turned off here is not a service with a permission problem,
+        // and `needsPermission` is exactly what the Camera's account list reads
+        // as "offer to connect this". Which is what it should offer.
+        guard !isDisconnected else { return .needsPermission }
+
         switch MusicAuthorization.currentStatus {
         case .authorized:
             return await subscriptionAvailability()
@@ -86,11 +131,29 @@ final class AppleMusicProvider: MusicProvider {
 
     @discardableResult
     func requestAuthorization() async -> MusicState.Availability {
+        // Connecting is two things here, and the first one always works: switch
+        // the service back on for this Camera. A parent who signed out last
+        // month and is signing back in tonight has a permission iOS granted long
+        // ago and will never ask about again, so if this step were skipped for
+        // them the button would do nothing at all.
+        isDisconnected = false
+
         guard MusicAuthorization.currentStatus == .notDetermined else {
             return await availability()
         }
+        // iOS shows this prompt exactly once per install. A refusal is final
+        // until the parent changes it in Settings, which is why the Camera's own
+        // screen — and only that screen — offers a way there.
         _ = await MusicAuthorization.request()
         return await availability()
+    }
+
+    func signOut() async {
+        // Stopped before it is forgotten. A lullaby that carried on playing out
+        // of a service the parent had just signed out of would be the loudest
+        // possible way to tell them the button had not worked.
+        await stop()
+        isDisconnected = true
     }
 
     /// Authorised is not the same as able to play: a lapsed subscription
@@ -337,6 +400,8 @@ final class AppleMusicProvider: MusicProvider {
 
     @discardableResult
     func requestAuthorization() async -> MusicState.Availability { .notConfigured }
+
+    func signOut() async {}
 
     func loadPlaylists() async -> (
         favorites: [PlaylistSummary],

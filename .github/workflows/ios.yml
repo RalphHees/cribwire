@@ -205,6 +205,14 @@ jobs:
             exit "${status}"
           fi
 
+      # After the build, deliberately: Xcode extracts new `String(localized:)`
+      # calls into the string catalogs *during* a build, so a catalog checked
+      # before one has not yet seen the strings this PR added. Running it here
+      # is what turns "the Dutch was forgotten" from something a reviewer has to
+      # notice into something the pipeline says out loud.
+      - name: Check translations are complete
+        run: python3 ios/Scripts/check-translations.py
+
       - name: Upload build log
         if: failure()
         uses: actions/upload-artifact@v7

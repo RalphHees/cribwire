@@ -128,6 +128,8 @@ implementations in one change set — see the note at the top of
 | `CRIBWIRE_API_BASE_URL` | `https://api.cribwire.example` | Camera-side default only |
 | `CRIBWIRE_TIDAL_CLIENT_ID` | undefined | Leave unset unless this build should offer TIDAL — see below |
 | `CRIBWIRE_TIDAL_REDIRECT_URI` | undefined | Only if the TIDAL registration uses something other than `cribwire://tidal-auth` |
+| `CRIBWIRE_SPOTIFY_CLIENT_ID` | undefined | Leave unset unless this build should offer Spotify — see below |
+| `CRIBWIRE_SPOTIFY_REDIRECT_URI` | undefined | Only if the Spotify registration uses something other than `cribwire://spotify-auth` |
 
 ### Music services
 
@@ -164,9 +166,43 @@ runs the authorization-code + PKCE flow, which is a public-client flow with no
 secret in it. `TIDAL_CLIENT_SECRET` stays in the backend's environment and is
 never served to a device.
 
+Spotify is implemented through Spotify's own SDK (`github.com/spotify/ios-sdk`,
+product `SpotifyiOS`, wired in `project.yml`) plus the Web API for listing
+playlists. It differs from the other two in a way worth knowing before setting it
+up: **CribWire does not play the audio.** Spotify permits no third-party app to
+play its catalogue, so `SPTAppRemote` drives the Spotify app on the same phone,
+which means that phone needs the **Spotify app installed** and the account needs
+**Premium**. The Camera says both in as many words on its Music accounts screen.
+
+What it needs that is not in this repository is an **application registered at
+`developer.spotify.com`**, supplying:
+
+1. a **client id**, set either as `CRIBWIRE_SPOTIFY_CLIENT_ID` here or — better —
+   served by the backend as `SPOTIFY_CLIENT_ID` through `GET /v1/config`, exactly
+   like TIDAL's. A build with neither does not offer Spotify at all;
+2. a **redirect URI** listed on that application: `cribwire://spotify-auth` by
+   default, overridable with `CRIBWIRE_SPOTIFY_REDIRECT_URI`. This one does
+   double duty — it is the OAuth callback *and* the URL the Spotify app opens
+   CribWire back on after the App Remote hand-off, which is a real
+   `application(_:open:)` forwarded by `AppDelegate`.
+
+The scopes asked for are `app-remote-control`, `streaming`,
+`playlist-read-private`, `playlist-read-collaborative`, `user-library-read` and
+`user-read-private` — the last being what answers whether the account is Premium
+before a parent taps play rather than after a room stays silent.
+
+There is no Spotify client secret anywhere, and unlike TIDAL there is none in the
+backend either: nothing server-side ever calls Spotify.
+
+`project.yml` also registers `spotify` under `LSApplicationQueriesSchemes`.
+Without it iOS answers `canOpenURL(spotify:)` with `false` on a phone that has
+the app, and the Camera reports Spotify as permanently unavailable on exactly the
+phones where it works.
+
 Signing in happens on the **Camera's own screen**, through
 `ASWebAuthenticationSession` — never from a Viewer's tap, for the same reason as
-Apple Music's permission prompt.
+Apple Music's permission prompt. The same screen is where a parent signs *out*
+and back in again: see `MusicAccountsView`.
 
 ### Where the keys live
 

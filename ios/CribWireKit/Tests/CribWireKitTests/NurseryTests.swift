@@ -503,4 +503,75 @@ final class NurseryTests: XCTestCase {
         let stamped = SignalingPayload.nursery(state).stamped(seq: 3, from: "camera")
         XCTAssertEqual(stamped.nur, state)
     }
+
+    // MARK: - Connected services
+
+    /// The wire tag is the identity a Camera and a Viewer on different builds
+    /// agree on, so it is asserted literally rather than derived: renaming the
+    /// case is free, changing this string silently repoints every stored recent
+    /// and every playlist id in flight.
+    func testProviderWireTagsAreStable() {
+        XCTAssertEqual(MusicProviderKind.appleMusic.rawValue, "apple")
+        XCTAssertEqual(MusicProviderKind.tidal.rawValue, "tidal")
+        XCTAssertEqual(MusicProviderKind.spotify.rawValue, "spotify")
+    }
+
+    /// A Viewer too old to know about Spotify must not choke on a Camera that
+    /// offers it.
+    ///
+    /// `availableProviders` is decoded forgivingly for exactly this reason: the
+    /// two devices are routinely on different builds, and one unknown service in
+    /// the list must cost that entry rather than the whole music card — or,
+    /// worse, the whole `nursery` message, which `SignalingClient` would score
+    /// as a protocol violation.
+    func testAnUnknownServiceInTheListDoesNotCostTheWholeState() throws {
+        // Hand-built rather than encoded from a `MusicState`: the case being
+        // tested is a value this build cannot produce.
+        let json = #"{"m":{"p":"apple","av":"ready","ctl":true,"pl":false,"ps":["apple","kazoo"]}}"#
+        let decoded = try JSONDecoder().decode(NurseryState.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.music.provider, .appleMusic)
+        XCTAssertEqual(decoded.music.availability, .ready)
+        XCTAssertTrue(
+            decoded.music.availableProviders.isEmpty,
+            "an unparseable list degrades to no switcher, never to a dropped message"
+        )
+        XCTAssertTrue(decoded.music.canControlPlayback, "the transport survives it")
+    }
+
+    /// No connected service is a state with its own meaning — *nothing is signed
+    /// in on that camera* — and the Viewer branches its whole explanation on it.
+    /// A Camera still names a provider in that state, because the field is not
+    /// optional, so this is what stops the Viewer naming it.
+    func testNoConnectedProviderIsDistinctFromNotBeingReady() {
+        let nothingConnected = MusicState(
+            provider: .tidal,
+            availability: .needsPermission,
+            canControlPlayback: true,
+            availableProviders: []
+        )
+        XCTAssertFalse(nothingConnected.hasConnectedProvider)
+        // The transport is untouched by it: pausing what is already playing in
+        // that room needs no music account at all.
+        XCTAssertTrue(nothingConnected.canControlPlayback)
+        XCTAssertFalse(nothingConnected.canChoosePlaylists)
+
+        let connected = MusicState(
+            provider: .spotify,
+            availability: .ready,
+            availableProviders: [.spotify]
+        )
+        XCTAssertTrue(connected.hasConnectedProvider)
+        XCTAssertTrue(connected.canChoosePlaylists)
+    }
+
+    /// A Camera too old to send the field reports no connected services rather
+    /// than a switcher full of guesses.
+    func testAnOlderCameraReportsNoConnectedServices() throws {
+        let json = #"{"m":{"p":"apple","av":"ready"}}"#
+        let decoded = try JSONDecoder().decode(NurseryState.self, from: Data(json.utf8))
+
+        XCTAssertFalse(decoded.music.hasConnectedProvider)
+        XCTAssertEqual(decoded.music.provider, .appleMusic)
+    }
 }

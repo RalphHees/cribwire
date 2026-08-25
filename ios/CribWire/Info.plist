@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>CribWire</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.ralphhees.cribwire.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cribwire</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CribWireAPIBaseURL</key>
+	<string>$(CRIBWIRE_API_BASE_URL)</string>
+	<key>CribWireSpotifyClientID</key>
+	<string>$(CRIBWIRE_SPOTIFY_CLIENT_ID)</string>
+	<key>CribWireSpotifyRedirectURI</key>
+	<string>$(CRIBWIRE_SPOTIFY_REDIRECT_URI)</string>
+	<key>CribWireTidalClientID</key>
+	<string>$(CRIBWIRE_TIDAL_CLIENT_ID)</string>
+	<key>CribWireTidalRedirectURI</key>
+	<string>$(CRIBWIRE_TIDAL_REDIRECT_URI)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>CribWire plays music through this phone's speaker so you can soothe your child from the paired device. It reads your playlists to offer them, and never sends your library or listening history to a server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_cribwire._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>CribWire uses the camera to stream your child's room to your paired device, and to scan the pairing QR code. Video never leaves your devices unencrypted.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>CribWire connects directly to your paired device over your local network, so video stays in your home whenever possible.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>CribWire uses the microphone to stream room audio and to detect noise on this device. Audio is end-to-end encrypted and is never sent to a server in the clear.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>CribWire saves the snapshots you take of the live view to your photo library. It never reads your existing photos.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+</dict>
+</plist>

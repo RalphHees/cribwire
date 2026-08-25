@@ -18,6 +18,13 @@ struct PairedDevicesView: View {
         KCScreen {
             ScrollView {
                 VStack(spacing: 12) {
+                    // The other place a parent goes looking for a nickname. The
+                    // devices sheet has the same card, because that is where a
+                    // list of identical "iPhone" rows sends people — but this
+                    // screen is what the word "devices" in the menu points at,
+                    // and a name has to be findable without a live connection.
+                    DeviceNameCard(role: localRole)
+
                     if services.pairings.isEmpty {
                         emptyState
                     } else {
@@ -71,11 +78,21 @@ struct PairedDevicesView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 4) {
+                    // The peer's own name once it has introduced itself over a
+                    // session — "Nursery", "Kitchen iPad" — falling back to its
+                    // role for a device that has never connected, or one running
+                    // a build from before names.
                     Text(record.displayName)
                         .font(Theme.Typography.body.weight(.semibold))
-                    Text("Paired \(record.pairedAt.formatted(date: .abbreviated, time: .shortened))")
+                    // The role underneath, always. A household with two cameras
+                    // and three viewers reads this list to tell them apart, and
+                    // a name alone does not say which end of a pairing it is.
+                    Text(roleDescription(for: record))
                         .font(Theme.Typography.caption)
                         .foregroundStyle(Theme.Palette.textMuted)
+                    Text("Paired \(record.pairedAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Palette.textFaint)
                     KCPill(title: "End-to-end encrypted", tint: Theme.Palette.live, showsDot: false)
                         .padding(.top, 2)
                 }
@@ -97,6 +114,27 @@ struct PairedDevicesView: View {
                 }
             }
         }
+    }
+
+    /// What this device is, for the naming card's hint.
+    ///
+    /// Taken from the pairings rather than from a stored role, because it is the
+    /// same fact: every pairing on a phone has the same `localRole`. With none
+    /// at all the phone is not yet either, and a camera's wording is the better
+    /// guess on a screen reached from a camera-first setup flow.
+    private var localRole: PairingRole {
+        services.pairings.first?.localRole ?? .camera
+    }
+
+    /// What the other end of this pairing is, in the words a parent would use.
+    ///
+    /// Read off `localRole` rather than stored: the peer of a Camera is a
+    /// Viewer and the peer of a Viewer is a Camera, always, and a second stored
+    /// field could only ever disagree with that one.
+    private func roleDescription(for record: PairingRecord) -> String {
+        record.localRole == .camera
+            ? String(localized: "Viewer — watches this camera")
+            : String(localized: "Camera — this device watches it")
     }
 
     private var emptyState: some View {

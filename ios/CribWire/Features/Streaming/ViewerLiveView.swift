@@ -23,7 +23,23 @@ struct ViewerLiveView: View {
     @State private var isAudioOnly = false
     @State private var toast: String?
     @State private var liveActivity = LiveActivityController()
-    @State private var showRoomControls = false
+    /// Which sheet is up, if any.
+    ///
+    /// **One `@State` and one `.sheet` for both of them, deliberately.** Two
+    /// `.sheet(isPresented:)` modifiers attached to the same view do not give
+    /// you two sheets: SwiftUI honours one of them and silently drops the other,
+    /// which is exactly what happened here — the room controls worked and the
+    /// devices button did nothing at all. An `item:` presentation makes the
+    /// mutual exclusion explicit, and adding a third sheet cannot resurrect the
+    /// bug.
+    @State private var activeSheet: ActiveSheet?
+
+    private enum ActiveSheet: String, Identifiable {
+        case roomControls
+        case connectedDevices
+
+        var id: String { rawValue }
+    }
 
     private let record: PairingRecord
 
@@ -41,7 +57,11 @@ struct ViewerLiveView: View {
                 controls
             }
         }
-        .navigationTitle(record.displayName)
+        // The live name wins over the stored one. They are the same string in
+        // the ordinary case — the record is updated from what the Camera sends —
+        // but a camera renamed a minute ago should read correctly *now* rather
+        // than after this screen is next opened.
+        .navigationTitle(engine.peerName ?? record.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -66,7 +86,23 @@ struct ViewerLiveView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .sheet(isPresented: $showRoomControls) { roomControlsSheet }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .roomControls:
+                roomControlsSheet
+            case .connectedDevices:
+                ConnectedDevicesView(
+                    role: .viewer,
+                    peerName: engine.peerName,
+                    connectedDevices: engine.connectedDevices,
+                    // Verified, not merely connected: this sheet says who is
+                    // watching, and this device is only watching once the
+                    // certificate has been checked.
+                    isConnected: engine.isVerified,
+                    onRename: { _ in engine.deviceNameDidChange() }
+                )
+            }
+        }
         .task {
             engine.start()
             liveActivity.start(cameraName: record.displayName, state: activityState)
@@ -151,6 +187,64 @@ struct ViewerLiveView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
+        .overlay(alignment: .topLeading) { watchingChip }
+    }
+
+    /// Who is watching, over the video, and the way into the devices sheet.
+    ///
+    /// It began life as a toolbar button and did not work there: a `Button`
+    /// buried in an `HStack` alongside the two status pills inside a single
+    /// `ToolbarItem` rendered correctly and never received the tap. Rather than
+    /// keep guessing at toolbar hit-testing, it now sits in the view hierarchy
+    /// as a plain button in a `ZStack` overlay — the same construction as the
+    /// control row below, which works.
+    ///
+    /// It earns the space it takes over the picture: the count is the answer to
+    /// "is that my partner looking too?", which is worth seeing without opening
+    /// anything, and the sheet behind it is the only route to renaming this
+    /// device.
+    private var watchingChip: some View {
+        Button {
+            activeSheet = .connectedDevices
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: watcherCount > 1 ? "eye.fill" : "person.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(watchingText)
+                    .font(Theme.Typography.caption.weight(.semibold))
+            }
+            .foregroundStyle(Theme.Palette.text)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.black.opacity(0.55), in: Capsule())
+            // The whole capsule, not just the glyphs inside it. A chip over a
+            // dark video frame is small enough already without the tappable part
+            // being smaller than it looks.
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(12)
+        .accessibilityLabel(Text("Devices"))
+        .accessibilityValue(Text(watchingText))
+        .accessibilityHint(Text("Shows who is watching and names this device"))
+    }
+
+    /// Everyone watching, including this device.
+    ///
+    /// The camera's roster arrives with this viewer already filtered out — it is
+    /// drawn as "also watching" in the sheet — so it is added back here, because
+    /// a chip over your own video reading "1 watching" when you are the one
+    /// watching is the reading a person expects.
+    private var watcherCount: Int {
+        engine.connectedDevices.count + (engine.isVerified ? 1 : 0)
+    }
+
+    private var watchingText: String {
+        switch watcherCount {
+        case 0: return String(localized: "Devices")
+        case 1: return String(localized: "Only you")
+        default: return String(localized: "\(watcherCount) watching")
+        }
     }
 
     private var connecting: some View {
@@ -294,7 +388,7 @@ struct ViewerLiveView: View {
                 isActive: isRoomActive,
                 isEnabled: engine.nurseryState != nil
             ) {
-                showRoomControls = true
+                activeSheet = .roomControls
             }
 
             controlButton(
@@ -345,7 +439,7 @@ struct ViewerLiveView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { showRoomControls = false }
+                    Button("Done") { activeSheet = nil }
                 }
             }
         }

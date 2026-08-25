@@ -45,6 +45,7 @@ struct RemoteConfigurationStore {
         save(
             RemoteConfiguration(
                 tidalClientID: response.tidal?.clientID,
+                spotifyClientID: response.spotify?.clientID,
                 fetchedAt: date,
                 ttlSeconds: TimeInterval(response.ttlSeconds)
             )
@@ -58,6 +59,9 @@ struct RemoteConfiguration: Codable, Equatable {
     /// `nil` when the deployment serves no TIDAL id — which is not the same as
     /// an empty one, and is why this is optional rather than defaulted.
     var tidalClientID: String?
+    /// The same, for Spotify. A deployment may serve either, both or neither,
+    /// and each one decides on its own whether that service is offered at all.
+    var spotifyClientID: String?
     var fetchedAt: Date?
     var ttlSeconds: TimeInterval?
 

@@ -80,14 +80,39 @@ final class NurseryController {
     private static let providerKey = "cribwire.musicProvider"
     private static let talkbackVolumeKey = "cribwire.talkbackVolume"
 
-    /// Providers that could actually be offered. A service with no credentials
-    /// compiled in is not shown at all, rather than shown as permanently broken.
+    /// Providers this deployment could offer at all. A service with no
+    /// credentials compiled in is not shown even on the Camera's own account
+    /// list, rather than shown as something permanently broken.
     private var providers: [any MusicProvider] {
         allProviders.filter { $0.isConfigured }
     }
 
+    /// Providers a parent has actually connected on this phone.
+    ///
+    /// The list the Viewer is told about, and the only list music is ever played
+    /// from. A configured-but-signed-out service is not a service — it is an
+    /// invitation to sign in, and that invitation only makes sense on the Camera
+    /// where someone can answer it.
+    private var connectedProviders: [any MusicProvider] {
+        providers.filter { $0.isConnected }
+    }
+
+    /// The provider music actually plays through. `nil` until a parent connects
+    /// an account, which is the state a freshly set-up Camera is in.
     private var provider: (any MusicProvider)? {
-        providers.first { $0.kind == selectedKind } ?? providers.first
+        connectedProviders.first { $0.kind == selectedKind } ?? connectedProviders.first
+    }
+
+    /// The provider the state *describes* when none is connected.
+    ///
+    /// Something has to be named — `MusicState.provider` is not optional, and
+    /// making it so would ripple onto every Viewer build already shipped — so
+    /// the selection is reported even while it cannot play. What stops that
+    /// being misleading is `MusicState.hasConnectedProvider`: an empty
+    /// `availableProviders` tells the Viewer to explain that nothing is
+    /// connected rather than to name this one as broken.
+    private var reportingProvider: (any MusicProvider)? {
+        provider ?? providers.first { $0.kind == selectedKind } ?? providers.first
     }
 
     /// Same shape as `hasConnectedViewers`, and for the same reason.
@@ -137,7 +162,8 @@ final class NurseryController {
         self.defaults = defaults
         self.sensitivityStore = CameraSensitivityStore(defaults: defaults)
         self.detectionStore = DetectionSettingsStore(defaults: defaults)
-        self.allProviders = providers ?? [AppleMusicProvider(), TidalMusicProvider()]
+        self.allProviders = providers
+            ?? [AppleMusicProvider(), TidalMusicProvider(), SpotifyMusicProvider()]
         self.systemRemote = systemRemote ?? MediaPlayerMusicRemote()
         // Straight to the backing store: going through `selectedKind` would
         // write the value it was just read from back into UserDefaults.
@@ -348,7 +374,9 @@ final class NurseryController {
     private func select(playlistID: String?, provider requested: MusicProviderKind?) async {
         guard let playlistID else { return }
 
-        if let requested, requested != selectedKind, providers.contains(where: { $0.kind == requested }) {
+        if let requested,
+           requested != selectedKind,
+           connectedProviders.contains(where: { $0.kind == requested }) {
             // Switching services mid-play would otherwise leave the old one
             // playing underneath the new one.
             await provider?.stop()
@@ -459,28 +487,82 @@ final class NurseryController {
 
     // MARK: - Camera-side actions
 
-    /// Asks the current provider for whatever authorisation it needs.
+    /// Switches which service the Camera plays from.
     ///
-    /// Only ever called from the Camera's own screen. A permission sheet is a
-    /// question, and there is nobody in front of a nursery camera to answer one —
-    /// which is why no Viewer command reaches this.
-    /// - Returns: whether the Camera can play afterwards. `false` after a request
-    ///   that changed nothing means the prompt has already been answered once and
-    ///   only the Settings app can undo it — iOS asks exactly once.
+    /// Only ever onto a connected one. A Viewer can only have been offered
+    /// connected services, so a command naming anything else is either a stale
+    /// screen — the account was signed out on the Camera a moment ago — or a
+    /// Viewer newer than this Camera. Both are refused rather than acted on,
+    /// which leaves the room playing what it was playing.
+    func select(provider kind: MusicProviderKind) async {
+        guard kind != selectedKind,
+              connectedProviders.contains(where: { $0.kind == kind })
+        else { return }
+        await provider?.stop()
+        selectedKind = kind
+        await reload()
+    }
+
+    // MARK: - Accounts
+
+    /// Connects a music account, on the Camera's own screen.
+    ///
+    /// Camera-side only, for the reason written on `MusicProviderKind`: every
+    /// service here authenticates through a web sheet or a system prompt, and
+    /// one raised by a tap in another room is a question nobody is standing in
+    /// front of.
+    ///
+    /// - Returns: whether the service can play afterwards. `false` for Apple
+    ///   Music after a prompt that changed nothing means iOS has already been
+    ///   asked once and refused — only the Settings app can undo that, which is
+    ///   what the Camera's screen offers next.
     @discardableResult
-    func requestMusicAuthorization() async -> Bool {
-        guard let provider else { return false }
-        let availability = await provider.requestAuthorization()
+    func connect(_ kind: MusicProviderKind) async -> Bool {
+        guard let target = providers.first(where: { $0.kind == kind }) else { return false }
+        let availability = await target.requestAuthorization()
+
+        // A parent who has just connected an account meant to use it. Selecting
+        // it saves them a second trip to the Viewer to say so — and if it was
+        // the only one, this is what the Camera was going to pick anyway.
+        if target.isConnected { selectedKind = kind }
         await reload()
         return availability == .ready
     }
 
-    /// Switches which service the Camera plays from.
-    func select(provider kind: MusicProviderKind) async {
-        guard kind != selectedKind, providers.contains(where: { $0.kind == kind }) else { return }
-        await provider?.stop()
-        selectedKind = kind
+    /// Signs a music account out of this Camera.
+    ///
+    /// The music stops with it. `MusicProvider.signOut` is what actually ends
+    /// playback — it has to, because only it knows what a stop means for its own
+    /// service — and what is left here is the selection: a Camera whose selected
+    /// service has just been signed out has to fall back to one that can still
+    /// play, or the next Viewer to press play would reach nothing.
+    func disconnect(_ kind: MusicProviderKind) async {
+        guard let target = providers.first(where: { $0.kind == kind }) else { return }
+        await target.signOut()
+
+        if selectedKind == kind, let fallback = connectedProviders.first {
+            selectedKind = fallback.kind
+        }
         await reload()
+    }
+
+    /// Every service this build could offer, and where each one stands.
+    ///
+    /// Ordered by `MusicProviderKind.allCases` rather than by connection state,
+    /// so a list a parent has learned the shape of does not rearrange itself
+    /// under their thumb every time they sign something in.
+    var accounts: [MusicAccount] {
+        MusicProviderKind.allCases.compactMap { kind in
+            guard let provider = providers.first(where: { $0.kind == kind }) else { return nil }
+            return MusicAccount(
+                kind: kind,
+                isConnected: provider.isConnected,
+                // What "playing from" means when nothing is connected is
+                // nothing, so an unconnected service is never marked active
+                // however the stored selection reads.
+                isActive: provider.isConnected && self.provider?.kind == kind
+            )
+        }
     }
 
     // MARK: - Refresh
@@ -504,7 +586,11 @@ final class NurseryController {
         // `PlaylistShortlist` for why that order and not the other one.
         playlists = PlaylistShortlist.build(
             cameraRecents: recentsStore.load().summaries(
-                limitedTo: Set(providers.map { $0.kind })
+                // Connected services only. A playlist last played from an
+                // account that has since been signed out is not something the
+                // Camera could start tonight, and offering it would produce a
+                // row whose only outcome is silence.
+                limitedTo: Set(connectedProviders.map { $0.kind })
             ),
             recentlyPlayed: loaded.recentlyPlayed,
             favorites: loaded.favorites
@@ -526,7 +612,11 @@ final class NurseryController {
             ? systemRemote.isAvailable
             : provider?.canControlPlayback ?? false
 
-        guard let provider else {
+        // Nothing this build could offer at all — no service compiled in, no
+        // credentials for any of them. Deliberately distinct from "nothing
+        // connected yet", which names a service a parent *could* connect and
+        // reports an empty `availableProviders` beside it.
+        guard let reporting = reportingProvider else {
             state.music = MusicState(
                 provider: selectedKind,
                 availability: .notConfigured,
@@ -543,9 +633,9 @@ final class NurseryController {
             )
             return
         }
-        let availability = await provider.availability()
+        let availability = await reporting.availability()
         state.music = MusicState(
-            provider: provider.kind,
+            provider: reporting.kind,
             availability: availability,
             canControlPlayback: canControlPlayback,
             isPlaying: isPlaying,
@@ -554,9 +644,14 @@ final class NurseryController {
             volume: volume.canSetVolume ? volume.volume : nil,
             title: playing.title,
             artist: playing.artist,
-            playlistID: provider.currentPlaylistID,
+            // From the provider that can actually play, which is not always the
+            // one being described: a Camera with nothing connected has nothing
+            // loaded, whatever service it names.
+            playlistID: provider?.currentPlaylistID,
             playlists: playlists,
-            availableProviders: providers.map { $0.kind }
+            // The heart of what a Viewer is offered: the accounts a parent has
+            // connected on this phone, and nothing else.
+            availableProviders: connectedProviders.map { $0.kind }
         )
     }
 

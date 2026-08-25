@@ -194,13 +194,41 @@ public enum API {
             }
         }
 
+        /// Spotify's client id, on exactly the same terms as TIDAL's: public by
+        /// construction, and absent rather than blank when a deployment has
+        /// registered no Spotify application.
+        public struct Spotify: Codable, Equatable, Sendable {
+            public let clientID: String
+
+            public init(clientID: String) {
+                self.clientID = clientID
+            }
+
+            enum CodingKeys: String, CodingKey {
+                case clientID = "clientId"
+            }
+        }
+
         /// How long this may be cached before asking again.
         public let ttlSeconds: Int
         public let tidal: Tidal?
+        public let spotify: Spotify?
 
-        public init(ttlSeconds: Int, tidal: Tidal? = nil) {
+        public init(ttlSeconds: Int, tidal: Tidal? = nil, spotify: Spotify? = nil) {
             self.ttlSeconds = ttlSeconds
             self.tidal = tidal
+            self.spotify = spotify
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.ttlSeconds = try container.decode(Int.self, forKey: .ttlSeconds)
+            // Each service decoded independently and forgivingly. A malformed
+            // Spotify section must not cost a Camera the TIDAL id it has been
+            // playing from for months — and a deployment older than this field
+            // simply has none, which is the same as having no Spotify.
+            self.tidal = try? container.decodeIfPresent(Tidal.self, forKey: .tidal)
+            self.spotify = try? container.decodeIfPresent(Spotify.self, forKey: .spotify)
         }
     }
 

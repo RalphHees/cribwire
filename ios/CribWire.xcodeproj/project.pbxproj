@@ -18,10 +18,13 @@
 		1777443C93A5EDC7D5FF3455 /* AlertsControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */; };
 		1F134FF588AF337B56FC5777 /* NurseryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2334CE4099A16161760F45B9 /* NurseryTests.swift */; };
 		1FDB2A39C4CDB036F4EE554B /* PairingSecretsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5494D568D7D41D311E8C7457 /* PairingSecretsStore.swift */; };
+		28207185AAD61958AAD801A2 /* WebAuthenticationFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2EF5A8347789DCB5B843F75 /* WebAuthenticationFlow.swift */; };
+		29C4A58244E702F1B33F6491 /* SpotifyMusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945E8E2C73061367BF5D7309 /* SpotifyMusicProvider.swift */; };
 		30E2910F2471D3EFC627B2EA /* PairingSignalingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CEB8F8082C2F5106E7DAB64 /* PairingSignalingLink.swift */; };
 		31A7F57A19BA775354B9602D /* StreamingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048131BC64017E20397431AB /* StreamingTests.swift */; };
 		31FD81EDDCF48264D020AD81 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D2E7638B74F3FF3067608AB2 /* Assets.xcassets */; };
 		321D4AF47D486E6AD68CDF17 /* cribwire-v1.json in Resources */ = {isa = PBXBuildFile; fileRef = CDD874325F3DC50226416588 /* cribwire-v1.json */; };
+		39131241AAAFD6D3CEB1D2C5 /* MusicAccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F6058052394341E009FB4F0 /* MusicAccountsView.swift */; };
 		399762BCFFA86D8C7412CAE5 /* CribWireActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D340A459AF0177A95533CC4 /* CribWireActivityAttributes.swift */; };
 		3C6D08D7A72234131CEAAE3A /* SystemMusicRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CF2504A1782330BB24EB7A /* SystemMusicRemote.swift */; };
 		3E74681900C9A9F38B726AA4 /* CameraBackgroundSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E51DC6DED495FF681E1E1F /* CameraBackgroundSession.swift */; };
@@ -30,6 +33,7 @@
 		50ED10582991616A4F00F597 /* MusicRecentsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CEBBB0FEAF1CB86AAE225A9 /* MusicRecentsStore.swift */; };
 		51CC0EB9997D6286BA59C66A /* RemoteConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EFBFD2EED4595D9AFD20068 /* RemoteConfigurationStore.swift */; };
 		534D9CC7F29F91A3FEBFF99F /* CribWireLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7C744CAD09878329B76742A /* CribWireLiveActivity.swift */; };
+		56304E106BF51EA4493356AC /* DeviceNameStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45C490DB0D98B5F088C509FF /* DeviceNameStore.swift */; };
 		60EE65AA4E1A2377A5612BBD /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 210705C17F09F1C8B839F16E /* Components.swift */; };
 		6738AAA51A947F3D0B90D38E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 130D70AE04DB2EB49AD923CA /* Localizable.xcstrings */; };
 		6D259279CCA57623C03D642A /* CameraSensitivityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB4A27E54CDA952034715F84 /* CameraSensitivityStore.swift */; };
@@ -45,6 +49,7 @@
 		83CED7C639E675E8A01F56EC /* TidalMusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1F1A8424ABDB1C3C24802E /* TidalMusicProvider.swift */; };
 		8421970FA7A7FB361B1100BF /* TidalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0072B46BE14F93825920CF11 /* TidalSession.swift */; };
 		90AD3E9F50CFF4C368D6A6F2 /* SASConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014B9018A45B559D0F411117 /* SASConfirmationView.swift */; };
+		90B92A397CD6CE5005F5FE3F /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = B5D51668C6EA4CADAAD7DF98 /* SpotifyiOS */; };
 		922D16DB34A12D6CCE5FDAE9 /* SystemVolumeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A573DBD0C6937CD432CD6E51 /* SystemVolumeController.swift */; };
 		94B6DBFE143AE9EF30E76588 /* DetectionSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF61C405F3C3B740F018C7F /* DetectionSettingsStore.swift */; };
 		94BDFB693F337A7578571D02 /* LocalPairingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538522365CE1671F80557DD8 /* LocalPairingCoordinator.swift */; };
@@ -60,7 +65,9 @@
 		A3A8B1DA144EEB75C8CCCB9C /* HomeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8118E93530AD0476715A28 /* HomeViews.swift */; };
 		A9294E7881E4AC2C240711E0 /* LocalPeerTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1CC168C3F746C5DEC987A8D /* LocalPeerTransport.swift */; };
 		ADBFD7DAF3646A477B6D6B89 /* ViewerScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46C194775B7AF46C1CE35F8 /* ViewerScanView.swift */; };
+		B2409CF54D3076CD1768F7C3 /* ConnectedDevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B43851C17FEEA511B168D4 /* ConnectedDevicesView.swift */; };
 		B75C439E371ECB0E0807DF4B /* DetectionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD22DB95953EE3A36B821EAB /* DetectionSettingsView.swift */; };
+		B9A1370066FF24930EAD8206 /* SpotifyCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F1D66AC0DF2240CA5475978 /* SpotifyCatalog.swift */; };
 		BA403EEEF1353AC24590705C /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70485E5A464C87D0AA869EB3 /* AppConfiguration.swift */; };
 		BEAA96F474961E8F273863EE /* MusicProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41844D2454AB5F7639CDEC49 /* MusicProvider.swift */; };
 		C0BCBCDF1C0EA54F9807BC56 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = D3DB807445B46D28FDAE7D40 /* Auth */; };
@@ -68,6 +75,9 @@
 		C9ADCA9F9BD84662B65690E3 /* CribWireWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 92C4C3549B8729B246E1A02E /* CribWireWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D018625AF815444E860A0E6E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1B49B2E1F8F141CCF76E9B /* Theme.swift */; };
 		D18B9023F28320FEDAC03C59 /* DetectionSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2596F46E65EDAA1E23F35BF /* DetectionSettingsViewModel.swift */; };
+		DD6301FC546B43C085691566 /* DeviceNameCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB3E63456B1343A9B091FCB /* DeviceNameCard.swift */; };
+		E3402E1DD1ADD385C6781B0D /* MusicAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02063EBB8C960427FBAFB95E /* MusicAccount.swift */; };
+		E3B21C93391FF7FFD571A3F1 /* SpotifySession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7967E77946DB29F944719D /* SpotifySession.swift */; };
 		E414EEE6B44002D501DA8C19 /* CribWireApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F7F345197567E229AEE6D3 /* CribWireApp.swift */; };
 		E5F2867CE880436E3ACBCC41 /* ScreenCaptureProtection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C02CD746E4FA605A02EC51B /* ScreenCaptureProtection.swift */; };
 		E76676F46047B1F771FE5336 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */; };
@@ -120,11 +130,13 @@
 		0026C8F9C85642C47963767F /* CameraPairingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPairingViewModel.swift; sourceTree = "<group>"; };
 		0072B46BE14F93825920CF11 /* TidalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidalSession.swift; sourceTree = "<group>"; };
 		014B9018A45B559D0F411117 /* SASConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SASConfirmationView.swift; sourceTree = "<group>"; };
+		02063EBB8C960427FBAFB95E /* MusicAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAccount.swift; sourceTree = "<group>"; };
 		048131BC64017E20397431AB /* StreamingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTests.swift; sourceTree = "<group>"; };
 		0C02CD746E4FA605A02EC51B /* ScreenCaptureProtection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureProtection.swift; sourceTree = "<group>"; };
 		0CEB8F8082C2F5106E7DAB64 /* PairingSignalingLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSignalingLink.swift; sourceTree = "<group>"; };
 		0CEBBB0FEAF1CB86AAE225A9 /* MusicRecentsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicRecentsStore.swift; sourceTree = "<group>"; };
 		0EFBFD2EED4595D9AFD20068 /* RemoteConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConfigurationStore.swift; sourceTree = "<group>"; };
+		0F1D66AC0DF2240CA5475978 /* SpotifyCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyCatalog.swift; sourceTree = "<group>"; };
 		130D70AE04DB2EB49AD923CA /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		17176227CCEF4FBA1B6F457B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		17C113A01E6B64954AF0DE5D /* AudioInterruptionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioInterruptionMonitor.swift; sourceTree = "<group>"; };
@@ -139,12 +151,14 @@
 		3E0C05C27B1529DF1D07E53F /* WebRTCStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCStack.swift; sourceTree = "<group>"; };
 		41844D2454AB5F7639CDEC49 /* MusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicProvider.swift; sourceTree = "<group>"; };
 		41CD3A420C36A9183A681943 /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
+		45C490DB0D98B5F088C509FF /* DeviceNameStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameStore.swift; sourceTree = "<group>"; };
 		47E75044C49E33EB5EE8D8D1 /* CameraPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPairingView.swift; sourceTree = "<group>"; };
-		4C3949594ABA35389F7FF6E2 /* CribWireKit */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CribWireKit; sourceTree = SOURCE_ROOT; };
+		4C3949594ABA35389F7FF6E2 /* CribWireKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CribWireKit; path = CribWireKit; sourceTree = SOURCE_ROOT; };
 		4E6C2E57C43C60B916C97B37 /* LumaFrameExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LumaFrameExtractor.swift; sourceTree = "<group>"; };
 		4ECDC27E0C6E064796ED91BA /* CribWire.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CribWire.entitlements; sourceTree = "<group>"; };
 		538522365CE1671F80557DD8 /* LocalPairingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPairingCoordinator.swift; sourceTree = "<group>"; };
 		5494D568D7D41D311E8C7457 /* PairingSecretsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSecretsStore.swift; sourceTree = "<group>"; };
+		5B7967E77946DB29F944719D /* SpotifySession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifySession.swift; sourceTree = "<group>"; };
 		65EDC8FC55B35888487A73C0 /* QRCodeRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeRenderer.swift; sourceTree = "<group>"; };
 		69DF0C7AD93B423D8E602D47 /* NurseryControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NurseryControlsView.swift; sourceTree = "<group>"; };
 		6C898CAA3A69AF8A7380CF7F /* StreamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingEngine.swift; sourceTree = "<group>"; };
@@ -157,9 +171,11 @@
 		8BD6F94910A5ECF240621526 /* AppLayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLayerTests.swift; sourceTree = "<group>"; };
 		8C765864CC197DFDDF55B9C6 /* SensitivityControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensitivityControlsView.swift; sourceTree = "<group>"; };
 		8E1413B194806564E09A2CF1 /* AppleMusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicProvider.swift; sourceTree = "<group>"; };
+		8F6058052394341E009FB4F0 /* MusicAccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicAccountsView.swift; sourceTree = "<group>"; };
 		92C4C3549B8729B246E1A02E /* CribWireWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CribWireWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		93E51DC6DED495FF681E1E1F /* CameraBackgroundSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraBackgroundSession.swift; sourceTree = "<group>"; };
 		941317194A6B555F77E8CA83 /* NetworkPathMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkPathMonitor.swift; sourceTree = "<group>"; };
+		945E8E2C73061367BF5D7309 /* SpotifyMusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyMusicProvider.swift; sourceTree = "<group>"; };
 		97E33A0F11A1BAE903222692 /* PairedDevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairedDevicesView.swift; sourceTree = "<group>"; };
 		9C1F1A8424ABDB1C3C24802E /* TidalMusicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TidalMusicProvider.swift; sourceTree = "<group>"; };
 		A4D342A35642A709B59D5840 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
@@ -168,6 +184,7 @@
 		A9A8F76F8B7770CFE1779514 /* PushNotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationCoordinator.swift; sourceTree = "<group>"; };
 		AE9E93FE735505130BB918DA /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		AE9FF7EA653DFF1D89997299 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		B1B43851C17FEEA511B168D4 /* ConnectedDevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedDevicesView.swift; sourceTree = "<group>"; };
 		B1CC168C3F746C5DEC987A8D /* LocalPeerTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPeerTransport.swift; sourceTree = "<group>"; };
 		B35ECCBEEB19514950FDE59B /* CameraCaptureController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCaptureController.swift; sourceTree = "<group>"; };
 		B37790A1BCC12609F80A7B3C /* EventNotificationDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventNotificationDecoder.swift; sourceTree = "<group>"; };
@@ -180,8 +197,9 @@
 		D2E7638B74F3FF3067608AB2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		D46C194775B7AF46C1CE35F8 /* ViewerScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewerScanView.swift; sourceTree = "<group>"; };
 		D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsControlsView.swift; sourceTree = "<group>"; };
+		E2EF5A8347789DCB5B843F75 /* WebAuthenticationFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationFlow.swift; sourceTree = "<group>"; };
 		E96BDB312DFB474C51A1E702 /* CameraStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraStatusView.swift; sourceTree = "<group>"; };
-		E9F2318ED98E1005A061D891 /* CribWire.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CribWire.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9F2318ED98E1005A061D891 /* CribWire.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CribWire.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA51949C8A9DA9D78698BBF2 /* RoleSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoleSelectionView.swift; sourceTree = "<group>"; };
 		EC8118E93530AD0476715A28 /* HomeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViews.swift; sourceTree = "<group>"; };
 		F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -191,6 +209,7 @@
 		FB4A27E54CDA952034715F84 /* CameraSensitivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraSensitivityStore.swift; sourceTree = "<group>"; };
 		FD22DB95953EE3A36B821EAB /* DetectionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionSettingsView.swift; sourceTree = "<group>"; };
 		FF6BC90E8FEECE9A8CD0E28C /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		FFB3E63456B1343A9B091FCB /* DeviceNameCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceNameCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -204,6 +223,7 @@
 				A151236D3648575B9C189CF3 /* Player in Frameworks */,
 				FA81BCE148307D62299F70CF /* EventProducer in Frameworks */,
 				0159CC428162C3D59DCCE393 /* TidalAPI in Frameworks */,
+				90B92A397CD6CE5005F5FE3F /* SpotifyiOS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -268,6 +288,7 @@
 				F0DE0ACF390FAB8B5A926F6B /* AppDelegate.swift */,
 				1860B164ABABCA62C64DC893 /* AppServices.swift */,
 				27F7F345197567E229AEE6D3 /* CribWireApp.swift */,
+				45C490DB0D98B5F088C509FF /* DeviceNameStore.swift */,
 				7F54D8108D7A047F04DA16C6 /* MicrophoneAccess.swift */,
 				A6401961C808AFE0D53A8274 /* PairingRegistry.swift */,
 				0EFBFD2EED4595D9AFD20068 /* RemoteConfigurationStore.swift */,
@@ -280,16 +301,22 @@
 			children = (
 				D72C5B5E650BBBA545395A92 /* AlertsControlsView.swift */,
 				8E1413B194806564E09A2CF1 /* AppleMusicProvider.swift */,
+				02063EBB8C960427FBAFB95E /* MusicAccount.swift */,
+				8F6058052394341E009FB4F0 /* MusicAccountsView.swift */,
 				41844D2454AB5F7639CDEC49 /* MusicProvider.swift */,
 				0CEBBB0FEAF1CB86AAE225A9 /* MusicRecentsStore.swift */,
 				BD3FB23CB7A54D092FF88428 /* NurseryController.swift */,
 				69DF0C7AD93B423D8E602D47 /* NurseryControlsView.swift */,
 				8C765864CC197DFDDF55B9C6 /* SensitivityControlsView.swift */,
+				0F1D66AC0DF2240CA5475978 /* SpotifyCatalog.swift */,
+				945E8E2C73061367BF5D7309 /* SpotifyMusicProvider.swift */,
+				5B7967E77946DB29F944719D /* SpotifySession.swift */,
 				81CF2504A1782330BB24EB7A /* SystemMusicRemote.swift */,
 				A573DBD0C6937CD432CD6E51 /* SystemVolumeController.swift */,
 				28B8E845C0C729BC52A8EB9D /* TidalCatalog.swift */,
 				9C1F1A8424ABDB1C3C24802E /* TidalMusicProvider.swift */,
 				0072B46BE14F93825920CF11 /* TidalSession.swift */,
+				E2EF5A8347789DCB5B843F75 /* WebAuthenticationFlow.swift */,
 			);
 			path = Nursery;
 			sourceTree = "<group>";
@@ -454,6 +481,8 @@
 		F37C9F1F5FA2DD2BFA478A19 /* Pairings */ = {
 			isa = PBXGroup;
 			children = (
+				B1B43851C17FEEA511B168D4 /* ConnectedDevicesView.swift */,
+				FFB3E63456B1343A9B091FCB /* DeviceNameCard.swift */,
 				97E33A0F11A1BAE903222692 /* PairedDevicesView.swift */,
 			);
 			path = Pairings;
@@ -530,6 +559,7 @@
 				00269FA16D88D237DEFE4A7B /* Player */,
 				3F7DD5B4CD9165EAE771F685 /* EventProducer */,
 				7C488BD16A0EDA438EF7B97E /* TidalAPI */,
+				B5D51668C6EA4CADAAD7DF98 /* SpotifyiOS */,
 			);
 			productName = CribWire;
 			productReference = E9F2318ED98E1005A061D891 /* CribWire.app */;
@@ -569,6 +599,7 @@
 			mainGroup = AF889F4DB6B6E6C81EB7C3CF;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				C2CC4877B9EDD6A3B8C013EF /* XCRemoteSwiftPackageReference "ios-sdk" */,
 				ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */,
 				907B176C976B3E532173EB08 /* XCRemoteSwiftPackageReference "WebRTC" */,
 				08C765DB5AB087038BBB42D6 /* XCLocalSwiftPackageReference "CribWireKit" */,
@@ -636,12 +667,15 @@
 				6D259279CCA57623C03D642A /* CameraSensitivityStore.swift in Sources */,
 				A08480FBD1FA5B43185930AE /* CameraStatusView.swift in Sources */,
 				60EE65AA4E1A2377A5612BBD /* Components.swift in Sources */,
+				B2409CF54D3076CD1768F7C3 /* ConnectedDevicesView.swift in Sources */,
 				1592F978A1FA9D6EE8EF202E /* CribWireActivityAttributes.swift in Sources */,
 				E414EEE6B44002D501DA8C19 /* CribWireApp.swift in Sources */,
 				07342ABFCC7EC36B01A9EDFD /* DetectionCoordinator.swift in Sources */,
 				94B6DBFE143AE9EF30E76588 /* DetectionSettingsStore.swift in Sources */,
 				B75C439E371ECB0E0807DF4B /* DetectionSettingsView.swift in Sources */,
 				D18B9023F28320FEDAC03C59 /* DetectionSettingsViewModel.swift in Sources */,
+				DD6301FC546B43C085691566 /* DeviceNameCard.swift in Sources */,
+				56304E106BF51EA4493356AC /* DeviceNameStore.swift in Sources */,
 				7461842A1D6CC1D763E62F6E /* EventNotificationDecoder.swift in Sources */,
 				A3A8B1DA144EEB75C8CCCB9C /* HomeViews.swift in Sources */,
 				EF22DFA6E9DDEDE3D78AAC8F /* KeychainStore.swift in Sources */,
@@ -650,6 +684,8 @@
 				A9294E7881E4AC2C240711E0 /* LocalPeerTransport.swift in Sources */,
 				EEF99E02A13974AF34B92B80 /* LumaFrameExtractor.swift in Sources */,
 				7E2E82B5475296097CA8119A /* MicrophoneAccess.swift in Sources */,
+				E3402E1DD1ADD385C6781B0D /* MusicAccount.swift in Sources */,
+				39131241AAAFD6D3CEB1D2C5 /* MusicAccountsView.swift in Sources */,
 				BEAA96F474961E8F273863EE /* MusicProvider.swift in Sources */,
 				50ED10582991616A4F00F597 /* MusicRecentsStore.swift in Sources */,
 				F687549749D348F8093FB243 /* NetworkPathMonitor.swift in Sources */,
@@ -668,6 +704,9 @@
 				90AD3E9F50CFF4C368D6A6F2 /* SASConfirmationView.swift in Sources */,
 				E5F2867CE880436E3ACBCC41 /* ScreenCaptureProtection.swift in Sources */,
 				7C3690FC4E57B3EE75AF42F1 /* SensitivityControlsView.swift in Sources */,
+				B9A1370066FF24930EAD8206 /* SpotifyCatalog.swift in Sources */,
+				29C4A58244E702F1B33F6491 /* SpotifyMusicProvider.swift in Sources */,
+				E3B21C93391FF7FFD571A3F1 /* SpotifySession.swift in Sources */,
 				F911E9604A522FBC5C8FDF69 /* StreamingEngine.swift in Sources */,
 				3C6D08D7A72234131CEAAE3A /* SystemMusicRemote.swift in Sources */,
 				922D16DB34A12D6CCE5FDAE9 /* SystemVolumeController.swift in Sources */,
@@ -679,6 +718,7 @@
 				F3B957B4572666829579A452 /* ViewerLiveView.swift in Sources */,
 				C4510C6718EA97DF13B12F5C /* ViewerPairingViewModel.swift in Sources */,
 				ADBFD7DAF3646A477B6D6B89 /* ViewerScanView.swift in Sources */,
+				28207185AAD61958AAD801A2 /* WebAuthenticationFlow.swift in Sources */,
 				9DC754A831B21188753AD922 /* WebRTCStack.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -745,7 +785,7 @@
 				COPY_PHASE_STRIP = NO;
 				CRIBWIRE_API_BASE_URL = "https://apicribwire.ralphhees.nl";
 				CRIBWIRE_APS_ENVIRONMENT = production;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = NRV7K64R87;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -847,7 +887,7 @@
 				COPY_PHASE_STRIP = NO;
 				CRIBWIRE_API_BASE_URL = "https://apicribwire.ralphhees.nl";
 				CRIBWIRE_APS_ENVIRONMENT = development;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 8;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = NRV7K64R87;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -891,7 +931,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CribWire/CribWire.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = CribWire/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -944,7 +983,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CribWire/CribWire.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 8;
 				INFOPLIST_FILE = CribWire/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1015,6 +1053,15 @@
 				minimumVersion = 120.0.0;
 			};
 		};
+		C2CC4877B9EDD6A3B8C013EF /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spotify/ios-sdk";
+			requirement = {
+				kind = versionRange;
+				maximumVersion = 6.0.0;
+				minimumVersion = 5.0.1;
+			};
+		};
 		ED3EC5EF30DB5798D22F8EB8 /* XCRemoteSwiftPackageReference "tidal-sdk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/tidal-music/tidal-sdk-ios";
@@ -1054,6 +1101,11 @@
 		95A5FAD3A7E8D969719457D4 /* CribWireKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CribWireKit;
+		};
+		B5D51668C6EA4CADAAD7DF98 /* SpotifyiOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C2CC4877B9EDD6A3B8C013EF /* XCRemoteSwiftPackageReference "ios-sdk" */;
+			productName = SpotifyiOS;
 		};
 		D3DB807445B46D28FDAE7D40 /* Auth */ = {
 			isa = XCSwiftPackageProductDependency;
