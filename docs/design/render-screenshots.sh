@@ -1,16 +1,22 @@
 #!/bin/sh
 # Render the mockups in app-screens.html to PNGs in screenshots/.
 #
-# Every per-screen PNG comes out at a size App Store Connect accepts for an
-# iPhone screenshot, so the same files are both the design reference and the
-# masters uploaded with the listing:
+# Every per-screen PNG comes out at a size App Store Connect accepts, so the
+# same files are both the design reference and the masters uploaded with the
+# listing. The app ships for iPhone and iPad (TARGETED_DEVICE_FAMILY 1,2), and
+# the store asks for a set per device:
 #
-#     --display 6.5   414x896pt at 3x  ->  1242x2688   (default)
-#     --display 6.7   428x926pt at 3x  ->  1284x2778
+#     --display 6.5    414x896pt  at 3x  ->  1242x2688   iPhone (default)
+#     --display 6.7    428x926pt  at 3x  ->  1284x2778   iPhone
+#     --display 12.9  1024x1366pt at 2x  ->  2048x2732   iPad Pro 12.9"
+#     --display 13    1032x1376pt at 2x  ->  2064x2752   iPad Pro 13"
 #
-# The size is not a flag passed to the browser alone: it is the --shot-w and
-# --shot-h custom properties in app-screens.html, which the phone frame is
-# drawn from, so the mockup you see in a browser is the pixel grid that ships.
+# The size is not a flag passed to the browser alone: it is the custom
+# properties in app-screens.html that the device frame is drawn from, so the
+# mockup you see in a browser is the pixel grid that ships. The iPad runs also
+# set --col-max, which caps and centres the content column at 560pt the way
+# Theme.Metrics.readableWidth does in the app, leaving video full-bleed. iPad
+# shots land in screenshots/ipad/ so they do not overwrite the iPhone set.
 #
 # Two things are checked, because there are two ways to get this wrong. Every
 # PNG written is measured against the accepted list, so an off-size file App
@@ -21,9 +27,9 @@
 # no measurement of the file would find.
 #
 # Usage:
-#     ./render-screenshots.sh                 # all screens, 6.5"
-#     ./render-screenshots.sh --display 6.7   # all screens, 6.7"
-#     ./render-screenshots.sh --only s9       # one screen
+#     ./render-screenshots.sh                  # all screens, iPhone 6.5"
+#     ./render-screenshots.sh --display 12.9   # all screens, iPad 12.9"
+#     ./render-screenshots.sh --only s9        # one screen
 #     CHROME=/path/to/chrome ./render-screenshots.sh
 #
 # No dependency beyond a Chrome or Chromium binary.
@@ -32,27 +38,43 @@ set -eu
 cd "$(dirname "$0")"
 
 SOURCE=app-screens.html
-OUT=screenshots
+OUT=
 DISPLAY_SIZE=6.5
 ONLY=
-
-# App Store Connect's accepted iPhone screenshot sizes, portrait and landscape.
-ACCEPTED='1242x2688 2688x1242 1284x2778 2778x1284'
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --display) DISPLAY_SIZE=$2; shift 2 ;;
     --out) OUT=$2; shift 2 ;;
     --only) ONLY=$2; shift 2 ;;
-    -h|--help) sed -n '2,29p' "$0" | cut -c3-; exit 0 ;;
+    -h|--help) sed -n '2,36p' "$0" | cut -c3-; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
 case "$DISPLAY_SIZE" in
-  6.5) SHOT_W=414; SHOT_H=896 ;;   # 1242x2688
-  6.7) SHOT_W=428; SHOT_H=926 ;;   # 1284x2778
-  *) echo "--display must be 6.5 or 6.7, got: $DISPLAY_SIZE" >&2; exit 2 ;;
+  6.5)  FAMILY=iphone; SHOT_W=414;  SHOT_H=896;  SCALE=3 ;;   # 1242x2688
+  6.7)  FAMILY=iphone; SHOT_W=428;  SHOT_H=926;  SCALE=3 ;;   # 1284x2778
+  12.9) FAMILY=ipad;   SHOT_W=1024; SHOT_H=1366; SCALE=2 ;;   # 2048x2732
+  13)   FAMILY=ipad;   SHOT_W=1032; SHOT_H=1376; SCALE=2 ;;   # 2064x2752
+  *)
+    echo "--display must be 6.5, 6.7, 12.9 or 13, got: $DISPLAY_SIZE" >&2
+    exit 2 ;;
+esac
+
+# Per family: the sizes App Store Connect accepts (portrait and landscape), the
+# device-shaped variables the sheet is drawn from, and where the set lands.
+case $FAMILY in
+  iphone)
+    ACCEPTED='1242x2688 2688x1242 1284x2778 2778x1284'
+    DEVICE_VARS=''
+    : "${OUT:=screenshots}" ;;
+  ipad)
+    ACCEPTED='2064x2752 2752x2064 2048x2732 2732x2048'
+    # No Dynamic Island, a shorter status bar, a gentler corner, and the
+    # readable column the app caps its content at on a regular-width screen.
+    DEVICE_VARS='--shot-radius:34px;--status-h:30px;--status-pad:6px;--top-inset:52px;--island-display:none;--col-max:560px;'
+    : "${OUT:=screenshots/ipad}" ;;
 esac
 
 # The full browser and the headless shell disagree in some Chromium builds: the
@@ -133,7 +155,7 @@ shoot() {
   # board left visible and the page furniture — padding, headings, notes —
   # taken out, so the viewport holds nothing but the screen itself.
   sed "s|</head>|<style>\
-:root{--shot-w:${SHOT_W}px;--shot-h:${SHOT_H}px}\
+:root{--shot-w:${SHOT_W}px;--shot-h:${SHOT_H}px;${DEVICE_VARS}}\
 body{padding:0;display:block;background:var(--bg)}\
 ${extra_css}\
 </style></head>|" "$SOURCE" > "$page"
@@ -167,7 +189,7 @@ s7:7-camera-alerts s8:8-viewer-home s9:9-viewer-live s10:10-room-controls
 s11:11-playlist-picker s12:12-paired-devices s13:13-lockscreen'
 
 mkdir -p "$OUT"
-expected="$((SHOT_W * 3))x$((SHOT_H * 3))"
+expected="$((SHOT_W * SCALE))x$((SHOT_H * SCALE))"
 echo "Rendering ${DISPLAY_SIZE}\" screenshots (${expected}) with $CHROME_BIN"
 check_viewport
 
@@ -177,7 +199,7 @@ for screen in $SCREENS; do
   if [ -n "$ONLY" ] && [ "$ONLY" != "$id" ]; then continue; fi
   # Square corners and no bezel: a store screenshot is the screen, edge to
   # edge. The rounded frame stays in the sheet, where it reads as a device.
-  shoot "$id" "$OUT/$name.png" "$SHOT_W" "$SHOT_H" 3 \
+  shoot "$id" "$OUT/$name.png" "$SHOT_W" "$SHOT_H" "$SCALE" \
     ".board{display:none}.board:has(#$id){display:block}\
 .board h2,.board .note{display:none}\
 .phone{border-radius:0;box-shadow:none}"
@@ -187,7 +209,8 @@ done
 # The overview is a contact sheet for the design doc, not a store upload, so it
 # is rendered at 1x with the device frames left on and is not size-checked. Its
 # box is the thirteen boards plus the 60px page padding, gaps and headings.
-if [ -z "$ONLY" ]; then
+# Phone-only: thirteen iPads in a row is 14000px of mostly empty column.
+if [ -z "$ONLY" ] && [ "$FAMILY" = iphone ]; then
   shoot overview "$OUT/0-app-overview.png" \
     "$((120 + 13 * SHOT_W + 12 * 60))" "$((120 + SHOT_H + 34))" 1 \
     "body{padding:60px;display:flex;flex-wrap:nowrap;gap:60px;align-items:flex-start}\
