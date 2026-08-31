@@ -16,6 +16,8 @@ noise or movement.
 | [docs/specs/backend.md](docs/specs/backend.md) | Zero-knowledge backend: signaling, TURN relay, push delivery, API, data model |
 | [docs/specs/security.md](docs/specs/security.md) | QR pairing protocol, key derivation, E2E stream encryption, threat model |
 | [docs/TASKS.md](docs/TASKS.md) | Phased task list with milestones |
+| [LICENSE](LICENSE) | Usage terms — source-available, no copying/redistribution/forking |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to submit PRs and support requests |
 
 ## Development agents
 

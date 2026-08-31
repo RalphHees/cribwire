@@ -1,0 +1,81 @@
+CribWire Source-Available License
+
+Copyright (c) 2026 Ralph Hees. All rights reserved.
+
+1. Definitions
+
+"Software" means the source code, object code, documentation, and other
+files contained in this repository.
+
+"You" means the individual or entity exercising any of the permissions
+granted below.
+
+2. Permitted Uses
+
+Subject to the restrictions in Section 3, You are permitted to:
+
+  a. View, read, and study the Software for personal, educational, or
+     evaluative purposes.
+
+  b. Run the Software locally, unmodified or modified, solely for the
+     purpose of preparing a contribution back to this repository (see
+     Section 4) or for personal, non-distributed use.
+
+  c. Submit bug reports, support requests, and pull requests against this
+     repository.
+
+3. Restrictions
+
+Except as expressly permitted in Section 2, You may NOT, without prior
+written permission from the copyright holder:
+
+  a. Copy, reproduce, or redistribute the Software, in whole or in part,
+     in source or compiled/binary form, to any other person or through
+     any other channel (including but not limited to app stores, package
+     registries, file-sharing services, or other code repositories).
+
+  b. Fork, clone, or otherwise create a separate copy of the Software for
+     the purpose of building, packaging, distributing, publishing, or
+     operating a derivative application, service, or product — whether
+     or not it is modified, renamed, or offered for free or for a fee.
+
+  c. Sell, sublicense, rent, lease, or otherwise make the Software or any
+     derivative of it available to third parties.
+
+  d. Remove or alter any copyright, trademark, or other proprietary
+     notices contained in the Software.
+
+4. Contributions
+
+Contributions submitted to this repository via pull request are welcome
+and encouraged. By submitting a pull request, You agree that Your
+contribution is licensed to the copyright holder under the same terms as
+this Software, and may be incorporated, modified, and distributed as
+part of the Software at the copyright holder's discretion. Submitting a
+pull request does not grant You any additional rights to copy, redistribute,
+or fork the Software beyond what is stated in Section 2.
+
+5. Support Requests
+
+Questions, bug reports, and support requests may be filed as issues in
+this repository. Filing such a request does not grant any license beyond
+Section 2.
+
+6. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY
+ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+7. Termination
+
+Any use of the Software in violation of Section 3 automatically
+terminates the permissions granted in Section 2, without notice.
+
+8. Contact
+
+For licensing inquiries beyond the scope of this license, contact the
+copyright holder at info@ralphhees.nl.
