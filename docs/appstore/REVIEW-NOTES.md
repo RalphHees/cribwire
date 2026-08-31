@@ -78,15 +78,45 @@ purchases, no third-party advertising.
 
 ### Screenshots
 
-The live-view screenshots must not show a real, identifiable child. Use a doll, a
-pet, or an empty cot. Required set:
+**Two sets are required, iPhone and iPad**, because the app ships for both
+(`TARGETED_DEVICE_FAMILY: "1,2"`). App Store Connect rejects any other size at
+upload rather than resizing it:
 
-1. Role selection ("Secure babyphone next to your crib")
-2. Camera showing the pairing QR
-3. The six-digit confirmation on both devices
-4. Viewer live view with the connection indicator
-5. Alert settings, showing both detectors off by default
-6. A notification on the lock screen
+| Slot | Portrait | Landscape | Max |
+|------|----------|-----------|-----|
+| iPhone 6.5" / 6.7" | 1242 × 2688 or 1284 × 2778 | 2688 × 1242 or 2778 × 1284 | 10 |
+| iPad 12.9" / 13" | 2048 × 2732 or 2064 × 2752 | 2732 × 2048 or 2752 × 2064 | 10 |
+
+The rendered mockups can be uploaded as they are:
+[`docs/design/screenshots/`](../design/screenshots/) is the iPhone set at
+1242 × 2688 and [`docs/design/screenshots/ipad/`](../design/screenshots/ipad/)
+is the iPad set at 2048 × 2732. `docs/design/render-screenshots.sh --display`
+takes `6.5`, `6.7`, `12.9` or `13` if a slot wants one of the other sizes.
+
+Real device captures are the alternative — an iPhone 11 Pro Max or XS Max
+captures at 1242 × 2688, an iPhone 12/13/14 Plus or Pro Max at 1284 × 2778, an
+iPad Pro 12.9" at 2048 × 2732 and the M4 13" at 2064 × 2752. Do not scale a
+capture from another device up or down to reach those numbers: it lands soft,
+and Apple sees it.
+
+The live-view screenshots must not show a real, identifiable child. Use a doll, a
+pet, or an empty cot. Required set, with the mockup that matches each — the same
+six in both slots, since the iPad renders are the same screens:
+
+1. Role selection ("Secure babyphone next to your crib") — `1-role-selection`
+2. Camera showing the pairing QR — `3-pairing-qr`
+3. The six-digit confirmation on both devices — `5-pairing-confirm`
+4. Viewer live view with the connection indicator — `9-viewer-live`
+5. Alert settings, showing both detectors off by default — `7-camera-alerts`
+6. A notification on the lock screen — `13-lockscreen`
+
+Thirteen screens are rendered but at most ten may be uploaded per slot, so the
+remaining seven are reference, not a queue to work through.
+
+The iPad shots are not stretched phone screens: they show what the app actually
+does on a regular-width screen — content capped at `Theme.Metrics.readableWidth`
+and centred, video full-bleed. A reviewer comparing the listing to the build
+will see the same layout.
 
 ### Localization
 
@@ -111,5 +141,7 @@ it turns a multi-day round trip into a same-day one.
 - [ ] `DEVELOPMENT_TEAM` and the bundle id are the real ones, not the placeholders in `ios/project.yml`
 - [ ] Export-compliance answer confirmed with counsel (`PRIVACY-LABELS.md`)
 - [ ] Privacy labels entered as "Data Not Collected" across every category
+- [ ] iPhone screenshots are 1242 × 2688 / 2688 × 1242 or 1284 × 2778 / 2778 × 1284
+- [ ] iPad screenshots are 2048 × 2732 / 2732 × 2048 or 2064 × 2752 / 2752 × 2064
 - [ ] Two-device demo video uploaded or linked in the review notes
 - [ ] Tested on the oldest supported OS (iOS 26) as well as the newest

@@ -10,6 +10,23 @@
     --accent:#ff9e80; --on-accent:#3a1408;
     --accent2:#8e9bff; --on-accent2:#131735;
     --live:#5ad7a0; --warn:#ffd166; --danger:#e04444;
+
+    /* Screenshot canvas, in points, plus everything about the sheet that is
+       device-shaped. 414x896 at a device scale factor of 3 is 1242x2688 — an
+       App Store Connect iPhone size; 428x926 at 3 is the other one. The iPad
+       sizes come from overriding this block wholesale, which is what
+       render-screenshots.sh does per --display. Nothing here is hard-coded
+       anywhere else in the sheet, so one set of boards renders on both. */
+    --shot-w:414px; --shot-h:896px; --shot-radius:55px;
+    --status-h:58px; --status-pad:14px; --top-inset:74px;
+    --island-display:block;
+    /* How wide a column of text or controls gets, applied as side padding by
+       --gutter below. Wider than any phone here, so it never bites on one;
+       560px on an iPad, matching `Theme.Metrics.readableWidth` — the app
+       centres its content there rather than stretching a two-sentence security
+       note into one very long line (`docs/TASKS.md` Phase 5, iPad). Video is
+       exempt: it stays full-bleed, as it does in the app. */
+    --col-max:9999px;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{
@@ -19,18 +36,19 @@
   }
   .board{display:flex;flex-direction:column;gap:14px}
   .board h2{font-size:15px;font-weight:600;color:#8b93ad;letter-spacing:.06em;text-transform:uppercase}
-  .board .note{font-size:12.5px;color:#6b7290;max-width:390px;line-height:1.5}
+  .board .note{font-size:12.5px;color:#6b7290;max-width:var(--shot-w);line-height:1.5}
 
   /* ---------- phone frame ---------- */
   .phone{
-    width:390px;height:844px;border-radius:55px;position:relative;overflow:hidden;
+    width:var(--shot-w);height:var(--shot-h);border-radius:var(--shot-radius);position:relative;overflow:hidden;
     background:var(--bg);
     box-shadow:0 0 0 12px #16181f, 0 0 0 14px #2a2d38, 0 40px 80px rgba(0,0,0,.6);
   }
-  .island{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  /* An iPad has no Dynamic Island, so --island-display takes it out there. */
+  .island{display:var(--island-display);position:absolute;top:12px;left:50%;transform:translateX(-50%);
     width:122px;height:36px;border-radius:20px;background:#000;z-index:50}
-  .statusbar{position:absolute;top:0;left:0;right:0;height:58px;z-index:40;
-    display:flex;justify-content:space-between;align-items:center;padding:14px 34px 0}
+  .statusbar{position:absolute;top:0;left:0;right:0;height:var(--status-h);z-index:40;
+    display:flex;justify-content:space-between;align-items:center;padding:var(--status-pad) 34px 0}
   .statusbar .time{font-size:16px;font-weight:600}
   .sicons{display:flex;gap:7px;align-items:center}
   .cell{display:flex;gap:2px;align-items:flex-end}
@@ -39,7 +57,12 @@
   .batt{width:26px;height:13px;border:1.5px solid currentColor;border-radius:4px;position:relative;opacity:.95}
   .batt::after{content:"";position:absolute;right:-4px;top:3.5px;width:2px;height:5px;background:currentColor;border-radius:1px}
   .batt i{position:absolute;left:1.5px;top:1.5px;bottom:1.5px;width:70%;background:currentColor;border-radius:2px}
-  .screen{position:absolute;inset:0;padding:74px 26px 30px;display:flex;flex-direction:column}
+  /* Side padding that never goes below the screen's own gutter and grows to
+     centre a --col-max column once the device is wider than that. */
+  .screen,.sheet,.livectl{padding-left:max(var(--gutter),(100% - var(--col-max))/2);
+    padding-right:max(var(--gutter),(100% - var(--col-max))/2)}
+  .screen{position:absolute;inset:0;--gutter:26px;
+    padding-top:var(--top-inset);padding-bottom:30px;display:flex;flex-direction:column}
   .homebar{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);
     width:140px;height:5px;border-radius:3px;background:#fff;opacity:.35;z-index:50}
 
@@ -148,14 +171,15 @@
   .grain{position:absolute;left:0;right:0;top:0;bottom:177px;opacity:.5;
     background-image:radial-gradient(rgba(255,255,255,.045) .6px, transparent .7px);
     background-size:5px 5px}
-  .navbar{position:absolute;left:0;right:0;top:58px;height:44px;z-index:20;
+  .navbar{position:absolute;left:0;right:0;top:var(--status-h);height:44px;z-index:20;
     display:flex;align-items:center;justify-content:space-between;padding:0 18px;
     background:rgba(15,18,32,.92)}
   .navbar .nb{color:var(--accent2);font-size:16px}
   .navbar .nt{font-size:17px;font-weight:600}
   .navbar .trail{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
   .livectl{position:absolute;left:0;right:0;bottom:0;z-index:20;background:var(--bg);
-    padding:18px 26px 34px;display:flex;flex-direction:column;gap:12px}
+    --gutter:26px;padding-top:18px;padding-bottom:34px;
+    display:flex;flex-direction:column;gap:12px}
   .talk{border-radius:16px;padding:14px;text-align:center;font-size:17px;font-weight:600;
     background:var(--surface);color:var(--text)}
   .talk.on{background:var(--accent);color:var(--on-accent)}
@@ -175,6 +199,9 @@
   .nowplaying .a{font-size:12px;color:var(--muted);margin-top:2px}
   .cardnote{font-size:12px;color:var(--muted);line-height:1.45;margin-top:10px}
   .sheetgrab{width:36px;height:5px;border-radius:3px;background:#454c6b;margin:8px auto 0}
+  .sheet{position:absolute;left:0;right:0;bottom:0;top:calc(var(--status-h) + 18px);
+    background:var(--bg);border-radius:14px 14px 0 0;z-index:20;overflow:hidden;
+    --gutter:20px;padding-top:0;padding-bottom:20px}
 
   /* ---------- playlist picker ---------- */
   .plrow{display:flex;align-items:center;gap:12px;background:var(--surface);border-radius:16px;padding:14px}
@@ -586,8 +613,7 @@ one-handed, in the dark, half awake.</p>
       <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
       <span class="batt"><i style="width:45%"></i></span></span>
   </div>
-  <div style="position:absolute;left:0;right:0;bottom:0;top:76px;background:var(--bg);
-              border-radius:14px 14px 0 0;z-index:20;padding:0 20px 20px;overflow:hidden">
+  <div class="sheet">
     <div class="sheetgrab"></div>
     <div class="row" style="margin:14px 2px 16px">
       <span style="width:44px"></span>
@@ -687,7 +713,7 @@ curator’s name for something chosen in the dark.</p>
       <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
       <span class="batt"><i style="width:45%"></i></span></span>
   </div>
-  <div class="screen" style="padding:74px 20px 30px">
+  <div class="screen" style="--gutter:20px">
     <div class="row" style="margin-bottom:20px">
       <span style="width:44px"></span>
       <span style="font-size:17px;font-weight:600">Playlists</span>
@@ -783,7 +809,7 @@ child is being monitored. Neither carries what was detected.</p>
       <span class="wifi"><svg width="18" height="14" viewBox="0 0 20 15" fill="currentColor"><path d="M10 15l3-3.6a5 5 0 00-6 0L10 15zM4.7 9.1a8 8 0 0110.6 0l2.1-2.5a11 11 0 00-14.8 0l2.1 2.5z"/></svg></span>
       <span class="batt"><i style="width:45%"></i></span></span>
   </div>
-  <div class="screen lock" style="padding:74px 18px 30px">
+  <div class="screen lock" style="--gutter:18px">
     <svg style="margin:0 auto" width="22" height="30" viewBox="0 0 24 24" fill="none" stroke="#c9cee2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
     <div class="locktime">
       <div class="d">Tuesday, 11 August</div>
