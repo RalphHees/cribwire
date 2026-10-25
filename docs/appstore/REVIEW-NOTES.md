@@ -140,6 +140,9 @@ it turns a multi-day round trip into a same-day one.
 - [ ] `aps-environment` is `production` in the release configuration
 - [ ] `DEVELOPMENT_TEAM` and the bundle id are the real ones, not the placeholders in `ios/project.yml`
 - [ ] Export-compliance answer confirmed with counsel (`PRIVACY-LABELS.md`)
+- [ ] French encryption declaration filed with ANSSI and its receipt, plus the
+      signed `CribWire-French-Encryption-Declaration.pdf`, uploaded under Export
+      Compliance
 - [ ] Privacy labels entered as "Data Not Collected" across every category
 - [ ] iPhone screenshots are 1242 × 2688 / 2688 × 1242 or 1284 × 2778 / 2778 × 1284
 - [ ] iPad screenshots are 2048 × 2732 / 2732 × 2048 or 2064 × 2752 / 2752 × 2064
